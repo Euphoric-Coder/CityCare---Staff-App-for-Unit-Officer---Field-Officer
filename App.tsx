@@ -1,14 +1,252 @@
-import { ScreenContent } from 'components/ScreenContent';
-import { StatusBar } from 'expo-status-bar';
-
-import './global.css';
+import React, { useState, useEffect } from 'react';
+import { View, ActivityIndicator } from 'react-native';
+import { NavigationContainer } from '@react-navigation/native';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { Home, ListTodo, MessageSquare, BarChart3, User as UserIcon } from 'lucide-react-native';
+
+import SignInScreen from './components/SignInScreen';
+import UnitOfficerDashboard from 'screens/UnitOfficerDashboard';
+import IssueDetailScreen from 'screens/IssueDetailScreen';
+import AnalyticsTab from './screens/AnalyticsTab';
+import MessagesTab from './components/MessagesTab';
+import FieldDashboardScreen from './components/FieldDashboardScreen';
+import FieldIssueDetailScreen from 'screens/FieldIssueDetailScreen';
+import FieldProfileTab from 'screens/FieldProfileTab';
+import FieldAnalyticsTab from 'screens/FieldAnalyticsTab';
+import { getToken, getUserData, User } from './lib/auth';
+import './global.css';
+import ProfileTab from 'screens/ProfileTab';
+
+const Tab = createBottomTabNavigator();
+const Stack = createNativeStackNavigator();
+
+// Unit Officer Stacks
+function DashboardStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="DashboardHome" component={UnitOfficerDashboard} />
+      <Stack.Screen name="IssueDetail" component={IssueDetailScreen} />
+    </Stack.Navigator>
+  );
+}
+
+function QueueStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="QueueList" component={UnitOfficerDashboard} />
+      <Stack.Screen name="IssueDetail" component={IssueDetailScreen} />
+    </Stack.Navigator>
+  );
+}
+
+// Field Officer Stacks
+function FieldDashboardStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="FieldDashboardHome" component={FieldDashboardScreen} />
+      <Stack.Screen name="FieldIssueDetail" component={FieldIssueDetailScreen} />
+    </Stack.Navigator>
+  );
+}
+
+function FieldQueueStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="FieldQueueList" component={FieldDashboardScreen} />
+      <Stack.Screen name="FieldIssueDetail" component={FieldIssueDetailScreen} />
+    </Stack.Navigator>
+  );
+}
+
+interface TabNavigatorProps {
+  user: User;
+  onSignOut: () => void;
+}
+
+function UnitOfficerTabNavigator({ user, onSignOut }: TabNavigatorProps) {
+  return (
+    <Tab.Navigator
+      screenOptions={{
+        headerShown: false,
+        tabBarActiveTintColor: '#0EA5A4',
+        tabBarInactiveTintColor: '#94A3B8',
+        tabBarStyle: {
+          backgroundColor: '#FFFFFF',
+          borderTopWidth: 1,
+          borderTopColor: '#E2E8F0',
+          paddingBottom: 8,
+          paddingTop: 8,
+          height: 70,
+        },
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: '600',
+        },
+      }}>
+      <Tab.Screen
+        name="Dashboard"
+        component={DashboardStack}
+        options={{
+          tabBarIcon: ({ color, size }) => <Home size={size} color={color} />,
+        }}
+      />
+      <Tab.Screen
+        name="Queue"
+        component={QueueStack}
+        options={{
+          tabBarIcon: ({ color, size }) => <ListTodo size={size} color={color} />,
+        }}
+      />
+      <Tab.Screen
+        name="Messages"
+        component={MessagesTab}
+        options={{
+          tabBarIcon: ({ color, size }) => <MessageSquare size={size} color={color} />,
+          tabBarBadge: 2,
+        }}
+      />
+      <Tab.Screen
+        name="Analytics"
+        component={AnalyticsTab}
+        options={{
+          tabBarIcon: ({ color, size }) => <BarChart3 size={size} color={color} />,
+        }}
+      />
+      <Tab.Screen
+        name="Profile"
+        options={{
+          tabBarIcon: ({ color, size }) => <UserIcon size={size} color={color} />,
+        }}>
+        {() => <ProfileTab user={user} onSignOut={onSignOut} />}
+      </Tab.Screen>
+    </Tab.Navigator>
+  );
+}
+
+function FieldOfficerTabNavigator({ user, onSignOut }: TabNavigatorProps) {
+  return (
+    <Tab.Navigator
+      screenOptions={{
+        headerShown: false,
+        tabBarActiveTintColor: '#0EA5A4',
+        tabBarInactiveTintColor: '#94A3B8',
+        tabBarStyle: {
+          backgroundColor: '#FFFFFF',
+          borderTopWidth: 1,
+          borderTopColor: '#E2E8F0',
+          paddingBottom: 8,
+          paddingTop: 8,
+          height: 70,
+        },
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: '600',
+        },
+      }}>
+      <Tab.Screen
+        name="My Tasks"
+        component={FieldDashboardStack}
+        options={{
+          tabBarIcon: ({ color, size }) => <ListTodo size={size} color={color} />,
+        }}
+      />
+      <Tab.Screen
+        name="Messages"
+        component={MessagesTab}
+        options={{
+          tabBarIcon: ({ color, size }) => <MessageSquare size={size} color={color} />,
+          tabBarBadge: 2,
+        }}
+      />
+      <Tab.Screen
+        name="Profile"
+        options={{
+          tabBarIcon: ({ color, size }) => <UserIcon size={size} color={color} />,
+        }}>
+        {() => (
+          <FieldProfileTab
+            profile={{
+              name: user.name,
+              ward: 'Ward 12 - South Zone',
+              phone: '+91 98765 43210',
+              email: user.email,
+              rating: 4.8,
+              total_resolved: 156,
+            }}
+            darkMode={false}
+            onToggleDarkMode={() => {}}
+            onLogout={onSignOut}
+          />
+        )}
+      </Tab.Screen>
+    </Tab.Navigator>
+  );
+}
 
 export default function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    checkAuthStatus();
+  }, []);
+
+  const checkAuthStatus = async () => {
+    try {
+      const token = await getToken();
+      const userData = await getUserData();
+
+      if (token && userData) {
+        setUser(userData);
+        setIsAuthenticated(true);
+      }
+    } catch (error) {
+      console.error('Error checking auth status:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSignIn = (userData: User) => {
+    setUser(userData);
+    setIsAuthenticated(true);
+  };
+
+  const handleSignOut = () => {
+    setUser(null);
+    setIsAuthenticated(false);
+  };
+
+  if (loading) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: '#F0FDFA',
+        }}>
+        <ActivityIndicator size="large" color="#0EA5A4" />
+      </View>
+    );
+  }
+
   return (
     <SafeAreaProvider>
-      <ScreenContent title="Home" path="App.tsx"></ScreenContent>
-      <StatusBar style="auto" />
+      {isAuthenticated && user ? (
+        <NavigationContainer>
+          {user.role === 'Field Officer' ? (
+            <FieldOfficerTabNavigator user={user} onSignOut={handleSignOut} />
+          ) : (
+            <UnitOfficerTabNavigator user={user} onSignOut={handleSignOut} />
+          )}
+        </NavigationContainer>
+      ) : (
+        <SignInScreen onSignIn={handleSignIn} />
+      )}
     </SafeAreaProvider>
   );
 }

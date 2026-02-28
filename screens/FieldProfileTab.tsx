@@ -9,6 +9,9 @@ import {
   Switch,
 } from 'react-native';
 import { User, MapPin, Phone, Mail, Star, LogOut, Moon, Info } from 'lucide-react-native';
+import { Alert, ActivityIndicator } from 'react-native';
+import { useState } from 'react';
+import { removeToken } from '../lib/auth';
 
 interface OfficerProfile {
   name: string;
@@ -32,6 +35,37 @@ export default function FieldProfileTab({
   onToggleDarkMode,
   onLogout,
 }: FieldProfileTabProps) {
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  const handleLogout = () => {
+    Alert.alert(
+      'Sign Out',
+      'Are you sure you want to logout?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Logout',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setLoggingOut(true);
+
+              // Remove token from SecureStore
+              await removeToken();
+
+              // Call parent redirect
+              onLogout();
+            } catch (error) {
+              Alert.alert('Error', 'Logout failed. Please try again.');
+            } finally {
+              setLoggingOut(false);
+            }
+          },
+        },
+      ],
+      { cancelable: true }
+    );
+  };
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -139,9 +173,19 @@ export default function FieldProfileTab({
           </View>
         </View>
 
-        <TouchableOpacity style={styles.logoutButton} onPress={onLogout} activeOpacity={0.7}>
-          <LogOut color="#DC2626" size={20} strokeWidth={2.5} />
-          <Text style={styles.logoutText}>Logout</Text>
+        <TouchableOpacity
+          style={[styles.logoutButton, loggingOut && { opacity: 0.7 }]}
+          onPress={handleLogout}
+          activeOpacity={0.7}
+          disabled={loggingOut}>
+          {loggingOut ? (
+            <ActivityIndicator color="#DC2626" />
+          ) : (
+            <>
+              <LogOut color="#DC2626" size={20} strokeWidth={2.5} />
+              <Text style={styles.logoutText}>Logout</Text>
+            </>
+          )}
         </TouchableOpacity>
 
         <View style={styles.footer}>

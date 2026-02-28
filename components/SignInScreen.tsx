@@ -10,6 +10,7 @@ import {
   ScrollView,
   StyleSheet,
   Animated,
+  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
@@ -76,6 +77,8 @@ export default function SignInScreen({ onSignIn }: SignInScreenProps) {
 
       const response = await mockVerifyUser({ email, password, role: selectedRole });
 
+      console.log('Authentication response:', response);
+
       await saveToken(response.token);
       await saveUserData(response.user);
 
@@ -136,16 +139,16 @@ export default function SignInScreen({ onSignIn }: SignInScreenProps) {
                 },
               ]}>
               <View className="mb-8 items-center">
-                <View className="relative mb-6">
-                  <LinearGradient
-                    colors={['#10b981', '#059669', '#047857']}
-                    style={styles.logoGradient}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}>
-                    <Building2 color="#ffffff" size={44} strokeWidth={2.5} />
-                  </LinearGradient>
-                  <View style={styles.logoCheckmark}>
-                    <CheckCircle color="#ffffff" size={18} fill="#10b981" />
+                <View className="mb-6 flex items-center justify-center">
+                  <View
+                    className="rounded-full border 
+               border-white/20 bg-white/10 p-4 
+               backdrop-blur-sm dark:border-gray-700 dark:bg-gray-900/30">
+                    <Image
+                      source={require('../assets/logo.png')} // adjust path if needed
+                      className="h-[70px] w-[70px]"
+                      resizeMode="contain"
+                    />
                   </View>
                 </View>
 

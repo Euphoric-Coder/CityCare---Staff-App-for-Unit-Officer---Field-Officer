@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Switch, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Switch, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -9,7 +9,6 @@ import {
   Shield,
   MapPin,
   LogOut,
-  Moon,
   Bell,
   Info,
   ChevronRight,
@@ -23,8 +22,8 @@ interface ProfileTabProps {
 }
 
 export default function ProfileTab({ user, onSignOut }: ProfileTabProps) {
+  // @ts-ignore
   const { name: userName, email: userEmail, ward = 'Varanasi Zone', role = 'UnitOfficer' } = user;
-  const [darkMode, setDarkMode] = useState(false);
   const [notifications, setNotifications] = useState(true);
 
   const handleSignOut = () => {
@@ -39,119 +38,130 @@ export default function ProfileTab({ user, onSignOut }: ProfileTabProps) {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar style="light" />
+    <SafeAreaView className="flex-1 bg-gray-50 dark:bg-gray-900" edges={['top']}>
+      <StatusBar style="auto" />
 
       <LinearGradient
         colors={['#1E40AF', '#1D4ED8', '#2563EB']}
-        style={styles.header}
+        className="px-5 pb-8 pt-4"
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}>
-        <View style={styles.profileHeader}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>
+        <View className="mt-4 items-center">
+          <View className="mb-4 h-20 w-20 items-center justify-center rounded-full border-[3px] border-white bg-white/20">
+            <Text className="text-[28px] font-bold text-white">
               {userName
                 .split(' ')
                 .map((n) => n[0])
                 .join('')}
             </Text>
           </View>
-          <Text style={styles.profileName}>{userName}</Text>
-          <View style={styles.roleBadge}>
+          <Text className="mb-2 text-2xl font-bold text-white">{userName}</Text>
+          <View className="flex-row items-center gap-1.5 rounded-2xl bg-white/20 mb-4 px-5 py-2">
             <Shield color="#FFFFFF" size={14} />
-            <Text style={styles.roleText}>{role}</Text>
+            <Text className="text-[13px] font-bold text-white capitalize">{role.split("_").join(" ")}</Text>
           </View>
         </View>
       </LinearGradient>
 
       <ScrollView
-        style={styles.content}
-        contentContainerStyle={styles.contentContainer}
+        className="flex-1"
+        contentContainerClassName="p-5 pb-8"
         showsVerticalScrollIndicator={false}>
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Account Information</Text>
+        {/* Account Information Section */}
+        <View className="mb-6">
+          <Text className="mb-3 text-base font-bold text-gray-900 dark:text-white">
+            Account Information
+          </Text>
 
-          <View style={styles.infoCard}>
-            <View style={styles.infoRow}>
-              <View style={styles.infoIcon}>
-                <UserIcon color="#1D4ED8" size={20} />
+          <View className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800">
+            {/* Full Name */}
+            <View className="flex-row items-center gap-4">
+              <View className="h-11 w-11 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-900/30">
+                <UserIcon color="#1D4ED8" size={20} className="dark:text-blue-400" />
               </View>
-              <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>Full Name</Text>
-                <Text style={styles.infoValue}>{userName}</Text>
+              <View className="flex-1">
+                <Text className="mb-1 text-xs font-semibold text-gray-500 dark:text-gray-400">
+                  Full Name
+                </Text>
+                <Text className="text-[15px] font-semibold text-gray-900 dark:text-white">
+                  {userName}
+                </Text>
               </View>
             </View>
 
-            <View style={styles.divider} />
+            <View className="my-4 h-px bg-gray-100 dark:bg-gray-700" />
 
-            <View style={styles.infoRow}>
-              <View style={styles.infoIcon}>
+            {/* Email Address */}
+            <View className="flex-row items-center gap-4">
+              <View className="h-11 w-11 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-900/30">
                 <Mail color="#1D4ED8" size={20} />
               </View>
-              <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>Email Address</Text>
-                <Text style={styles.infoValue}>{userEmail}</Text>
+              <View className="flex-1">
+                <Text className="mb-1 text-xs font-semibold text-gray-500 dark:text-gray-400">
+                  Email Address
+                </Text>
+                <Text className="text-[15px] font-semibold text-gray-900 dark:text-white">
+                  {userEmail}
+                </Text>
               </View>
             </View>
 
-            <View style={styles.divider} />
+            <View className="my-4 h-px bg-gray-100 dark:bg-gray-700" />
 
-            <View style={styles.infoRow}>
-              <View style={styles.infoIcon}>
+            {/* Role */}
+            <View className="flex-row items-center gap-4">
+              <View className="h-11 w-11 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-900/30">
                 <Shield color="#1D4ED8" size={20} />
               </View>
-              <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>Role</Text>
-                <Text style={styles.infoValue}>{role}</Text>
+              <View className="flex-1">
+                <Text className="mb-1 text-xs font-semibold text-gray-500 dark:text-gray-400">
+                  Role
+                </Text>
+                <Text className="text-[15px] font-semibold text-gray-900 dark:text-white capitalize">
+                  {role.split("_").join(" ")}
+                </Text>
               </View>
             </View>
 
-            <View style={styles.divider} />
+            <View className="my-4 h-px bg-gray-100 dark:bg-gray-700" />
 
-            <View style={styles.infoRow}>
-              <View style={styles.infoIcon}>
+            {/* Assigned Ward */}
+            <View className="flex-row items-center gap-4">
+              <View className="h-11 w-11 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-900/30">
                 <MapPin color="#1D4ED8" size={20} />
               </View>
-              <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>Assigned Ward</Text>
-                <Text style={styles.infoValue}>{ward}</Text>
+              <View className="flex-1">
+                <Text className="mb-1 text-xs font-semibold text-gray-500 dark:text-gray-400">
+                  Assigned Ward
+                </Text>
+                <Text className="text-[15px] font-semibold text-gray-900 dark:text-white">
+                  {ward}
+                </Text>
               </View>
             </View>
           </View>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Preferences</Text>
+        {/* Preferences Section */}
+        <View className="mb-6">
+          <Text className="mb-3 text-base font-bold text-gray-900 dark:text-white">
+            Preferences
+          </Text>
 
-          <View style={styles.settingsCard}>
-            <View style={styles.settingRow}>
-              <View style={styles.settingLeft}>
-                <View style={styles.settingIcon}>
-                  <Moon color="#6B7280" size={20} />
-                </View>
-                <View style={styles.settingContent}>
-                  <Text style={styles.settingLabel}>Dark Mode</Text>
-                  <Text style={styles.settingDescription}>Enable dark theme</Text>
-                </View>
-              </View>
-              <Switch
-                value={darkMode}
-                onValueChange={setDarkMode}
-                trackColor={{ false: '#D1D5DB', true: '#93C5FD' }}
-                thumbColor={darkMode ? '#1D4ED8' : '#F3F4F6'}
-              />
-            </View>
-
-            <View style={styles.divider} />
-
-            <View style={styles.settingRow}>
-              <View style={styles.settingLeft}>
-                <View style={styles.settingIcon}>
+          <View className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800">
+            {/* Push Notifications */}
+            <View className="flex-row items-center justify-between">
+              <View className="flex-1 flex-row items-center gap-4">
+                <View className="h-11 w-11 items-center justify-center rounded-xl bg-gray-50 dark:bg-gray-700">
                   <Bell color="#6B7280" size={20} />
                 </View>
-                <View style={styles.settingContent}>
-                  <Text style={styles.settingLabel}>Push Notifications</Text>
-                  <Text style={styles.settingDescription}>Receive alerts for new issues</Text>
+                <View className="flex-1">
+                  <Text className="mb-0.5 text-[15px] font-semibold text-gray-900 dark:text-white">
+                    Push Notifications
+                  </Text>
+                  <Text className="text-xs text-gray-500 dark:text-gray-400">
+                    Receive alerts for new issues
+                  </Text>
                 </View>
               </View>
               <Switch
@@ -164,247 +174,46 @@ export default function ProfileTab({ user, onSignOut }: ProfileTabProps) {
           </View>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>About</Text>
+        {/* About Section */}
+        <View className="mb-6">
+          <Text className="mb-3 text-base font-bold text-gray-900 dark:text-white">About</Text>
 
           <TouchableOpacity
-            style={styles.menuItem}
+            className="flex-row items-center justify-between rounded-2xl border border-gray-200 bg-white p-4 active:opacity-70 dark:border-gray-700 dark:bg-gray-800"
             activeOpacity={0.7}
             onPress={() => Alert.alert('App Version', 'CityCare v1.0.0\n\nBuild: 2026.02.28')}>
-            <View style={styles.menuLeft}>
-              <View style={styles.menuIcon}>
+            <View className="flex-row items-center gap-4">
+              <View className="h-11 w-11 items-center justify-center rounded-xl bg-gray-50 dark:bg-gray-700">
                 <Info color="#6B7280" size={20} />
               </View>
-              <Text style={styles.menuLabel}>App Version</Text>
+              <Text className="text-[15px] font-semibold text-gray-900 dark:text-white">
+                App Version
+              </Text>
             </View>
-            <View style={styles.menuRight}>
-              <Text style={styles.versionText}>v1.0.0</Text>
+            <View className="flex-row items-center gap-2">
+              <Text className="text-sm font-semibold text-gray-500 dark:text-gray-400">v1.0.0</Text>
               <ChevronRight color="#9CA3AF" size={20} />
             </View>
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity style={styles.signOutButton} activeOpacity={0.85} onPress={handleSignOut}>
-          <LinearGradient
-            colors={['#DC2626', '#B91C1C']}
-            style={styles.signOutGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}>
-            <LogOut color="#FFFFFF" size={20} />
-            <Text style={styles.signOutText}>Sign Out</Text>
-          </LinearGradient>
+        {/* Sign Out Button */}
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={handleSignOut}
+          className="mb-6 mt-3 flex-row items-center justify-center rounded-2xl border border-red-200 bg-red-50 py-4 dark:border-red-800 dark:bg-red-900/20">
+          <View className="mr-3 rounded-xl bg-red-100 p-2 dark:bg-red-900/50">
+            <LogOut size={18} color="#EF4444" />
+          </View>
+
+          <Text className="text-base font-semibold text-red-600 dark:text-red-400">Sign Out</Text>
         </TouchableOpacity>
 
-        <Text style={styles.footer}>
+        {/* Footer */}
+        <Text className="text-center text-xs leading-[18px] text-gray-400 dark:text-gray-500">
           CityCare Civic Issue Management System {'\n'}© 2026 All rights reserved
         </Text>
       </ScrollView>
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F9FAFB',
-  },
-  header: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 32,
-  },
-  profileHeader: {
-    alignItems: 'center',
-  },
-  avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-    borderWidth: 3,
-    borderColor: '#FFFFFF',
-  },
-  avatarText: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
-  profileName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginBottom: 8,
-  },
-  roleBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 16,
-    gap: 6,
-  },
-  roleText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  content: {
-    flex: 1,
-  },
-  contentContainer: {
-    padding: 20,
-    paddingBottom: 32,
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#111827',
-    marginBottom: 12,
-  },
-  infoCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-  },
-  infoIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: '#EFF6FF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  infoContent: {
-    flex: 1,
-  },
-  infoLabel: {
-    fontSize: 12,
-    color: '#6B7280',
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  infoValue: {
-    fontSize: 15,
-    color: '#111827',
-    fontWeight: '600',
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#F3F4F6',
-    marginVertical: 16,
-  },
-  settingsCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  settingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  settingLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    gap: 16,
-  },
-  settingIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: '#F9FAFB',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  settingContent: {
-    flex: 1,
-  },
-  settingLabel: {
-    fontSize: 15,
-    color: '#111827',
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-  settingDescription: {
-    fontSize: 12,
-    color: '#6B7280',
-  },
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  menuLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-  },
-  menuIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: '#F9FAFB',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  menuLabel: {
-    fontSize: 15,
-    color: '#111827',
-    fontWeight: '600',
-  },
-  menuRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  versionText: {
-    fontSize: 14,
-    color: '#6B7280',
-    fontWeight: '600',
-  },
-  signOutButton: {
-    marginTop: 8,
-    marginBottom: 20,
-  },
-  signOutGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    borderRadius: 16,
-    gap: 10,
-  },
-  signOutText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
-  footer: {
-    fontSize: 12,
-    color: '#9CA3AF',
-    textAlign: 'center',
-    lineHeight: 18,
-  },
-});

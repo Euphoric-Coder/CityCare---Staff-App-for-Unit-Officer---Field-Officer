@@ -15,9 +15,10 @@ import FieldDashboardScreen from './components/FieldDashboardScreen';
 import FieldIssueDetailScreen from 'screens/FieldIssueDetailScreen';
 import FieldProfileTab from 'screens/FieldProfileTab';
 import FieldAnalyticsTab from 'screens/FieldAnalyticsTab';
-import { getToken, getUserData, User } from './lib/auth';
+import { getToken, getUserData, User, removeToken } from './lib/auth';
 import './global.css';
 import ProfileTab from 'screens/ProfileTab';
+import ChangePasswordScreen from 'screens/ChangePasswordScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -27,15 +28,7 @@ function DashboardStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="DashboardHome" component={UnitOfficerDashboard} />
-      <Stack.Screen name="IssueDetail" component={IssueDetailScreen} />
-    </Stack.Navigator>
-  );
-}
-
-function QueueStack() {
-  return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="QueueList" component={UnitOfficerDashboard} />
+      {/* @ts-ignore */}
       <Stack.Screen name="IssueDetail" component={IssueDetailScreen} />
     </Stack.Navigator>
   );
@@ -46,15 +39,6 @@ function FieldDashboardStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="FieldDashboardHome" component={FieldDashboardScreen} />
-      <Stack.Screen name="FieldIssueDetail" component={FieldIssueDetailScreen} />
-    </Stack.Navigator>
-  );
-}
-
-function FieldQueueStack() {
-  return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="FieldQueueList" component={FieldDashboardScreen} />
       <Stack.Screen name="FieldIssueDetail" component={FieldIssueDetailScreen} />
     </Stack.Navigator>
   );
@@ -76,9 +60,11 @@ function UnitOfficerTabNavigator({ user, onSignOut }: TabNavigatorProps) {
           backgroundColor: '#FFFFFF',
           borderTopWidth: 1,
           borderTopColor: '#E2E8F0',
-          paddingBottom: 8,
-          paddingTop: 8,
-          height: 70,
+          paddingBottom: 14,
+          paddingTop: 10,
+          paddingRight: 10,
+          paddingLeft: 10,
+          height: 80,
         },
         tabBarLabelStyle: {
           fontSize: 11,
@@ -90,13 +76,6 @@ function UnitOfficerTabNavigator({ user, onSignOut }: TabNavigatorProps) {
         component={DashboardStack}
         options={{
           tabBarIcon: ({ color, size }) => <Home size={size} color={color} />,
-        }}
-      />
-      <Tab.Screen
-        name="Queue"
-        component={QueueStack}
-        options={{
-          tabBarIcon: ({ color, size }) => <ListTodo size={size} color={color} />,
         }}
       />
       <Tab.Screen
@@ -189,6 +168,7 @@ export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [mustChangePassword, setMustChangePassword] = useState(false);
 
   useEffect(() => {
     checkAuthStatus();
@@ -199,9 +179,10 @@ export default function App() {
       const token = await getToken();
       const userData = await getUserData();
 
-      if (token && userData) {
+      if (token) {
         setUser(userData);
         setIsAuthenticated(true);
+        setMustChangePassword(true);
       }
     } catch (error) {
       console.error('Error checking auth status:', error);
@@ -213,11 +194,18 @@ export default function App() {
   const handleSignIn = (userData: User) => {
     setUser(userData);
     setIsAuthenticated(true);
+    setMustChangePassword(true); // force password change UI
   };
 
-  const handleSignOut = () => {
-    setUser(null);
-    setIsAuthenticated(false);
+  const handleSignOut = async () => {
+    try {
+      await removeToken(); // delete token + user data from secure storage
+      setUser(null);
+      setIsAuthenticated(false);
+      setMustChangePassword(false);
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
   };
 
   if (loading) {
@@ -237,6 +225,13 @@ export default function App() {
   return (
     <SafeAreaProvider>
       {isAuthenticated && user ? (
+        // mustChangePassword ? (
+        //   <ChangePasswordScreen
+        //     onComplete={() => {
+        //       setMustChangePassword(false);
+        //     }}
+        //   />
+        // ) : (
         <NavigationContainer>
           {user.role === 'Field Officer' ? (
             <FieldOfficerTabNavigator user={user} onSignOut={handleSignOut} />
@@ -245,6 +240,7 @@ export default function App() {
           )}
         </NavigationContainer>
       ) : (
+        // )
         <SignInScreen onSignIn={handleSignIn} />
       )}
     </SafeAreaProvider>

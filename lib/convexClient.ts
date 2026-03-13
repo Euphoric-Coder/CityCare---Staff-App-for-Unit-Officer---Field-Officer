@@ -27,9 +27,7 @@ export interface AuthResponse {
  */
 export async function verifyUser(credentials: LoginCredentials): Promise<AuthResponse> {
   try {
-    // Call Convex mutation to verify user credentials
-    // Note: You need to create this mutation in your Convex backend
-    const result = await convex.mutation(api.auth.verifyUser, {
+    const result = await convex.action(api.auth.verifyUser, {
       email: credentials.email,
       password: credentials.password,
     });

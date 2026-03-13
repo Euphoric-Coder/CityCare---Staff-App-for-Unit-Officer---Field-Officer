@@ -105,25 +105,24 @@ export default function UnitOfficerDashboard({
         </View>
       </LinearGradient>
 
-      <View style={styles.searchContainer}>
-        <View style={styles.searchBox}>
-          <Search color="#9CA3AF" size={20} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search issues..."
-            placeholderTextColor="#9CA3AF"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-        </View>
-      </View>
-
-      <FilterBar selectedStatus={selectedStatus} onStatusChange={setSelectedStatus} />
-
       <ScrollView
         style={styles.content}
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}>
+        <View style={styles.searchContainer}>
+          <View style={styles.searchBox}>
+            <Search color="#9CA3AF" size={20} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search issues..."
+              placeholderTextColor="#9CA3AF"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+          </View>
+        </View>
+
+        <FilterBar selectedStatus={selectedStatus} onStatusChange={setSelectedStatus} />
         <View style={styles.issuesHeader}>
           <Text style={styles.issuesTitle}>
             {selectedStatus === 'All' ? 'All Issues' : selectedStatus}

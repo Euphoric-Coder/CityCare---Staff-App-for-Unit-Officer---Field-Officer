@@ -179,6 +179,9 @@ export default function App() {
       const token = await getToken();
       const userData = await getUserData();
 
+      console.log(token);
+      console.log(userData);
+
       if (token) {
         setUser(userData);
         setIsAuthenticated(true);
@@ -233,7 +236,7 @@ export default function App() {
         //   />
         // ) : (
         <NavigationContainer>
-          {user.role === 'Field Officer' ? (
+          {user.role === 'field_officer' ? (
             <FieldOfficerTabNavigator user={user} onSignOut={handleSignOut} />
           ) : (
             <UnitOfficerTabNavigator user={user} onSignOut={handleSignOut} />

@@ -61,6 +61,7 @@ export default function FieldDashboardScreen() {
       Alert.alert('Error', 'Invalid issue data');
       return;
     }
+    // @ts-ignore
     navigation.navigate('FieldIssueDetail' as never, { issue } as never);
   };
 
@@ -68,26 +69,26 @@ export default function FieldDashboardScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <FieldOfficerDashboard
-        officerName="Rajesh Kumar"
-        ward="Ward 12 - South Zone"
-        isOnline={true}
-        stats={mockStats}
-        onNotificationPress={handleNotificationPress}
-        onRefresh={handleRefresh}
-        refreshing={refreshing}
-      />
-      <View style={styles.issuesSection}>
-        <SimpleFilterBar
-          filters={filters}
-          selectedFilter={selectedFilter}
-          onFilterChange={setSelectedFilter}
+      <ScrollView
+        style={styles.issuesList}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
+        contentContainerStyle={filteredIssues.length === 0 ? styles.emptyContent : undefined}>
+        <FieldOfficerDashboard
+          officerName="Rajesh Kumar"
+          ward="Ward 12 - South Zone"
+          isOnline={true}
+          stats={mockStats}
+          onNotificationPress={handleNotificationPress}
+          onRefresh={handleRefresh}
+          refreshing={refreshing}
         />
-        <ScrollView
-          style={styles.issuesList}
-          showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
-          contentContainerStyle={filteredIssues.length === 0 ? styles.emptyContent : undefined}>
+        <View style={styles.issuesSection}>
+          <SimpleFilterBar
+            filters={filters}
+            selectedFilter={selectedFilter}
+            onFilterChange={setSelectedFilter}
+          />
           {filteredIssues.length > 0 ? (
             filteredIssues.map((issue) => (
               <FieldIssueCard
@@ -106,8 +107,8 @@ export default function FieldDashboardScreen() {
               </Text>
             </View>
           )}
-        </ScrollView>
-      </View>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }

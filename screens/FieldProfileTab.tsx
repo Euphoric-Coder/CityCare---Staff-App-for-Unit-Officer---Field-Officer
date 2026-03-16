@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -7,11 +7,38 @@ import {
   StyleSheet,
   SafeAreaView,
   Switch,
+  Alert,
+  useColorScheme,
 } from 'react-native';
-import { User, MapPin, Phone, Mail, Star, LogOut, Moon, Info } from 'lucide-react-native';
-import { Alert, ActivityIndicator } from 'react-native';
-import { useState } from 'react';
+import { LinearGradient } from 'expo-linear-gradient';
+import {
+  User,
+  MapPin,
+  Phone,
+  Mail,
+  Star,
+  LogOut,
+  Moon,
+  Info,
+  Shield,
+  TrendingUp,
+  Clock,
+  CircleCheck as CheckCircle,
+  Award,
+  Zap,
+  ChevronRight,
+  Activity,
+  Target,
+  Calendar,
+} from 'lucide-react-native';
 import { removeToken } from '../lib/auth';
+
+interface FieldProfileTabProps {
+  profile: OfficerProfile;
+  darkMode: boolean;
+  onToggleDarkMode: (value: boolean) => void;
+  onLogout: () => void;
+}
 
 interface OfficerProfile {
   name: string;
@@ -25,17 +52,176 @@ interface OfficerProfile {
 interface FieldProfileTabProps {
   profile: OfficerProfile;
   darkMode: boolean;
-  onToggleDarkMode: (value: boolean) => void;
+  onToggleisDark: (value: boolean) => void;
   onLogout: () => void;
 }
 
-export default function FieldProfileTab({
-  profile,
-  darkMode,
-  onToggleDarkMode,
-  onLogout,
-}: FieldProfileTabProps) {
+function PerformanceRing({
+  value,
+  max,
+  color,
+  size = 64,
+}: {
+  value: number;
+  max: number;
+  color: string;
+  size?: number;
+}) {
+  const percentage = Math.min((value / max) * 100, 100);
+  const radius = (size - 10) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const filled = (percentage / 100) * circumference;
+
+  return (
+    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+      <View
+        style={{
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          borderWidth: 5,
+          borderColor: color + '22',
+          alignItems: 'center',
+          justifyContent: 'center',
+          position: 'absolute',
+        }}
+      />
+      <View
+        style={{
+          width: size - 10,
+          height: size - 10,
+          borderRadius: (size - 10) / 2,
+          borderWidth: 5,
+          borderColor: color,
+          borderTopColor: 'transparent',
+          borderRightColor: percentage > 50 ? color : 'transparent',
+          alignItems: 'center',
+          justifyContent: 'center',
+          transform: [{ rotate: '-90deg' }],
+          position: 'absolute',
+        }}
+      />
+    </View>
+  );
+}
+
+function StatCard({
+  icon,
+  value,
+  label,
+  color,
+  bgColor,
+}: {
+  icon: React.ReactNode;
+  value: string;
+  label: string;
+  color: string;
+  bgColor: string;
+}) {
+  return (
+    <View className="flex-1 rounded-2xl bg-white p-4 dark:bg-slate-800" style={styles.statCard}>
+      <View style={[styles.statIconBox, { backgroundColor: bgColor }]}>{icon}</View>
+      <Text
+        className="mb-0.5 mt-3 text-[22px] font-black text-slate-900 dark:text-white"
+        style={{ color }}>
+        {value}
+      </Text>
+      <Text className="text-[11px] font-semibold leading-4 text-slate-400 dark:text-slate-500">
+        {label}
+      </Text>
+    </View>
+  );
+}
+
+function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+  return (
+    <View className="flex-row items-center gap-3 border-b border-slate-100 py-3.5 last:border-0 dark:border-slate-700/50">
+      <View className="h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl bg-teal-50 dark:bg-teal-900/30">
+        {icon}
+      </View>
+      <View className="flex-1">
+        <Text className="mb-0.5 text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+          {label}
+        </Text>
+        <Text className="text-[14px] font-semibold text-slate-800 dark:text-slate-200">
+          {value}
+        </Text>
+      </View>
+      <ChevronRight size={16} color="#CBD5E1" strokeWidth={2} />
+    </View>
+  );
+}
+
+function SettingRow({
+  icon,
+  iconBg,
+  label,
+  description,
+  right,
+}: {
+  icon: React.ReactNode;
+  iconBg: string;
+  label: string;
+  description?: string;
+  right: React.ReactNode;
+}) {
+  return (
+    <View className="flex-row items-center justify-between border-b border-slate-100 py-3.5 last:border-0 dark:border-slate-700/50">
+      <View className="flex-1 flex-row items-center gap-3">
+        <View style={[styles.settingIconBox, { backgroundColor: iconBg }]}>{icon}</View>
+        <View className="flex-1">
+          <Text className="text-[14px] font-semibold text-slate-800 dark:text-slate-200">
+            {label}
+          </Text>
+          {description && (
+            <Text className="mt-0.5 text-[12px] font-medium text-slate-400 dark:text-slate-500">
+              {description}
+            </Text>
+          )}
+        </View>
+      </View>
+      {right}
+    </View>
+  );
+}
+
+const PERFORMANCE_BADGES = [
+  {
+    label: 'Top Resolver',
+    icon: <Award size={12} color="#F59E0B" strokeWidth={2.5} />,
+    bg: '#FEF3C7',
+    text: '#92400E',
+  },
+  {
+    label: 'Fast Response',
+    icon: <Zap size={12} color="#8B5CF6" strokeWidth={2.5} />,
+    bg: '#EDE9FE',
+    text: '#5B21B6',
+  },
+  {
+    label: 'SLA Champion',
+    icon: <Target size={12} color="#10B981" strokeWidth={2.5} />,
+    bg: '#D1FAE5',
+    text: '#065F46',
+  },
+];
+
+export default function FieldProfileTab({ profile, darkMode, onLogout }: FieldProfileTabProps) {
   const [loggingOut, setLoggingOut] = useState(false);
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+
+  const initials = profile.name
+    .split(' ')
+    .map((n) => n[0])
+    .slice(0, 2)
+    .join('');
+
+  const successRate = Math.round((profile.total_resolved / (profile.total_resolved + 12)) * 100);
+  const activeIssues = 3;
+  const avgResolutionHrs = 18;
+  const slaCompliance = 92;
+  const thisMonthResolved = 24;
 
   const handleLogout = () => {
     Alert.alert(
@@ -67,130 +253,409 @@ export default function FieldProfileTab({
     );
   };
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Profile</Text>
-      </View>
+    // @ts-ignore
+    <SafeAreaView className="flex-1 bg-slate-50 dark:bg-slate-950" edges={['top']}>
+      <ScrollView
+        className="flex-1"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}>
+        {/* ── Hero Banner ── */}
+        <LinearGradient
+          colors={
+            isDark
+              ? ['#022C22', '#083344', '#020617'] // dark mode (deep teal → navy → black)
+              : ['#0D9488', '#0891B2', '#075985'] // light mode
+          }
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.heroBanner}>
+          {/* Background decoration */}
+          <View
+            style={[
+              styles.heroDeco1,
+              {
+                backgroundColor: isDark ? 'rgba(45, 212, 191, 0.08)' : 'rgba(255,255,255,0.06)',
+              },
+            ]}
+          />
+          <View
+            style={[
+              styles.heroDeco2,
+              {
+                backgroundColor: isDark ? 'rgba(45, 212, 191, 0.06)' : 'rgba(255,255,255,0.05)',
+              },
+            ]}
+          />
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.profileCard}>
-          <View style={styles.profileCircle}>
-            <Text style={styles.profileInitial}>{profile.name.charAt(0)}</Text>
+          {/* Avatar */}
+          <View style={styles.avatarRing}>
+            <LinearGradient
+              colors={
+                isDark
+                  ? ['#1E293B', '#020617'] // dark glass effect
+                  : ['#FFFFFF', '#E0F2FE']
+              }
+              style={styles.avatarInner}>
+              <Text style={styles.avatarInitials}>{initials}</Text>
+            </LinearGradient>
           </View>
-          <Text style={styles.profileName}>{profile.name}</Text>
-          <View style={styles.roleBadge}>
-            <Text style={styles.roleBadgeText}>Field Officer</Text>
-          </View>
-          <View style={styles.ratingContainer}>
-            <Star color="#F59E0B" size={20} fill="#F59E0B" strokeWidth={2} />
-            <Text style={styles.ratingText}>{profile.rating.toFixed(1)}</Text>
-            <Text style={styles.ratingLabel}>Rating</Text>
-          </View>
-        </View>
 
-        <View style={styles.statsCard}>
-          <Text style={styles.statsTitle}>Performance Overview</Text>
-          <View style={styles.statsRow}>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>{profile.total_resolved}</Text>
-              <Text style={styles.statLabel}>Total Resolved</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>{profile.rating.toFixed(1)}</Text>
-              <Text style={styles.statLabel}>Avg Rating</Text>
-            </View>
-          </View>
-        </View>
+          {/* Name */}
+          <Text className="mb-1 mt-4 text-[26px] font-black tracking-tight text-white">
+            {profile.name}
+          </Text>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Contact Information</Text>
-          <View style={styles.infoCard}>
-            <View style={styles.infoRow}>
-              <View style={styles.infoIcon}>
-                <MapPin color="#0EA5A4" size={18} strokeWidth={2.5} />
-              </View>
-              <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>Ward</Text>
-                <Text style={styles.infoValue}>{profile.ward}</Text>
-              </View>
-            </View>
-            <View style={styles.infoRow}>
-              <View style={styles.infoIcon}>
-                <Phone color="#0EA5A4" size={18} strokeWidth={2.5} />
-              </View>
-              <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>Phone</Text>
-                <Text style={styles.infoValue}>{profile.phone}</Text>
-              </View>
-            </View>
-            <View style={styles.infoRow}>
-              <View style={styles.infoIcon}>
-                <Mail color="#0EA5A4" size={18} strokeWidth={2.5} />
-              </View>
-              <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>Email</Text>
-                <Text style={styles.infoValue}>{profile.email}</Text>
-              </View>
-            </View>
+          {/* Role badge */}
+          <View
+            className={`mb-4 flex-row items-center gap-1.5 rounded-full px-4 py-1.5 ${
+              isDark ? 'bg-white/10' : 'bg-white/20'
+            }`}>
+            <Shield size={13} color="rgba(255,255,255,0.9)" strokeWidth={2.5} />
+            <Text className="text-[12px] font-bold tracking-wide text-white/90">Field Officer</Text>
           </View>
-        </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Settings</Text>
-          <View style={styles.settingsCard}>
-            <View style={styles.settingRow}>
-              <View style={styles.settingLeft}>
-                <View style={styles.settingIcon}>
-                  <Moon color="#4B5563" size={20} strokeWidth={2} />
-                </View>
-                <View>
-                  <Text style={styles.settingLabel}>Dark Mode</Text>
-                  <Text style={styles.settingDescription}>Coming soon</Text>
-                </View>
-              </View>
-              <Switch
-                value={darkMode}
-                onValueChange={onToggleDarkMode}
-                trackColor={{ false: '#D1D5DB', true: '#0EA5A4' }}
-                thumbColor="#FFFFFF"
-                disabled
+          {/* Star rating */}
+          <View
+            className={`mb-5 flex-row items-center gap-1.5 rounded-2xl px-4 py-2 ${
+              isDark ? 'bg-amber-400/10' : 'bg-amber-400/25'
+            }`}>
+            {[1, 2, 3, 4, 5].map((s) => (
+              <Star
+                key={s}
+                size={16}
+                color="#FCD34D"
+                fill={s <= Math.round(profile.rating) ? '#FCD34D' : 'transparent'}
+                strokeWidth={2}
               />
-            </View>
+            ))}
+            <Text className="ml-1 text-[14px] font-extrabold text-amber-200">
+              {profile.rating.toFixed(1)}
+            </Text>
           </View>
+
+          {/* Performance badges */}
+          <View className="flex-row flex-wrap justify-center gap-2">
+            {PERFORMANCE_BADGES.map((badge, i) => (
+              <View
+                key={i}
+                className="flex-row items-center gap-1.5 rounded-xl px-3 py-1.5"
+                style={{
+                  backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.18)',
+                }}>
+                {badge.icon}
+                <Text className="text-[11px] font-bold text-white/90">{badge.label}</Text>
+              </View>
+            ))}
+          </View>
+        </LinearGradient>
+
+        {/* ── Quick Stats Row ── */}
+        <View className="mb-4 flex-row gap-3">
+          <StatCard
+            icon={
+              <CheckCircle size={18} color={isDark ? '#2DD4BF' : '#0EA5A4'} strokeWidth={2.5} />
+            }
+            value={String(profile.total_resolved)}
+            label="Total Resolved"
+            color={isDark ? '#2DD4BF' : '#0EA5A4'}
+            bgColor={isDark ? '#042F2E' : '#F0FDFA'}
+          />
+
+          <StatCard
+            icon={<Activity size={18} color={isDark ? '#FBBF24' : '#F59E0B'} strokeWidth={2.5} />}
+            value={String(activeIssues)}
+            label="Active Issues"
+            color={isDark ? '#FBBF24' : '#F59E0B'}
+            bgColor={isDark ? '#451A03' : '#FEF3C7'}
+          />
+
+          <StatCard
+            icon={<TrendingUp size={18} color={isDark ? '#34D399' : '#10B981'} strokeWidth={2.5} />}
+            value={`${successRate}%`}
+            label="Success Rate"
+            color={isDark ? '#34D399' : '#10B981'}
+            bgColor={isDark ? '#022C22' : '#D1FAE5'}
+          />
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>About</Text>
-          <View style={styles.aboutCard}>
-            <View style={styles.aboutRow}>
-              <Info color="#6B7280" size={18} strokeWidth={2} />
-              <View style={styles.aboutContent}>
-                <Text style={styles.aboutLabel}>App Version</Text>
-                <Text style={styles.aboutValue}>1.0.0</Text>
+        {/* ── Performance Overview ── */}
+        <View className="mb-4 rounded-3xl bg-white p-5 dark:bg-slate-900" style={styles.card}>
+          <View className="mb-5 flex-row items-center gap-2.5">
+            <View className="h-8 w-8 items-center justify-center rounded-xl bg-teal-50 dark:bg-teal-900/30">
+              <TrendingUp size={16} color="#0EA5A4" strokeWidth={2.5} />
+            </View>
+            <Text className="text-[15px] font-extrabold tracking-tight text-slate-800 dark:text-slate-100">
+              Performance Overview
+            </Text>
+          </View>
+
+          {/* Metrics grid */}
+          <View className="mb-5 flex-row gap-3">
+            {/* SLA Compliance */}
+            <View
+              className="flex-1 items-center rounded-2xl bg-teal-50 p-4 dark:bg-teal-900/20"
+              style={styles.metricBox}>
+              <View style={styles.ringWrap}>
+                <View style={[styles.ringOuter, { borderColor: '#0EA5A4' + '30' }]} />
+                <View style={[styles.ringFilled, { borderColor: '#0EA5A4' }]} />
+                <Text className="absolute text-[16px] font-black text-teal-600 dark:text-teal-400">
+                  {slaCompliance}%
+                </Text>
+              </View>
+              <Text className="mt-3 text-center text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                SLA{'\n'}Compliance
+              </Text>
+            </View>
+
+            {/* Avg Resolution */}
+            <View
+              className="flex-1 items-center rounded-2xl bg-blue-50 p-4 dark:bg-blue-900/20"
+              style={styles.metricBox}>
+              <View style={styles.ringWrap}>
+                <View style={[styles.ringOuter, { borderColor: '#3B82F6' + '30' }]} />
+                <View style={[styles.ringFilled, { borderColor: '#3B82F6' }]} />
+                <Text className="absolute text-[16px] font-black text-blue-600 dark:text-blue-400">
+                  {avgResolutionHrs}h
+                </Text>
+              </View>
+              <Text className="mt-3 text-center text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                Avg{'\n'}Resolution
+              </Text>
+            </View>
+
+            {/* This Month */}
+            <View
+              className="flex-1 items-center rounded-2xl bg-emerald-50 p-4 dark:bg-emerald-900/20"
+              style={styles.metricBox}>
+              <View style={styles.ringWrap}>
+                <View style={[styles.ringOuter, { borderColor: '#10B981' + '30' }]} />
+                <View style={[styles.ringFilled, { borderColor: '#10B981' }]} />
+                <Text className="absolute text-[16px] font-black text-emerald-600 dark:text-emerald-400">
+                  {thisMonthResolved}
+                </Text>
+              </View>
+              <Text className="mt-3 text-center text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                This{'\n'}Month
+              </Text>
+            </View>
+          </View>
+
+          {/* Progress bars */}
+          <View className="gap-3">
+            <View>
+              <View className="mb-1.5 flex-row items-center justify-between">
+                <Text className="text-[12px] font-semibold text-slate-500 dark:text-slate-400">
+                  Response Rate
+                </Text>
+                <Text className="text-[12px] font-extrabold text-teal-600 dark:text-teal-400">
+                  96%
+                </Text>
+              </View>
+              <View className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
+                <View
+                  className="h-full rounded-full"
+                  style={[styles.progressBar, { width: '96%', backgroundColor: '#0EA5A4' }]}
+                />
+              </View>
+            </View>
+            <View>
+              <View className="mb-1.5 flex-row items-center justify-between">
+                <Text className="text-[12px] font-semibold text-slate-500 dark:text-slate-400">
+                  Quality Score
+                </Text>
+                <Text className="text-[12px] font-extrabold text-amber-500">88%</Text>
+              </View>
+              <View className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
+                <View
+                  className="h-full rounded-full"
+                  style={[styles.progressBar, { width: '88%', backgroundColor: '#F59E0B' }]}
+                />
+              </View>
+            </View>
+            <View>
+              <View className="mb-1.5 flex-row items-center justify-between">
+                <Text className="text-[12px] font-semibold text-slate-500 dark:text-slate-400">
+                  Citizen Satisfaction
+                </Text>
+                <Text className="text-[12px] font-extrabold text-emerald-600">94%</Text>
+              </View>
+              <View className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
+                <View
+                  className="h-full rounded-full"
+                  style={[styles.progressBar, { width: '94%', backgroundColor: '#10B981' }]}
+                />
               </View>
             </View>
           </View>
         </View>
 
-        <TouchableOpacity
-          style={[styles.logoutButton, loggingOut && { opacity: 0.7 }]}
-          onPress={handleLogout}
-          activeOpacity={0.7}
-          disabled={loggingOut}>
-          {loggingOut ? (
-            <ActivityIndicator color="#DC2626" />
-          ) : (
-            <>
-              <LogOut color="#DC2626" size={20} strokeWidth={2.5} />
-              <Text style={styles.logoutText}>Logout</Text>
-            </>
-          )}
+        {/* ── Activity Streak ── */}
+        <View className="mb-4 rounded-3xl bg-white p-5 dark:bg-slate-900" style={styles.card}>
+          <View className="mb-4 flex-row items-center gap-2.5">
+            <View className="h-8 w-8 items-center justify-center rounded-xl bg-amber-50 dark:bg-amber-900/30">
+              <Calendar size={16} color="#F59E0B" strokeWidth={2.5} />
+            </View>
+            <Text className="flex-1 text-[15px] font-extrabold tracking-tight text-slate-800 dark:text-slate-100">
+              Weekly Activity
+            </Text>
+            <View className="rounded-lg bg-amber-50 px-2.5 py-1 dark:bg-amber-900/30">
+              <Text className="text-[11px] font-extrabold text-amber-600 dark:text-amber-400">
+                This Week
+              </Text>
+            </View>
+          </View>
+
+          <View className="flex-row justify-between">
+            {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, i) => {
+              const heights = [70, 90, 55, 100, 80, 40, 60];
+              const isToday = i === 4;
+              const h = heights[i];
+
+              return (
+                <View key={i} className="items-center gap-1.5" style={{ flex: 1 }}>
+                  <View
+                    style={[
+                      styles.barTrack,
+                      {
+                        backgroundColor: isDark ? '#1E293B' : '#F1F5F9', // track bg
+                      },
+                    ]}>
+                    <View
+                      style={[
+                        styles.barFill,
+                        {
+                          height: `${h}%`,
+                          backgroundColor: isToday
+                            ? isDark
+                              ? '#2DD4BF'
+                              : '#0EA5A4' // active bar
+                            : isDark
+                              ? '#334155'
+                              : '#E2E8F0', // inactive bar
+                        },
+                      ]}
+                    />
+                  </View>
+
+                  <Text
+                    className="text-[10px] font-bold"
+                    style={{
+                      color: isToday
+                        ? isDark
+                          ? '#2DD4BF'
+                          : '#0EA5A4'
+                        : isDark
+                          ? '#64748B'
+                          : '#94A3B8',
+                    }}>
+                    {day}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+        </View>
+
+        {/* ── Contact Information ── */}
+        <View className="mb-4 rounded-3xl bg-white p-5 dark:bg-slate-900" style={styles.card}>
+          <View className="mb-3 flex-row items-center gap-2.5">
+            <View className="h-8 w-8 items-center justify-center rounded-xl bg-teal-50 dark:bg-teal-900/30">
+              <User size={16} color="#0EA5A4" strokeWidth={2.5} />
+            </View>
+            <Text className="text-[15px] font-extrabold tracking-tight text-slate-800 dark:text-slate-100">
+              Contact Information
+            </Text>
+          </View>
+
+          <InfoRow
+            icon={<MapPin size={17} color="#0EA5A4" strokeWidth={2.5} />}
+            label="Ward / Zone"
+            value={profile.ward}
+          />
+          <InfoRow
+            icon={<Phone size={17} color="#0EA5A4" strokeWidth={2.5} />}
+            label="Phone"
+            value={profile.phone}
+          />
+          <InfoRow
+            icon={<Mail size={17} color="#0EA5A4" strokeWidth={2.5} />}
+            label="Email"
+            value={profile.email}
+          />
+        </View>
+
+        {/* ── Settings ── */}
+        <View className="mb-4 rounded-3xl bg-white p-5 dark:bg-slate-900" style={styles.card}>
+          <View className="mb-3 flex-row items-center gap-2.5">
+            <View className="h-8 w-8 items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-700">
+              <Activity size={16} color={isDark ? '#64748B' : '#475569'} strokeWidth={2.5} />
+            </View>
+            <Text className="text-[15px] font-extrabold tracking-tight text-slate-800 dark:text-slate-100">
+              Settings
+            </Text>
+          </View>
+          <SettingRow
+            icon={<Info size={17} color={isDark ? '#2DD4BF' : '#0EA5A4'} strokeWidth={2.5} />}
+            iconBg={isDark ? '#042F2E' : '#F0FDFA'}
+            label="App Version"
+            description="CityCare Field Officer v1.0.0"
+            right={
+              <View className="rounded-lg bg-slate-100 px-2.5 py-1 dark:bg-slate-700">
+                <Text className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                  1.0.0
+                </Text>
+              </View>
+            }
+          />
+        </View>
+
+        {/* ── Logout ── */}
+        <TouchableOpacity onPress={handleLogout} activeOpacity={0.85} style={styles.logoutBtn}>
+          <LinearGradient
+            colors={
+              isDark
+                ? ['#3F0D0D', '#1F0505'] // dark gradient
+                : ['#FEF2F2', '#FEE2E2'] // light gradient
+            }
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={[
+              styles.logoutGrad,
+              {
+                borderColor: isDark ? '#7F1D1D' : '#FECACA',
+              },
+            ]}>
+            {/* Icon Box */}
+            <View
+              style={{
+                backgroundColor: isDark ? '#7F1D1D' : '#FEE2E2',
+              }}
+              className="h-10 w-10 items-center justify-center rounded-2xl">
+              <LogOut size={18} color={isDark ? '#F87171' : '#DC2626'} strokeWidth={2.5} />
+            </View>
+
+            {/* Text */}
+            <Text
+              className="ml-3 flex-1 text-[15px] font-extrabold"
+              style={{
+                color: isDark ? '#FCA5A5' : '#DC2626',
+              }}>
+              Sign Out
+            </Text>
+
+            {/* Arrow */}
+            <ChevronRight size={18} color={isDark ? '#7F1D1D' : '#FCA5A5'} strokeWidth={2.5} />
+          </LinearGradient>
         </TouchableOpacity>
 
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>CityCare Field Officer</Text>
-          <Text style={styles.footerVersion}>Version 1.0.0</Text>
+        {/* ── Footer ── */}
+        <View className="items-center gap-1 pb-8 pt-2">
+          <Text className="text-[13px] font-bold text-slate-400 dark:text-slate-600">
+            CityCare Field Officer
+          </Text>
+          <Text className="text-[11px] font-medium text-slate-300 dark:text-slate-700">
+            Version 1.0.0 · Build 2024
+          </Text>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -198,261 +663,146 @@ export default function FieldProfileTab({
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F0FDFA',
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingTop: 0,
   },
-  header: {
-    padding: 20,
-    paddingTop: 60,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  content: {
-    flex: 1,
-    padding: 20,
-  },
-  profileCard: {
+  heroBanner: {
+    borderRadius: 28,
+    paddingTop: 36,
+    paddingBottom: 28,
+    paddingHorizontal: 24,
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 24,
-    marginBottom: 20,
-    borderWidth: 2,
-    borderColor: '#CCFBF1',
+    marginBottom: 16,
+    marginTop: 8,
+    overflow: 'hidden',
+    position: 'relative',
   },
-  profileCircle: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: '#0EA5A4',
+  heroDeco1: {
+    position: 'absolute',
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    top: -60,
+    right: -60,
+  },
+  heroDeco2: {
+    position: 'absolute',
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    bottom: -50,
+    left: -40,
+  },
+  avatarRing: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    padding: 4,
+    backgroundColor: 'rgba(255,255,255,0.25)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
-    borderWidth: 4,
-    borderColor: '#CCFBF1',
   },
-  profileInitial: {
-    fontSize: 40,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  profileName: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 8,
-  },
-  roleBadge: {
-    backgroundColor: '#F0FDFA',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 12,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#CCFBF1',
-  },
-  roleBadgeText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#0F766E',
-  },
-  ratingContainer: {
-    flexDirection: 'row',
+  avatarInner: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'center',
   },
-  ratingText: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#F59E0B',
+  avatarInitials: {
+    fontSize: 34,
+    fontWeight: '900',
+    color: '#0D9488',
   },
-  ratingLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#6B7280',
-  },
-  statsCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 20,
-    borderWidth: 2,
-    borderColor: '#E5E7EB',
-  },
-  statsTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 16,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  statItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  statValue: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#0EA5A4',
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#6B7280',
-  },
-  statDivider: {
-    width: 1,
-    height: 40,
-    backgroundColor: '#E5E7EB',
-  },
-  section: {
-    marginBottom: 20,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#111827',
+  card: {
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 3,
     marginBottom: 12,
   },
-  infoCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 2,
-    borderColor: '#E5E7EB',
-    gap: 16,
+  statCard: {
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  infoIcon: {
-    width: 40,
-    height: 40,
+  statIconBox: {
+    width: 38,
+    height: 38,
     borderRadius: 12,
-    backgroundColor: '#F0FDFA',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  infoContent: {
-    flex: 1,
+  metricBox: {
+    shadowColor: 'transparent',
   },
-  infoLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#6B7280',
-    marginBottom: 2,
-  },
-  infoValue: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  settingsCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 2,
-    borderColor: '#E5E7EB',
-  },
-  settingRow: {
-    flexDirection: 'row',
+  ringWrap: {
+    width: 64,
+    height: 64,
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
   },
-  settingLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    flex: 1,
+  ringOuter: {
+    position: 'absolute',
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 6,
   },
-  settingIcon: {
-    width: 40,
-    height: 40,
+  ringFilled: {
+    position: 'absolute',
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    borderWidth: 6,
+    borderTopColor: 'transparent',
+    transform: [{ rotate: '-45deg' }],
+  },
+  progressBar: {
+    borderRadius: 999,
+  },
+  barTrack: {
+    width: 28,
+    height: 60,
+    backgroundColor: '#F1F5F9',
+    borderRadius: 8,
+    overflow: 'hidden',
+    justifyContent: 'flex-end',
+  },
+  barFill: {
+    width: '100%',
+    borderRadius: 8,
+  },
+  settingIconBox: {
+    width: 38,
+    height: 38,
     borderRadius: 12,
-    backgroundColor: '#F9FAFB',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  settingLabel: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 2,
+  logoutBtn: {
+    borderRadius: 20,
+    overflow: 'hidden',
+    marginBottom: 8,
+    shadowColor: '#EF4444',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  settingDescription: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#9CA3AF',
-  },
-  aboutCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 2,
-    borderColor: '#E5E7EB',
-  },
-  aboutRow: {
+  logoutGrad: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-  },
-  aboutContent: {
-    flex: 1,
-  },
-  aboutLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#6B7280',
-    marginBottom: 2,
-  },
-  aboutValue: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    backgroundColor: '#FEE2E2',
-    paddingVertical: 16,
-    borderRadius: 14,
-    marginBottom: 20,
-    borderWidth: 2,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    borderWidth: 1.5,
     borderColor: '#FECACA',
-  },
-  logoutText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#DC2626',
-  },
-  footer: {
-    alignItems: 'center',
-    paddingVertical: 20,
-  },
-  footerText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#6B7280',
-    marginBottom: 4,
-  },
-  footerVersion: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#9CA3AF',
   },
 });

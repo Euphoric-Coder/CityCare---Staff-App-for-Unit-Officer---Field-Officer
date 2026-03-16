@@ -94,14 +94,14 @@ function UnitOfficerTabNavigator({ user, onSignOut }: TabNavigatorProps) {
           tabBarIcon: ({ color, size }) => <Globe size={size} color={color} />,
         }}
       /> */}
-      <Tab.Screen
+      {/* <Tab.Screen
         name="Messages"
         component={MessagesTab}
         options={{
           tabBarIcon: ({ color, size }) => <MessageSquare size={size} color={color} />,
           tabBarBadge: 2,
         }}
-      />
+      /> */}
       <Tab.Screen
         name="Analytics"
         component={AnalyticsTab}

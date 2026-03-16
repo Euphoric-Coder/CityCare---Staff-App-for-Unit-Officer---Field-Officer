@@ -1,5 +1,6 @@
 import {
   Issue,
+  IssueUpdate,
   FieldOfficer,
   VerificationChecklist,
   RejectionReason,
@@ -11,6 +12,26 @@ import { mockIssues, mockFieldOfficers } from './mockData';
 
 let issues = [...mockIssues];
 let officers = [...mockFieldOfficers];
+
+function makeUpdate(
+  issueId: string,
+  status: string,
+  comment: string,
+  scope: IssueUpdate['scope'],
+  role: IssueUpdate['role']
+): IssueUpdate {
+  return {
+    id: `upd-${Date.now()}`,
+    issueId,
+    status: status as IssueUpdate['status'],
+    comment,
+    role,
+    attachments: [],
+    updatedBy: 'uo-1',
+    scope,
+    createdAt: new Date().toISOString(),
+  };
+}
 
 export const issueService = {
   fetchIssues: async (wardId?: string): Promise<Issue[]> => {
@@ -40,13 +61,15 @@ export const issueService = {
     issue.status = 'Verified';
     issue.verificationChecklist = checklist;
     issue.slaDeadline = slaDate;
-    issue.timeline.push({
-      id: `tl-${Date.now()}`,
-      status: 'Verified',
-      timestamp: new Date().toISOString(),
-      description: 'Issue verified by Unit Officer',
-      officerName: 'Kumar Singh',
-    });
+    issue.issueUpdates.push(
+      makeUpdate(
+        issueId,
+        'Verified',
+        'Issue verified by Unit Officer.',
+        'field_and_citizen',
+        'UnitOfficer'
+      )
+    );
   },
 
   rejectIssue: async (issueId: string, reason: RejectionReason, comment: string): Promise<void> => {
@@ -57,14 +80,15 @@ export const issueService = {
     issue.status = 'Rejected';
     issue.rejectionReason = reason;
     issue.rejectionComment = comment;
-    issue.timeline.push({
-      id: `tl-${Date.now()}`,
-      status: 'Rejected',
-      timestamp: new Date().toISOString(),
-      description: 'Issue rejected by Unit Officer',
-      officerName: 'Kumar Singh',
-      comment,
-    });
+    issue.issueUpdates.push(
+      makeUpdate(
+        issueId,
+        'Rejected',
+        `Issue rejected: ${reason}. ${comment}`,
+        'citizen',
+        'UnitOfficer'
+      )
+    );
   },
 
   assignIssue: async (issueId: string, officerId: string, note?: string): Promise<void> => {
@@ -76,14 +100,15 @@ export const issueService = {
     issue.status = 'Assigned';
     issue.assignedOfficerId = officer.id;
     issue.assignedOfficer = officer.name;
-    issue.timeline.push({
-      id: `tl-${Date.now()}`,
-      status: 'Assigned',
-      timestamp: new Date().toISOString(),
-      description: `Assigned to ${officer.name}`,
-      officerName: 'Kumar Singh',
-      comment: note,
-    });
+    issue.issueUpdates.push(
+      makeUpdate(
+        issueId,
+        'Assigned',
+        `Assigned to ${officer.name}.${note ? ' ' + note : ''}`,
+        'field_and_citizen',
+        'UnitOfficer'
+      )
+    );
 
     officer.activeIssues += 1;
     officer.workloadPercentage = Math.min(100, officer.workloadPercentage + 15);
@@ -107,14 +132,15 @@ export const issueService = {
     issue.assignedOfficer = newOfficer.name;
     issue.reassignmentReason = reason;
     issue.reassignmentComment = comment;
-    issue.timeline.push({
-      id: `tl-${Date.now()}`,
-      status: 'REAssigned',
-      timestamp: new Date().toISOString(),
-      description: `Reassigned from ${oldOfficerName} to ${newOfficer.name}`,
-      officerName: 'Kumar Singh',
-      comment,
-    });
+    issue.issueUpdates.push(
+      makeUpdate(
+        issueId,
+        'Assigned',
+        `Reassigned from ${oldOfficerName} to ${newOfficer.name}. Reason: ${reason}. ${comment}`,
+        'admin_only',
+        'UnitOfficer'
+      )
+    );
 
     if (oldOfficer) {
       oldOfficer.activeIssues = Math.max(0, oldOfficer.activeIssues - 1);
@@ -131,14 +157,15 @@ export const issueService = {
     if (!issue) throw new Error('Issue not found');
 
     issue.status = 'Closed';
-    issue.timeline.push({
-      id: `tl-${Date.now()}`,
-      status: 'Closed',
-      timestamp: new Date().toISOString(),
-      description: 'Resolution approved and issue closed',
-      officerName: 'Kumar Singh',
-      comment,
-    });
+    issue.issueUpdates.push(
+      makeUpdate(
+        issueId,
+        'Closed',
+        `Resolution approved and issue closed.${comment ? ' ' + comment : ''}`,
+        'citizen',
+        'UnitOfficer'
+      )
+    );
 
     const officer = officers.find((o) => o.id === issue.assignedOfficerId);
     if (officer) {
@@ -155,14 +182,15 @@ export const issueService = {
     issue.status = 'Rework Required';
     issue.reworkReason = reason;
     issue.reworkComment = comment;
-    issue.timeline.push({
-      id: `tl-${Date.now()}`,
-      status: 'Rework Required',
-      timestamp: new Date().toISOString(),
-      description: 'Rework requested by Unit Officer',
-      officerName: 'Kumar Singh',
-      comment,
-    });
+    issue.issueUpdates.push(
+      makeUpdate(
+        issueId,
+        'Rework Required',
+        `Rework requested: ${reason}. ${comment}`,
+        'field_and_citizen',
+        'UnitOfficer'
+      )
+    );
   },
 
   escalateToAdmin: async (
@@ -177,14 +205,15 @@ export const issueService = {
     issue.status = 'Escalated';
     issue.escalationReason = reason;
     issue.escalationComment = comment;
-    issue.timeline.push({
-      id: `tl-${Date.now()}`,
-      status: 'Escalated',
-      timestamp: new Date().toISOString(),
-      description: 'Issue escalated to admin',
-      officerName: 'Kumar Singh',
-      comment,
-    });
+    issue.issueUpdates.push(
+      makeUpdate(
+        issueId,
+        'Escalated',
+        `Issue escalated: ${reason}. ${comment}`,
+        'admin_only',
+        'UnitOfficer'
+      )
+    );
   },
 
   reverifyReopenedIssue: async (
@@ -199,13 +228,15 @@ export const issueService = {
     issue.status = 'Verified';
     issue.verificationChecklist = checklist;
     issue.slaDeadline = slaDate;
-    issue.timeline.push({
-      id: `tl-${Date.now()}`,
-      status: 'REVERIFIED',
-      timestamp: new Date().toISOString(),
-      description: 'Reopened issue re-verified by Unit Officer',
-      officerName: 'Kumar Singh',
-    });
+    issue.issueUpdates.push(
+      makeUpdate(
+        issueId,
+        'Verified',
+        'Reopened issue re-verified by Unit Officer.',
+        'field_and_citizen',
+        'UnitOfficer'
+      )
+    );
   },
 };
 

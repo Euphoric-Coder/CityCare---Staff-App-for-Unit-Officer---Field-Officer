@@ -6,10 +6,12 @@ import {
   TextInput,
   Modal,
   StyleSheet,
-  Alert,
   ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  useColorScheme,
 } from 'react-native';
-import { RefreshCw, X } from 'lucide-react-native';
+import { RefreshCw, X, UserRoundCog } from 'lucide-react-native';
 
 interface ReassignmentModalProps {
   visible: boolean;
@@ -28,18 +30,16 @@ export default function ReassignmentModal({
   issueTitle,
   currentOfficer,
 }: ReassignmentModalProps) {
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+
   const [selectedReason, setSelectedReason] = useState('');
   const [comment, setComment] = useState('');
 
+  const isValid = !!selectedReason && comment.trim().length > 0;
+
   const handleReassign = () => {
-    if (!selectedReason) {
-      Alert.alert('Required', 'Please select a reassignment reason');
-      return;
-    }
-    if (!comment.trim()) {
-      Alert.alert('Required', 'Please provide a comment for reassignment');
-      return;
-    }
+    if (!isValid) return;
     onConfirm(selectedReason, comment);
     setSelectedReason('');
     setComment('');
@@ -52,259 +52,176 @@ export default function ReassignmentModal({
   };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent={true} onRequestClose={handleCancel}>
-      <View style={styles.overlay}>
-        <View style={styles.container}>
-          <View style={styles.header}>
-            <View style={styles.headerIcon}>
-              <RefreshCw color="#F59E0B" size={24} strokeWidth={2.5} />
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={handleCancel}>
+      <KeyboardAvoidingView
+        className="flex-1 justify-end bg-black/55"
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}>
+        <TouchableOpacity
+          style={StyleSheet.absoluteFillObject}
+          activeOpacity={1}
+          onPress={handleCancel}
+        />
+
+        <View className="rounded-t-3xl bg-white dark:bg-slate-900" style={styles.sheet}>
+          <View className="items-center pb-1 pt-3">
+            <View className="h-1 w-10 rounded-full bg-slate-200 dark:bg-slate-700" />
+          </View>
+
+          <View className="flex-row items-center border-b border-slate-100 px-5 pb-4 pt-3 dark:border-slate-800">
+            <View className="mr-3 h-10 w-10 items-center justify-center rounded-2xl bg-amber-100 dark:bg-amber-900/40">
+              <RefreshCw color="#F59E0B" size={20} strokeWidth={2.5} />
             </View>
-            <Text style={styles.title}>Reassign Issue</Text>
+            <View className="flex-1">
+              <Text className="text-[18px] font-extrabold tracking-tight text-slate-900 dark:text-slate-100">
+                Reassign Issue
+              </Text>
+              <Text className="mt-0.5 text-[11px] font-semibold text-slate-400 dark:text-slate-500">
+                Select a reason and add a comment
+              </Text>
+            </View>
             <TouchableOpacity
-              style={styles.closeButton}
               onPress={handleCancel}
+              activeOpacity={0.7}
+              className="h-8 w-8 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800"
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <X color="#6B7280" size={24} strokeWidth={2} />
+              <X color={isDark ? '#9CA3AF' : '#6B7280'} size={16} strokeWidth={2.5} />
             </TouchableOpacity>
           </View>
 
-          <View style={styles.scrollContainer}>
-            <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-              <View style={styles.issueInfo}>
-                <Text style={styles.issueLabel}>Issue:</Text>
-                <Text style={styles.issueTitle}>{issueTitle}</Text>
-                <Text style={styles.currentOfficer}>
-                  Currently assigned to: <Text style={styles.officerName}>{currentOfficer}</Text>
-                </Text>
-              </View>
-
-              <View style={styles.section}>
-                <Text style={styles.sectionLabel}>
-                  Reassignment Reason <Text style={styles.required}>*</Text>
-                </Text>
-                <View style={styles.reasonsList}>
-                  {REASSIGNMENT_REASONS.map((reason) => (
-                    <TouchableOpacity
-                      key={reason}
-                      style={[
-                        styles.reasonButton,
-                        selectedReason === reason && styles.reasonButtonSelected,
-                      ]}
-                      onPress={() => setSelectedReason(reason)}
-                      activeOpacity={0.7}>
-                      <Text
-                        style={[
-                          styles.reasonText,
-                          selectedReason === reason && styles.reasonTextSelected,
-                        ]}>
-                        {reason}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={styles.scrollContent}>
+            <View className="mb-5 rounded-2xl border border-slate-100 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800">
+              <Text className="mb-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                Issue
+              </Text>
+              <Text className="mb-2.5 text-[15px] font-bold leading-[22px] text-slate-800 dark:text-slate-100">
+                {issueTitle}
+              </Text>
+              <View className="flex-row items-center gap-2 border-t border-slate-200 pt-2.5 dark:border-slate-700">
+                <View className="h-6 w-6 items-center justify-center rounded-full bg-teal-100 dark:bg-teal-900/40">
+                  <UserRoundCog color="#0D9488" size={12} strokeWidth={2.5} />
                 </View>
-              </View>
-
-              <View style={styles.section}>
-                <Text style={styles.sectionLabel}>
-                  Comment <Text style={styles.required}>*</Text>
+                <Text className="text-[13px] font-medium text-slate-500 dark:text-slate-400">
+                  Currently:{' '}
+                  <Text className="font-bold text-teal-600 dark:text-teal-400">
+                    {currentOfficer}
+                  </Text>
                 </Text>
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="Provide reason for reassignment..."
-                  placeholderTextColor="#9CA3AF"
-                  value={comment}
-                  onChangeText={setComment}
-                  multiline
-                  numberOfLines={4}
-                  textAlignVertical="top"
-                />
               </View>
-            </ScrollView>
-          </View>
+            </View>
 
-          <View style={styles.footer}>
+            <Text className="mb-3 text-[13px] font-bold text-slate-700 dark:text-slate-300">
+              Reassignment Reason <Text className="text-red-500">*</Text>
+            </Text>
+            <View className="mb-5 gap-2.5">
+              {REASSIGNMENT_REASONS.map((reason) => {
+                const isSelected = selectedReason === reason;
+                return (
+                  <TouchableOpacity
+                    key={reason}
+                    onPress={() => setSelectedReason(reason)}
+                    activeOpacity={0.72}
+                    className={`flex-row items-center rounded-xl border-2 px-4 py-3.5 ${
+                      isSelected
+                        ? 'border-amber-400 bg-amber-50 dark:border-amber-500 dark:bg-amber-900/20'
+                        : 'border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800'
+                    }`}>
+                    <View
+                      className={`mr-3 h-4 w-4 items-center justify-center rounded-full border-2 ${
+                        isSelected
+                          ? 'border-amber-400 dark:border-amber-500'
+                          : 'border-slate-300 dark:border-slate-600'
+                      }`}>
+                      {isSelected && (
+                        <View className="h-2 w-2 rounded-full bg-amber-400 dark:bg-amber-500" />
+                      )}
+                    </View>
+                    <Text
+                      className={`flex-1 text-[14px] font-semibold ${
+                        isSelected
+                          ? 'text-amber-700 dark:text-amber-400'
+                          : 'text-slate-600 dark:text-slate-300'
+                      }`}>
+                      {reason}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <Text className="mb-3 text-[13px] font-bold text-slate-700 dark:text-slate-300">
+              Comment <Text className="text-red-500">*</Text>
+            </Text>
+            <TextInput
+              className="rounded-xl border-2 border-slate-200 bg-slate-50 px-4 pt-3.5 text-[14px] font-medium text-slate-800 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+              placeholder="Provide reason for reassignment..."
+              placeholderTextColor={isDark ? '#4B5563' : '#9CA3AF'}
+              value={comment}
+              onChangeText={setComment}
+              multiline
+              numberOfLines={4}
+              textAlignVertical="top"
+              scrollEnabled={false}
+              style={styles.textInput}
+            />
+          </ScrollView>
+
+          <View className="flex-row gap-3 border-t border-slate-100 px-5 pb-8 pt-4 dark:border-slate-800">
             <TouchableOpacity
-              style={styles.cancelButton}
               onPress={handleCancel}
-              activeOpacity={0.7}>
-              <Text style={styles.cancelButtonText}>Cancel</Text>
+              activeOpacity={0.75}
+              className="flex-1 items-center justify-center rounded-2xl bg-slate-100 py-4 dark:bg-slate-800">
+              <Text className="text-[15px] font-bold text-slate-600 dark:text-slate-300">
+                Cancel
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[
-                styles.reassignButton,
-                (!selectedReason || !comment.trim()) && styles.reassignButtonDisabled,
-              ]}
               onPress={handleReassign}
-              disabled={!selectedReason || !comment.trim()}
-              activeOpacity={0.7}>
-              <Text style={styles.reassignButtonText}>Reassign</Text>
+              disabled={!isValid}
+              activeOpacity={0.8}
+              className="flex-1 flex-row items-center justify-center gap-2 rounded-2xl py-4"
+              style={[styles.confirmBtn, !isValid && styles.confirmBtnDisabled]}>
+              <RefreshCw color="#FFFFFF" size={16} strokeWidth={2.5} />
+              <Text className="text-[15px] font-bold text-white">Reassign</Text>
             </TouchableOpacity>
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
+  sheet: {
+    maxHeight: '92%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 20,
+    elevation: 20,
   },
-  container: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    maxHeight: '85%',
-    paddingBottom: 20,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-  },
-  headerIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#FEF3C7',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    flex: 1,
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#F59E0B',
-    marginLeft: 12,
-  },
-  closeButton: {
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  scrollContainer: {
-    maxHeight: 450,
-  },
-  content: {
-    padding: 20,
-  },
-  issueInfo: {
-    marginBottom: 24,
-    padding: 16,
-    backgroundColor: '#F9FAFB',
-    borderRadius: 12,
-  },
-  issueLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#6B7280',
-    textTransform: 'uppercase',
-    marginBottom: 6,
-  },
-  issueTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 8,
-  },
-  currentOfficer: {
-    fontSize: 14,
-    color: '#6B7280',
-    fontWeight: '500',
-  },
-  officerName: {
-    fontWeight: '700',
-    color: '#0EA5A4',
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionLabel: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 12,
-  },
-  required: {
-    color: '#DC2626',
-  },
-  reasonsList: {
-    gap: 10,
-  },
-  reasonButton: {
-    padding: 16,
-    backgroundColor: '#F9FAFB',
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#E5E7EB',
-  },
-  reasonButtonSelected: {
-    backgroundColor: '#FEF3C7',
-    borderColor: '#F59E0B',
-  },
-  reasonText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#4B5563',
-    textAlign: 'center',
-  },
-  reasonTextSelected: {
-    color: '#92400E',
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 8,
   },
   textInput: {
-    backgroundColor: '#F9FAFB',
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#E5E7EB',
-    padding: 16,
-    fontSize: 15,
-    color: '#111827',
     minHeight: 120,
-    fontWeight: '500',
   },
-  footer: {
-    flexDirection: 'row',
-    gap: 12,
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
-  },
-  cancelButton: {
+  confirmBtn: {
     flex: 1,
-    padding: 16,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 12,
-    alignItems: 'center',
-    minHeight: 56,
-    justifyContent: 'center',
-  },
-  cancelButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#4B5563',
-  },
-  reassignButton: {
-    flex: 1,
-    padding: 16,
     backgroundColor: '#F59E0B',
-    borderRadius: 12,
+    borderRadius: 16,
+    paddingVertical: 16,
     alignItems: 'center',
-    minHeight: 56,
     justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
   },
-  reassignButtonDisabled: {
-    opacity: 0.5,
-  },
-  reassignButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFFFFF',
+  confirmBtnDisabled: {
+    opacity: 0.45,
   },
 });

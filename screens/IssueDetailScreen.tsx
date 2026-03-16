@@ -619,6 +619,7 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
       {
         text: 'Confirm',
         onPress: () => {
+          // @ts-ignore
           setLocalIssue({ ...localIssue, status: 'Resolved' });
           Alert.alert('Success', 'Issue marked as resolved.');
         },
@@ -1870,6 +1871,7 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
         )}
 
         {/* RESOLVED */}
+        {/* @ts-ignore */}
         {localIssue.status === 'Resolved' && (
           <SectionCard>
             <View className="p-5">

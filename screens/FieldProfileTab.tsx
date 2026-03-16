@@ -47,13 +47,6 @@ interface OfficerProfile {
   total_resolved: number;
 }
 
-interface FieldProfileTabProps {
-  profile: OfficerProfile;
-  darkMode: boolean;
-  onToggleisDark: (value: boolean) => void;
-  onLogout: () => void;
-}
-
 function StatCard({
   icon,
   value,

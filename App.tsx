@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, useColorScheme } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { Home, ListTodo, MessageSquare, BarChart3, User as UserIcon } from 'lucide-react-native';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Home, ListTodo, MessageSquare, BarChart3, User as UserIcon, Globe } from 'lucide-react-native';
 
 import SignInScreen from './components/SignInScreen';
 import UnitOfficerDashboard from 'screens/UnitOfficerDashboard';
@@ -50,26 +50,35 @@ interface TabNavigatorProps {
 }
 
 function UnitOfficerTabNavigator({ user, onSignOut }: TabNavigatorProps) {
+  const insets = useSafeAreaInsets();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+  const tabBarHeight = 60 + insets.bottom;
   return (
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#0EA5A4',
-        tabBarInactiveTintColor: '#94A3B8',
+        tabBarActiveTintColor: '#0D9488',
+        tabBarInactiveTintColor: isDark ? '#475569' : '#94A3B8',
         tabBarStyle: {
-          backgroundColor: '#FFFFFF',
+          backgroundColor: isDark ? '#0F172A' : '#FFFFFF',
           borderTopWidth: 1,
-          borderTopColor: '#E2E8F0',
-          paddingBottom: 14,
-          paddingTop: 10,
-          paddingRight: 10,
-          paddingLeft: 10,
-          height: 80,
+          borderTopColor: isDark ? '#1E293B' : '#E2E8F0',
+          paddingBottom: insets.bottom > 0 ? insets.bottom : 8,
+          paddingTop: 8,
+          height: tabBarHeight,
+          shadowColor: isDark ? '#000' : '#94A3B8',
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: isDark ? 0.4 : 0.08,
+          shadowRadius: 8,
+          elevation: 8,
         },
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: '600',
         },
+        tabBarActiveBackgroundColor: 'transparent',
+        tabBarInactiveBackgroundColor: 'transparent',
       }}>
       <Tab.Screen
         name="Dashboard"
@@ -78,6 +87,13 @@ function UnitOfficerTabNavigator({ user, onSignOut }: TabNavigatorProps) {
           tabBarIcon: ({ color, size }) => <Home size={size} color={color} />,
         }}
       />
+      {/* <Tab.Screen
+        name="Public"
+        component={PublicStack}
+        options={{
+          tabBarIcon: ({ color, size }) => <Globe size={size} color={color} />,
+        }}
+      /> */}
       <Tab.Screen
         name="Messages"
         component={MessagesTab}
@@ -105,24 +121,35 @@ function UnitOfficerTabNavigator({ user, onSignOut }: TabNavigatorProps) {
 }
 
 function FieldOfficerTabNavigator({ user, onSignOut }: TabNavigatorProps) {
+  const insets = useSafeAreaInsets();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+  const tabBarHeight = 60 + insets.bottom;
   return (
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#0EA5A4',
-        tabBarInactiveTintColor: '#94A3B8',
+        tabBarActiveTintColor: '#0D9488',
+        tabBarInactiveTintColor: isDark ? '#475569' : '#94A3B8',
         tabBarStyle: {
-          backgroundColor: '#FFFFFF',
+          backgroundColor: isDark ? '#0F172A' : '#FFFFFF',
           borderTopWidth: 1,
-          borderTopColor: '#E2E8F0',
-          paddingBottom: 8,
+          borderTopColor: isDark ? '#1E293B' : '#E2E8F0',
+          paddingBottom: insets.bottom > 0 ? insets.bottom : 8,
           paddingTop: 8,
-          height: 70,
+          height: tabBarHeight,
+          shadowColor: isDark ? '#000' : '#94A3B8',
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: isDark ? 0.4 : 0.08,
+          shadowRadius: 8,
+          elevation: 8,
         },
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: '600',
         },
+        tabBarActiveBackgroundColor: 'transparent',
+        tabBarInactiveBackgroundColor: 'transparent',
       }}>
       <Tab.Screen
         name="My Tasks"
@@ -154,8 +181,6 @@ function FieldOfficerTabNavigator({ user, onSignOut }: TabNavigatorProps) {
               rating: 4.8,
               total_resolved: 156,
             }}
-            darkMode={false}
-            onToggleDarkMode={() => {}}
             onLogout={onSignOut}
           />
         )}

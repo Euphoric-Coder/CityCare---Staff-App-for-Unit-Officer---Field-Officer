@@ -35,8 +35,6 @@ import { removeToken } from '../lib/auth';
 
 interface FieldProfileTabProps {
   profile: OfficerProfile;
-  darkMode: boolean;
-  onToggleDarkMode: (value: boolean) => void;
   onLogout: () => void;
 }
 
@@ -54,55 +52,6 @@ interface FieldProfileTabProps {
   darkMode: boolean;
   onToggleisDark: (value: boolean) => void;
   onLogout: () => void;
-}
-
-function PerformanceRing({
-  value,
-  max,
-  color,
-  size = 64,
-}: {
-  value: number;
-  max: number;
-  color: string;
-  size?: number;
-}) {
-  const percentage = Math.min((value / max) * 100, 100);
-  const radius = (size - 10) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const filled = (percentage / 100) * circumference;
-
-  return (
-    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
-      <View
-        style={{
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          borderWidth: 5,
-          borderColor: color + '22',
-          alignItems: 'center',
-          justifyContent: 'center',
-          position: 'absolute',
-        }}
-      />
-      <View
-        style={{
-          width: size - 10,
-          height: size - 10,
-          borderRadius: (size - 10) / 2,
-          borderWidth: 5,
-          borderColor: color,
-          borderTopColor: 'transparent',
-          borderRightColor: percentage > 50 ? color : 'transparent',
-          alignItems: 'center',
-          justifyContent: 'center',
-          transform: [{ rotate: '-90deg' }],
-          position: 'absolute',
-        }}
-      />
-    </View>
-  );
 }
 
 function StatCard({
@@ -206,7 +155,7 @@ const PERFORMANCE_BADGES = [
   },
 ];
 
-export default function FieldProfileTab({ profile, darkMode, onLogout }: FieldProfileTabProps) {
+export default function FieldProfileTab({ profile, onLogout }: FieldProfileTabProps) {
   const [loggingOut, setLoggingOut] = useState(false);
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';

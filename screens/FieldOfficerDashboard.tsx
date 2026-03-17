@@ -1,6 +1,16 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { Bell, MapPin, CheckCircle2, AlertTriangle, Clock, TrendingUp } from 'lucide-react-native';
+import {
+  Bell,
+  MapPin,
+  CircleCheck as CheckCircle2,
+  TriangleAlert as AlertTriangle,
+  Clock,
+  TrendingUp,
+  Wifi,
+  WifiOff,
+  Zap,
+} from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
 interface DashboardStats {
@@ -18,9 +28,52 @@ interface FieldOfficerDashboardProps {
   isOnline: boolean;
   stats: DashboardStats;
   onNotificationPress: () => void;
-  onRefresh: () => void;
-  refreshing: boolean;
 }
+
+const STAT_CARDS = (stats: DashboardStats) => [
+  {
+    label: 'Assigned',
+    value: stats.assigned,
+    icon: <CheckCircle2 color="#5EEAD4" size={20} strokeWidth={2.5} />,
+    iconBg: 'rgba(94,234,212,0.18)',
+    accentColor: '#5EEAD4',
+  },
+  {
+    label: 'In Progress',
+    value: stats.in_progress,
+    icon: <TrendingUp color="#FDE68A" size={20} strokeWidth={2.5} />,
+    iconBg: 'rgba(253,230,138,0.18)',
+    accentColor: '#FDE68A',
+  },
+  {
+    label: 'Pending Upload',
+    value: stats.pending_upload,
+    icon: <Clock color="#BAE6FD" size={20} strokeWidth={2.5} />,
+    iconBg: 'rgba(186,230,253,0.18)',
+    accentColor: '#BAE6FD',
+  },
+  {
+    label: 'Rework',
+    value: stats.rework_required,
+    icon: <AlertTriangle color="#FCA5A5" size={20} strokeWidth={2.5} />,
+    iconBg: 'rgba(252,165,165,0.18)',
+    accentColor: '#FCA5A5',
+  },
+  {
+    label: 'Done Today',
+    value: stats.resolved_today,
+    icon: <Zap color="#86EFAC" size={20} strokeWidth={2.5} />,
+    iconBg: 'rgba(134,239,172,0.18)',
+    accentColor: '#86EFAC',
+  },
+  {
+    label: 'SLA Alerts',
+    value: stats.sla_alerts,
+    icon: <AlertTriangle color="#FB923C" size={20} strokeWidth={2.5} />,
+    iconBg: 'rgba(251,146,60,0.18)',
+    accentColor: '#FB923C',
+  },
+];
 
 export default function FieldOfficerDashboard({
   officerName,
@@ -28,268 +81,149 @@ export default function FieldOfficerDashboard({
   isOnline,
   stats,
   onNotificationPress,
-  onRefresh,
-  refreshing,
 }: FieldOfficerDashboardProps) {
-  const StatCard = ({
-    icon,
-    label,
-    value,
-    color,
-    iconBg,
-  }: {
-    icon: React.ReactNode;
-    label: string;
-    value: number;
-    color: string;
-    iconBg: string;
-  }) => (
-    <View style={styles.statCard}>
-      <View style={[styles.statIconContainer, { backgroundColor: iconBg }]}>{icon}</View>
-      <View style={styles.statContent}>
-        <Text style={styles.statLabel}>{label}</Text>
-        <Text style={[styles.statValue, { color }]}>{value}</Text>
-      </View>
-    </View>
-  );
+  const initials = officerName
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+
+  const today = new Date().toLocaleDateString('en-IN', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'short',
+  });
 
   return (
-    <View style={styles.container}>
-      <LinearGradient colors={['#0EA5A4', '#0F766E']} style={styles.header}>
-        <View style={styles.headerContent}>
-          <View style={styles.headerLeft}>
-            <View style={styles.profileSection}>
-              <View style={styles.profileCircle}>
-                <Text style={styles.profileInitial}>{officerName.charAt(0)}</Text>
-              </View>
-              <View>
-                <Text style={styles.headerName}>{officerName}</Text>
-                <View style={styles.headerSubInfo}>
-                  <MapPin color="#CCFBF1" size={14} strokeWidth={2.5} />
-                  <Text style={styles.headerWard}>{ward}</Text>
-                  <View style={[styles.statusDot, isOnline && styles.statusDotOnline]} />
-                  <Text style={styles.statusText}>{isOnline ? 'Active' : 'Offline'}</Text>
-                </View>
-              </View>
+    <LinearGradient
+      colors={['#0D9488', '#0891B2', '#075985']}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.container}>
+      {/* top row */}
+      <View className="mb-5 flex-row items-start justify-between">
+        <View className="flex-1 flex-row items-center gap-3">
+          <View style={styles.avatar}>
+            <LinearGradient
+              colors={['rgba(255,255,255,0.35)', 'rgba(255,255,255,0.1)']}
+              style={styles.avatarGrad}>
+              <Text className="text-xl font-extrabold text-white">{initials}</Text>
+            </LinearGradient>
+          </View>
+          <View className="flex-1">
+            <Text className="mb-0.5 text-[12px] font-medium text-white/70">{today}</Text>
+            <Text
+              className="text-[22px] font-extrabold tracking-tight text-white"
+              numberOfLines={1}>
+              {officerName}
+            </Text>
+            <View className="mt-1 flex-row items-center gap-1.5">
+              <MapPin color="rgba(255,255,255,0.75)" size={11} strokeWidth={2.5} />
+              <Text className="text-[11px] font-semibold text-white/75">{ward}</Text>
             </View>
           </View>
-          <TouchableOpacity
-            style={styles.notificationButton}
-            onPress={onNotificationPress}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            activeOpacity={0.7}>
-            <Bell color="#FFFFFF" size={24} strokeWidth={2.5} />
-            {stats.sla_alerts > 0 && <View style={styles.notificationBadge} />}
-          </TouchableOpacity>
         </View>
-        <View style={styles.roleContainer}>
-          <Text style={styles.roleBadge}>Field Officer</Text>
-        </View>
-      </LinearGradient>
 
-      <View style={styles.statsSection}>
-        <Text style={styles.sectionTitle}>Today's Overview</Text>
-        <View style={styles.statsGrid}>
-          <StatCard
-            icon={<CheckCircle2 color="#0EA5A4" size={20} strokeWidth={2.5} />}
-            label="Assigned Issues"
-            value={stats.assigned}
-            color="#0EA5A4"
-            iconBg="#F0FDFA"
-          />
-          <StatCard
-            icon={<TrendingUp color="#F59E0B" size={20} strokeWidth={2.5} />}
-            label="In Progress"
-            value={stats.in_progress}
-            color="#F59E0B"
-            iconBg="#FEF3C7"
-          />
-          <StatCard
-            icon={<Clock color="#6B7280" size={20} strokeWidth={2.5} />}
-            label="Pending Upload"
-            value={stats.pending_upload}
-            color="#6B7280"
-            iconBg="#F3F4F6"
-          />
-          <StatCard
-            icon={<AlertTriangle color="#DC2626" size={20} strokeWidth={2.5} />}
-            label="Rework Required"
-            value={stats.rework_required}
-            color="#DC2626"
-            iconBg="#FEE2E2"
-          />
-          <StatCard
-            icon={<CheckCircle2 color="#16A34A" size={20} strokeWidth={2.5} />}
-            label="Resolved Today"
-            value={stats.resolved_today}
-            color="#16A34A"
-            iconBg="#D1FAE5"
-          />
-          <StatCard
-            icon={<AlertTriangle color="#DC2626" size={20} strokeWidth={2.5} />}
-            label="SLA Alerts"
-            value={stats.sla_alerts}
-            color="#DC2626"
-            iconBg="#FEE2E2"
-          />
+        <View className="items-end gap-2">
+          <TouchableOpacity
+            onPress={onNotificationPress}
+            activeOpacity={0.75}
+            style={styles.notifBtn}>
+            <Bell color="#FFFFFF" size={20} strokeWidth={2} />
+            {stats.sla_alerts > 0 && <View style={styles.notifDot} />}
+          </TouchableOpacity>
+          <View className="self-end rounded-full bg-white/[0.15] px-2.5 py-1">
+            <Text className="text-[10px] font-extrabold tracking-wider text-teal-200">
+              FIELD OFFICER
+            </Text>
+          </View>
         </View>
       </View>
-    </View>
+
+      {/* stat cards — 3-column grid */}
+      <Text className="mb-2.5 text-[11px] font-bold uppercase tracking-widest text-white/60">
+        Today's Overview
+      </Text>
+      <View style={styles.statsGrid}>
+        {STAT_CARDS(stats).map((card, i) => (
+          <View key={i} style={[styles.statCard, { borderColor: card.accentColor + '33' }]}>
+            <View style={[styles.statIcon, { backgroundColor: card.iconBg }]}>{card.icon}</View>
+            <Text className="mt-1 text-[24px] font-extrabold tracking-tight text-white">
+              {card.value}
+            </Text>
+            <Text className="mt-0.5 text-center text-[10px] font-semibold text-white/70">
+              {card.label}
+            </Text>
+            <View
+              className="absolute bottom-0 left-0 right-0 h-0.5 rounded-b-2xl opacity-60"
+              style={{ backgroundColor: card.accentColor }}
+            />
+          </View>
+        ))}
+      </View>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#F0FDFA',
-  },
-  header: {
-    paddingTop: 16,
-    paddingBottom: 24,
+    paddingTop: 18,
+    paddingBottom: 22,
     paddingHorizontal: 20,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
   },
-  headerContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 16,
+  avatar: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    borderWidth: 2.5,
+    borderColor: 'rgba(255,255,255,0.6)',
+    overflow: 'hidden',
   },
-  headerLeft: {
+  avatarGrad: {
     flex: 1,
-  },
-  profileSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  profileCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderWidth: 3,
-    borderColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  profileInitial: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  headerName: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    marginBottom: 4,
-  },
-  headerSubInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  headerWard: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#CCFBF1',
-  },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#9CA3AF',
-    marginLeft: 4,
-  },
-  statusDotOnline: {
-    backgroundColor: '#10B981',
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#CCFBF1',
-  },
-  notificationButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  notifBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.15)',
     alignItems: 'center',
     justifyContent: 'center',
-    position: 'relative',
   },
-  notificationBadge: {
+  notifDot: {
     position: 'absolute',
     top: 8,
     right: 8,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: '#DC2626',
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#F87171',
     borderWidth: 2,
-    borderColor: '#FFFFFF',
-  },
-  roleContainer: {
-    alignSelf: 'flex-start',
-  },
-  roleBadge: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#0F766E',
-    backgroundColor: '#CCFBF1',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  statsSection: {
-    padding: 20,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 16,
+    borderColor: '#0D9488',
   },
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: 10,
   },
   statCard: {
-    width: '48%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    flexDirection: 'row',
+    width: '30.5%',
+    paddingVertical: 14,
+    paddingHorizontal: 8,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 20,
+    borderWidth: 1,
     alignItems: 'center',
-    gap: 12,
-    borderWidth: 2,
-    borderColor: '#E5E7EB',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    overflow: 'hidden',
   },
-  statIconContainer: {
-    width: 44,
-    height: 44,
+  statIcon: {
+    width: 40,
+    height: 40,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  statContent: {
-    flex: 1,
-  },
-  statLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#6B7280',
-    marginBottom: 4,
-  },
-  statValue: {
-    fontSize: 24,
-    fontWeight: '700',
   },
 });

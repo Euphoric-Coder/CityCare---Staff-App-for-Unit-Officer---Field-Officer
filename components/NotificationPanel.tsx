@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, Modal, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, Modal, ScrollView, TouchableOpacity, useColorScheme } from 'react-native';
 import {
   X,
   Bell,
@@ -24,61 +24,81 @@ const TYPE_CONFIG: Record<
     icon: (color: string) => React.ReactNode;
     color: string;
     bg: string;
+    darkBg: string;
+    darkColor: string;
     label: string;
   }
 > = {
   assignment: {
     icon: (c) => <UserCheck size={15} color={c} strokeWidth={2.5} />,
     color: '#0891B2',
+    darkColor: '#38BDF8',
     bg: '#E0F2FE',
+    darkBg: '#082F49',
     label: 'Assignment',
   },
   sla_alert: {
     icon: (c) => <AlertTriangle size={15} color={c} strokeWidth={2.5} />,
     color: '#DC2626',
+    darkColor: '#F87171',
     bg: '#FEE2E2',
+    darkBg: '#450A0A',
     label: 'SLA Alert',
   },
   rework: {
     icon: (c) => <RotateCcw size={15} color={c} strokeWidth={2.5} />,
     color: '#F97316',
+    darkColor: '#FB923C',
     bg: '#FFEDD5',
+    darkBg: '#431407',
     label: 'Rework',
   },
   escalation: {
     icon: (c) => <ArrowUpCircle size={15} color={c} strokeWidth={2.5} />,
     color: '#7C3AED',
+    darkColor: '#A78BFA',
     bg: '#EDE9FE',
+    darkBg: '#2E1065',
     label: 'Escalation',
   },
   verification: {
     icon: (c) => <CheckCircle size={15} color={c} strokeWidth={2.5} />,
     color: '#059669',
+    darkColor: '#34D399',
     bg: '#D1FAE5',
+    darkBg: '#022C22',
     label: 'Verification',
   },
   resolution: {
     icon: (c) => <CheckCheck size={15} color={c} strokeWidth={2.5} />,
     color: '#10B981',
+    darkColor: '#6EE7B7',
     bg: '#D1FAE5',
+    darkBg: '#022C22',
     label: 'Resolution',
   },
   reopened: {
     icon: (c) => <RotateCcw size={15} color={c} strokeWidth={2.5} />,
     color: '#EC4899',
+    darkColor: '#F472B6',
     bg: '#FCE7F3',
+    darkBg: '#500724',
     label: 'Reopened',
   },
   message: {
     icon: (c) => <MessageSquare size={15} color={c} strokeWidth={2.5} />,
     color: '#3B82F6',
+    darkColor: '#60A5FA',
     bg: '#DBEAFE',
+    darkBg: '#1E3A8A',
     label: 'Message',
   },
   system: {
     icon: (c) => <Settings size={15} color={c} strokeWidth={2.5} />,
     color: '#6B7280',
+    darkColor: '#9CA3AF',
     bg: '#F1F5F9',
+    darkBg: '#1E293B',
     label: 'System',
   },
 };
@@ -104,7 +124,11 @@ interface NotificationItemProps {
 
 function NotificationItem({ notification, onMarkRead }: NotificationItemProps) {
   const [expanded, setExpanded] = useState(false);
+  const isDark = useColorScheme() === 'dark';
+
   const cfg = TYPE_CONFIG[notification.type] ?? TYPE_CONFIG.system;
+  const iconColor = isDark ? cfg.darkColor : cfg.color;
+  const bgColor = isDark ? cfg.darkBg : cfg.bg;
   const isUnread = !notification.read;
 
   return (
@@ -127,13 +151,13 @@ function NotificationItem({ notification, onMarkRead }: NotificationItemProps) {
         className="flex-row items-start gap-3 px-4 pb-3 pt-3.5">
         <View
           className="mt-0.5 h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl"
-          style={{ backgroundColor: cfg.bg }}>
-          {cfg.icon(cfg.color)}
+          style={{ backgroundColor: bgColor }}>
+          {cfg.icon(iconColor)}
         </View>
 
         <View className="min-w-0 flex-1">
           <View className="mb-0.5 flex-row items-center justify-between">
-            <View className="mr-2 rounded-md px-1.5 py-0.5" style={{ backgroundColor: cfg.bg }}>
+            <View className="mr-2 rounded-md px-1.5 py-0.5" style={{ backgroundColor: bgColor }}>
               <Text
                 className="text-[9px] font-extrabold tracking-wider"
                 style={{ color: cfg.color }}>

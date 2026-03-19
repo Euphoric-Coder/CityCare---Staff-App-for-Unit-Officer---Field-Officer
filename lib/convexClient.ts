@@ -25,17 +25,23 @@ export interface AuthResponse {
  * @param credentials - User email and password
  * @returns Authentication response with token and user data
  */
-export async function verifyUser(credentials: LoginCredentials): Promise<AuthResponse> {
+export async function verifyUser(credentials: LoginCredentials): Promise<any> {
   try {
+    // @ts-ignore
     const result = await convex.action(api.auth.verifyUser, {
       email: credentials.email,
       password: credentials.password,
+      role: credentials.role,
     });
 
-    return result as AuthResponse;
+    return result;
   } catch (error) {
-    console.error('Convex authentication error:', error);
-    throw new Error('Authentication failed. Please check your credentials.');
+    console.error('Convex error:', error);
+
+    return {
+      success: false,
+      error: 'Something went wrong. Try again.',
+    };
   }
 }
 

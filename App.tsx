@@ -241,26 +241,6 @@ export default function App() {
     }
   }, [appReady]);
 
-  const checkAuthStatus = async () => {
-    try {
-      const token = await getToken();
-      const userData = await getUserData();
-
-      console.log(token);
-      console.log(userData);
-
-      if (token) {
-        setUser(userData);
-        setIsAuthenticated(true);
-        setMustChangePassword(true);
-      }
-    } catch (error) {
-      console.error('Error checking auth status:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleSignIn = (userData: User) => {
     setUser(userData);
     setIsAuthenticated(true);

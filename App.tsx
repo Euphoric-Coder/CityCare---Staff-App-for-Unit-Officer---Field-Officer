@@ -207,16 +207,39 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [mustChangePassword, setMustChangePassword] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
+  const [appReady, setAppReady] = useState(false);
 
   useEffect(() => {
-    checkAuthStatus();
+    const prepare = async () => {
+      try {
+        const token = await getToken();
+        const userData = await getUserData();
+
+        if (token) {
+          setUser(userData);
+          setIsAuthenticated(true);
+          setMustChangePassword(true);
+        }
+      } catch (error) {
+        console.error('Error checking auth status:', error);
+      } finally {
+        setLoading(false);
+      }
+
+      // small delay ensures React tree is ready (CRUCIAL for iOS)
+      await new Promise((resolve) => setTimeout(resolve, 200));
+
+      setAppReady(true); // 👈 IMPORTANT
+    };
+
+    prepare();
   }, []);
 
-  const onLayoutRootView = async () => {
-    if (!loading) {
-      await SplashScreen.hideAsync();
+  useEffect(() => {
+    if (appReady) {
+      SplashScreen.hideAsync();
     }
-  };
+  }, [appReady]);
 
   const checkAuthStatus = async () => {
     try {
@@ -256,11 +279,7 @@ export default function App() {
   };
 
   if (showSplash) {
-    return (
-      <View style={{ flex: 1 }} onLayout={onLayoutRootView}>
-        <Splash onFinish={() => setShowSplash(false)} />
-      </View>
-    );
+    return <Splash onFinish={() => setShowSplash(false)} />;
   }
 
   return (

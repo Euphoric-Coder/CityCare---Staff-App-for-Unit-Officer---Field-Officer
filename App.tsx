@@ -1,3 +1,8 @@
+import * as SplashScreen from 'expo-splash-screen';
+
+SplashScreen.preventAutoHideAsync().catch(() => {});
+
+import Splash from './components/SplashScreen';
 import React, { useState, useEffect } from 'react';
 import { View, ActivityIndicator, useColorScheme } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
@@ -201,10 +206,17 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [mustChangePassword, setMustChangePassword] = useState(false);
+  const [showSplash, setShowSplash] = useState(true);
 
   useEffect(() => {
     checkAuthStatus();
   }, []);
+
+  const onLayoutRootView = async () => {
+    if (!loading) {
+      await SplashScreen.hideAsync();
+    }
+  };
 
   const checkAuthStatus = async () => {
     try {
@@ -243,16 +255,10 @@ export default function App() {
     }
   };
 
-  if (loading) {
+  if (showSplash) {
     return (
-      <View
-        style={{
-          flex: 1,
-          justifyContent: 'center',
-          alignItems: 'center',
-          backgroundColor: '#F0FDFA',
-        }}>
-        <ActivityIndicator size="large" color="#0EA5A4" />
+      <View style={{ flex: 1 }} onLayout={onLayoutRootView}>
+        <Splash onFinish={() => setShowSplash(false)} />
       </View>
     );
   }

@@ -555,15 +555,23 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
       scope: 'citizen',
       createdAt: new Date().toISOString(),
     };
-    setLocalIssue({
-      ...localIssue!,
-      status: 'Rejected',
-      rejectionReason: reason,
-      rejectionComment: reasonComment,
-      issueUpdates: [...localIssue!.issueUpdates, newUpdate],
-    });
     setShowRejectionModal(false);
-    Alert.alert('Rejected', 'Issue has been rejected.');
+
+    // delays heavy update
+    setTimeout(() => {
+      setLocalIssue({
+        ...localIssue!,
+        status: 'Rejected',
+        rejectionReason: reason,
+        rejectionComment: reasonComment,
+        issueUpdates: [...localIssue!.issueUpdates, newUpdate],
+      });
+    }, 100);
+
+    // Delay alert to next frame for iOS
+    setTimeout(() => {
+      Alert.alert('Rejected', 'Issue has been rejected.');
+    }, 300);
   };
 
   const handleAssign = (officerId: string) => {

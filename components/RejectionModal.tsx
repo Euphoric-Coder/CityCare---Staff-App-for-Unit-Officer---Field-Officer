@@ -121,8 +121,13 @@ export default function RejectionModal({
 
   const handleConfirmReject = () => {
     if (selectedReason) {
-      onReject(selectedReason, comment);
       setShowConfirmation(false);
+
+      // Let modal close first, then triggers the parent
+      setTimeout(() => {
+        onReject(selectedReason, comment);
+      }, 200);
+
       setSelectedReason('');
       setComment('');
     }

@@ -9,6 +9,7 @@ import {
   Switch,
   Alert,
   useColorScheme,
+  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
@@ -32,6 +33,8 @@ import {
   Calendar,
 } from 'lucide-react-native';
 import { removeToken } from '../lib/auth';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 
 interface FieldProfileTabProps {
   profile: OfficerProfile;
@@ -152,6 +155,7 @@ export default function FieldProfileTab({ profile, onLogout }: FieldProfileTabPr
   const [loggingOut, setLoggingOut] = useState(false);
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const insets = useSafeAreaInsets();
 
   const initials = profile.name
     .split(' ')
@@ -196,11 +200,17 @@ export default function FieldProfileTab({ profile, onLogout }: FieldProfileTabPr
   };
   return (
     // @ts-ignore
-    <SafeAreaView className="flex-1 bg-slate-50 dark:bg-slate-950" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-slate-50 dark:bg-slate-950">
+      <StatusBar translucent backgroundColor="transparent" style="light" />
       <ScrollView
         className="flex-1"
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}>
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            paddingTop: Platform.OS === 'android' ? insets.top : 0,
+          },
+        ]}>
         {/* ── Hero Banner ── */}
         <LinearGradient
           colors={
@@ -210,7 +220,12 @@ export default function FieldProfileTab({ profile, onLogout }: FieldProfileTabPr
           }
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
-          style={styles.heroBanner}>
+          style={[
+            styles.heroBanner,
+            {
+              paddingTop: 36,
+            },
+          ]}>
           {/* Background decoration */}
           <View
             style={[
@@ -611,12 +626,11 @@ const styles = StyleSheet.create({
   },
   heroBanner: {
     borderRadius: 28,
-    paddingTop: 36,
+    paddingTop: 36, // keep this
     paddingBottom: 28,
     paddingHorizontal: 24,
     alignItems: 'center',
     marginBottom: 16,
-    marginTop: 8,
     overflow: 'hidden',
     position: 'relative',
   },

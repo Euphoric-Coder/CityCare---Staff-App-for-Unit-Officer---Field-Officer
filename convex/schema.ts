@@ -11,7 +11,8 @@ export default defineSchema({
       v.literal('citizen'),
       v.literal('unit_officer'),
       v.literal('field_officer'),
-      v.literal('admin')
+      v.literal('admin'),
+      v.literal('city_admin')
     ),
 
     createdAt: v.string(),

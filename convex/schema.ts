@@ -158,6 +158,11 @@ export default defineSchema({
     // Workflow
     status: v.string(),
 
+    // Citizen Withdrawal
+    withdrawnAt: v.optional(v.number()),
+    withdrawalReason: v.optional(v.string()),
+    withdrawalCategory: v.optional(v.string()),
+
     assignedUnitOfficer: v.union(v.id('users'), v.null()),
     assignedFieldOfficer: v.union(v.id('users'), v.null()),
 
@@ -207,13 +212,13 @@ export default defineSchema({
     ),
 
     // Attachments (photos/videos/documents)
-    attachments: v.array(v.id('_storage')),
+    attachments: v.optional(v.array(v.id('_storage'))),
 
     // Visibility scope
     scope: v.union(
       v.literal('field_and_citizen'), // visible to citizen and officers
       v.literal('citizen'), // citizens only
-      v.literal('admin_only') // admin audit
+      v.literal('admin_only') // admin only
     ),
 
     // Timestamp
@@ -223,4 +228,15 @@ export default defineSchema({
     .index('by_issue_status', ['issueId', 'status'])
     .index('by_updated_by', ['updatedBy'])
     .index('by_role', ['role']),
+
+  notifications: defineTable({
+    userId: v.string(),
+    issueId: v.optional(v.id('issues')),
+    message: v.string(),
+    type: v.optional(v.string()),
+    read: v.boolean(),
+    createdAt: v.number(),
+  })
+    .index('by_user', ['userId'])
+    .index('by_user_unread', ['userId', 'read']),
 });

@@ -1,6 +1,6 @@
 import { ConvexHttpClient } from 'convex/browser';
-import { api } from 'convex/_generated/api';
 import { User } from './auth';
+import { api } from 'convex/_generated/api';
 
 // IMPORTANT: Replace this with your actual Convex deployment URL
 // Get this from: https://dashboard.convex.dev/
@@ -44,6 +44,20 @@ export async function verifyUser(credentials: LoginCredentials): Promise<any> {
     };
   }
 }
+
+// Fetch unit officer details by user ID
+export async function getUnitOfficerByUserId(userId: string) {
+  try {
+    // @ts-ignore
+    const officer = await convex.query(api.unitOfficers.getUnitOfficerByUserId, { userId });
+
+    return officer;
+  } catch (error) {
+    console.error('Error fetching unit officer:', error);
+    return null;
+  }
+}
+
 
 /**
  * Mock authentication for testing purposes

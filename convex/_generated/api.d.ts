@@ -9,11 +9,13 @@
  */
 
 import type * as auth from "../auth.js";
+import type * as crons from "../crons.js";
 import type * as duplicateIssues from "../duplicateIssues.js";
 import type * as fieldOfficers from "../fieldOfficers.js";
 import type * as issueUpdates from "../issueUpdates.js";
 import type * as issues from "../issues.js";
 import type * as issuesMedia from "../issuesMedia.js";
+import type * as notifications from "../notifications.js";
 import type * as signUp from "../signUp.js";
 import type * as unitOfficers from "../unitOfficers.js";
 import type * as users from "../users.js";
@@ -26,11 +28,13 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
+  crons: typeof crons;
   duplicateIssues: typeof duplicateIssues;
   fieldOfficers: typeof fieldOfficers;
   issueUpdates: typeof issueUpdates;
   issues: typeof issues;
   issuesMedia: typeof issuesMedia;
+  notifications: typeof notifications;
   signUp: typeof signUp;
   unitOfficers: typeof unitOfficers;
   users: typeof users;

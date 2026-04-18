@@ -1,15 +1,15 @@
-import { mutation, query } from "./_generated/server";
-import { v } from "convex/values";
+import { internalMutation, mutation, query } from './_generated/server';
+import { v } from 'convex/values';
 
 const CATEGORY_PREFIX = {
-  road: "RD",
-  electricity: "EL",
-  water: "WT",
-  sanitation: "SN",
-  drainage: "DR",
-  solid_waste: "SW",
-  public_health: "PH",
-  other: "OT",
+  road: 'RD',
+  electricity: 'EL',
+  water: 'WT',
+  sanitation: 'SN',
+  drainage: 'DR',
+  solid_waste: 'SW',
+  public_health: 'PH',
+  other: 'OT',
 };
 
 function generateRandomCode(length = 6) {
@@ -48,28 +48,29 @@ export const createIssue = mutation({
     googleMapUrl: v.string(),
 
     // --- Reporter ---
-    reportedBy: v.id("users"),
+    reportedBy: v.id('users'),
 
     isAnonymous: v.boolean(),
 
     additionalEmail: v.optional(v.union(v.string(), v.null())),
 
     // --- Media ---
-    photos: v.array(v.id("_storage")),
+    photos: v.array(v.id('_storage')),
 
     // Single videos (optional)
-    videos: v.union(v.id("_storage"), v.null()),
+    videos: v.union(v.id('_storage'), v.null()),
   },
 
   handler: async (ctx, args) => {
     // Generate Issue Code
-    const prefix = CATEGORY_PREFIX[args.category] ?? "OT";
+    // @ts-ignore
+    const prefix = CATEGORY_PREFIX[args.category] ?? 'OT';
 
     const randomPart = generateRandomCode(6);
 
     const issueCode = `${prefix}-${randomPart}`;
 
-    await ctx.db.insert("issues", {
+    await ctx.db.insert('issues', {
       // --- Core ---
       issueCode,
 
@@ -110,7 +111,7 @@ export const createIssue = mutation({
       videos: args.videos ?? null,
 
       // --- Workflow ---
-      status: "pending",
+      status: 'pending',
 
       assignedUnitOfficer: null,
       assignedFieldOfficer: null,
@@ -119,7 +120,7 @@ export const createIssue = mutation({
 
       escalatedToAdmin: false,
 
-      slaCategory: "standard",
+      slaCategory: 'standard',
       slaDeadline: null,
       slaBreached: false,
 
@@ -143,42 +144,223 @@ export const createIssue = mutation({
   },
 });
 
-
 export const getCitizenDashboardIssues = query({
   args: {
-    userId: v.id("users"),
+    userId: v.id('users'),
   },
 
   handler: async (ctx, args) => {
-    // Get citizen profile
+    // 1. Get citizen profile
     const citizen = await ctx.db
-      .query("citizens")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .query('citizens')
+      .withIndex('by_user', (q) => q.eq('userId', args.userId))
       .unique();
 
-    if (!citizen) return [];
+    if (!citizen || !citizen.city) return [];
 
-    // Get issues reported by citizen
-    const personalIssues = await ctx.db
-      .query("issues")
-      .withIndex("by_reporter", (q) => q.eq("reportedBy", args.userId))
+    // 2. Fetch ALL issues in same city (includes user's issues automatically)
+    const issues = await ctx.db
+      .query('issues')
+      .withIndex('by_city', (q) => q.eq('city', citizen.city))
       .collect();
 
-    // Get city issues
-    const cityIssues = await ctx.db
-      .query("issues")
-      .withIndex("by_city", (q) => q.eq("city", citizen.city))
-      .collect();
+    // 3. Attach photo preview
+    const resolvedIssues = await Promise.all(
+      issues.map(async (issue) => {
+        let photoUrl = null;
 
-    // Merge without duplicates
-    const issueMap = new Map();
+        if (issue.photos?.length > 0) {
+          photoUrl = await ctx.storage.getUrl(issue.photos[0]);
+        }
 
-    [...personalIssues, ...cityIssues].forEach((issue) => {
-      issueMap.set(issue._id, issue);
+        return {
+          ...issue,
+          photoUrl,
+        };
+      })
+    );
+
+    // 4. Sort latest first
+    return resolvedIssues.sort((a, b) => b.createdAt - a.createdAt);
+  },
+});
+
+export const withdrawIssue = mutation({
+  args: {
+    issueId: v.id('issues'),
+    userId: v.id('users'),
+    withdrawalReason: v.string(),
+    withdrawalCategory: v.string(),
+  },
+
+  handler: async (ctx, args) => {
+    const issue = await ctx.db.get(args.issueId);
+
+    if (!issue) {
+      throw new Error('Issue not found');
+    }
+
+    // Ensure only reporter can withdraw
+    if (issue.reportedBy !== args.userId) {
+      throw new Error('Unauthorized action');
+    }
+
+    // Prevent invalid cases
+    if (
+      issue.status === 'resolved' ||
+      issue.status === 'rejected' ||
+      issue.status === 'withdrawn'
+    ) {
+      throw new Error('Cannot withdraw this issue');
+    }
+
+    // Update issue details
+    await ctx.db.patch(args.issueId, {
+      status: 'withdrawn',
+
+      withdrawnAt: Date.now(),
+      withdrawalReason: args.withdrawalReason,
+      withdrawalCategory: args.withdrawalCategory,
     });
 
-    return Array.from(issueMap.values()).sort(
-      (a, b) => b.createdAt - a.createdAt,
-    );
+    // Add timeline entry
+    await ctx.db.insert('issueUpdates', {
+      issueId: args.issueId,
+      status: 'withdrawn',
+
+      comment: `Issue withdrawn.\nCategory: ${args.withdrawalCategory}\nReason: ${args.withdrawalReason}`,
+
+      updatedBy: args.userId,
+      role: 'citizen',
+
+      attachments: [],
+      scope: 'citizen',
+
+      createdAt: Date.now(),
+    });
+
+    return { success: true };
+  },
+});
+
+export const getIssueById = query({
+  args: {
+    issueId: v.id('issues'),
+  },
+
+  handler: async (ctx, args) => {
+    const issue = await ctx.db.get(args.issueId);
+
+    if (!issue) return null;
+
+    // Optional: attach photo preview (same logic as dashboard)
+    let photoUrl = null;
+    if (issue.photos && issue.photos.length > 0) {
+      photoUrl = await ctx.storage.getUrl(issue.photos[0]);
+    }
+
+    return {
+      ...issue,
+      photoUrl,
+    };
+  },
+});
+
+export const autoAssignIssues = internalMutation({
+  args: {},
+
+  handler: async (ctx) => {
+    const now = Date.now();
+
+    // 1. Get all unassigned issues
+    const issues = await ctx.db
+      .query('issues')
+      .filter((q) =>
+        q.and(
+          q.eq(q.field('assignedUnitOfficer'), null),
+          q.eq(q.field('status'), 'pending'),
+          q.eq(q.field('escalatedToAdmin'), false)
+        )
+      )
+      .collect();
+
+    if (issues.length === 0) return 'No issues to assign';
+
+    for (const issue of issues) {
+      // 2. Get eligible unit officers
+      const officers = await ctx.db
+        .query('unitOfficers')
+        .filter((q) =>
+          q.and(
+            q.eq(q.field('city'), issue.city),
+            q.eq(q.field('department'), issue.category),
+            q.eq(q.field('accountApproved'), true)
+          )
+        )
+        .collect();
+
+      if (officers.length === 0) {
+        console.log('No officer found for:', issue._id);
+        continue;
+      }
+
+      // 3. Load balancing (least active issues)
+      let selectedOfficer = officers[0];
+
+      for (const officer of officers) {
+        if ((officer.activeIssueIds?.length || 0) < (selectedOfficer.activeIssueIds?.length || 0)) {
+          selectedOfficer = officer;
+        }
+      }
+
+      // 4. Get officer user details (for name)
+      const officerUser = await ctx.db.get(selectedOfficer.userId);
+
+      const officerName = officerUser?.fullName || 'Unit Officer';
+
+      // 5. Assign issue
+      await ctx.db.patch(issue._id, {
+        assignedUnitOfficer: selectedOfficer.userId,
+      });
+
+      // 6. Update officer workload
+      await ctx.db.patch(selectedOfficer._id, {
+        activeIssueIds: [...(selectedOfficer.activeIssueIds || []), issue._id],
+      });
+
+      // 7. ISSUE UPDATE ENTRY
+      await ctx.db.insert('issueUpdates', {
+        issueId: issue._id,
+        status: 'pending',
+        comment: `Issue has been assigned to ${officerName} for further processing.`,
+        updatedBy: selectedOfficer.userId,
+        role: 'unit_officer',
+        attachments: [],
+        scope: 'citizen',
+        createdAt: now,
+      });
+
+      // 8. NOTIFICATION → Citizen
+      await ctx.db.insert('notifications', {
+        userId: issue.reportedBy,
+        issueId: issue._id,
+        message: `Your issue "${issue.title}" has been assigned to ${officerName}.`,
+        type: 'assigned',
+        read: false,
+        createdAt: now,
+      });
+
+      // 9. NOTIFICATION → Unit Officer
+      await ctx.db.insert('notifications', {
+        userId: selectedOfficer.userId,
+        issueId: issue._id,
+        message: `You have been assigned a new issue: "${issue.title}".`,
+        type: 'assigned',
+        read: false,
+        createdAt: now,
+      });
+    }
+
+    return `Assigned ${issues.length} issues successfully`;
   },
 });

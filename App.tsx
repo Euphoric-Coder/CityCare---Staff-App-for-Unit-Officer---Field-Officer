@@ -30,9 +30,13 @@ import { getToken, getUserData, User, removeToken } from './lib/auth';
 import './global.css';
 import ProfileTab from 'screens/ProfileTab';
 import ChangePasswordScreen from 'screens/ChangePasswordScreen';
+import { getUnitOfficerByUserId } from 'lib/convexClient';
+import { ConvexProvider, ConvexReactClient } from 'convex/react';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
+
+const convex = new ConvexReactClient(process.env.EXPO_PUBLIC_CONVEX_URL!);
 
 // Unit Officer Stacks
 function DashboardStack() {
@@ -201,7 +205,7 @@ function FieldOfficerTabNavigator({ user, onSignOut }: TabNavigatorProps) {
   );
 }
 
-export default function App() {
+function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -215,9 +219,10 @@ export default function App() {
         const token = await getToken();
         const userData = await getUserData();
 
-        if (token) {
+        if (token && userData) {
           setUser(userData);
           setIsAuthenticated(true);
+
           setMustChangePassword(true);
         }
       } catch (error) {
@@ -226,10 +231,8 @@ export default function App() {
         setLoading(false);
       }
 
-      // small delay ensures React tree is ready (CRUCIAL for iOS)
       await new Promise((resolve) => setTimeout(resolve, 200));
-
-      setAppReady(true); // 👈 IMPORTANT
+      setAppReady(true);
     };
 
     prepare();
@@ -284,5 +287,13 @@ export default function App() {
         <SignInScreen onSignIn={handleSignIn} />
       )}
     </SafeAreaProvider>
+  );
+}
+
+export default function AppWrapper() {
+  return (
+    <ConvexProvider client={convex}>
+      <App />
+    </ConvexProvider>
   );
 }

@@ -7,6 +7,7 @@ import {
   TextInput,
   StyleSheet,
   Modal,
+  useColorScheme,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -24,7 +25,7 @@ import {
   Check,
   TrendingUp,
   MapPin,
-  User,
+  User as UserIcon,
   Calendar,
   UserCheck,
   X,
@@ -33,9 +34,22 @@ import {
   TriangleAlert as AlertTriangle,
   SlidersHorizontal,
 } from 'lucide-react-native';
-import { Issue, IssueStatus, IssueCategory, IssueSubCategory, IssuePriority } from '../lib/types';
 import {
-  mockIssues,
+  Issue,
+  IssueStatus,
+  IssueCategory,
+  IssueSubCategory,
+  IssuePriority,
+  StatusKey,
+  StatusMeta,
+  PriorityKey,
+  PriorityMeta,
+  CategoryKey,
+  Meta,
+  SLAKey,
+  SLAMeta,
+} from '../lib/types';
+import {
   mockDashboardStats as mockStats,
   mockUnitOfficerNotifications,
   mockDuplicateGroups,
@@ -44,47 +58,110 @@ import { useNavigation } from '@react-navigation/native';
 import DuplicateDetectionBanner from '../components/DuplicateDetectionBanner';
 import { DuplicateGroup } from '../lib/types';
 import NotificationPanel from 'components/NotificationPanel';
+import { User } from '../lib/auth';
+import { useQuery } from 'convex/react';
+import { api } from 'convex/_generated/api';
+import { mapIssueToUI } from 'lib/issueMapper';
 
 interface UnitOfficerDashboardProps {
-  userName?: string;
-  ward?: string;
+  user: User;
 }
 
-const STATUS_OPTIONS: (IssueStatus | 'All')[] = [
-  'All',
-  'Pending',
-  'Verified',
-  'Assigned',
-  'In Progress',
-  'Pending UO Verification',
-  'Rework Required',
-  'Reopened',
-  'Escalated',
-  'Closed',
-  'Rejected',
+const STATUS_OPTIONS: (StatusKey | 'all')[] = [
+  'all',
+  'pending',
+  'verified',
+  'assigned',
+  'in_progress',
+  'pending_uo_verification',
+  'rework_required',
+  'reopened',
+  'escalated',
+  'closed',
+  'rejected',
 ];
 
-const CATEGORY_OPTIONS: (IssueCategory | 'All')[] = [
+const STATUS_LABEL_MAP: Record<StatusKey | 'all', string> = {
+  all: 'All',
+  pending: 'Pending',
+  verified: 'Verified',
+  assigned: 'Assigned',
+  in_progress: 'In Progress',
+  pending_uo_verification: 'Pending UO Verification',
+  rework_required: 'Rework Required',
+  reopened: 'Reopened',
+  escalated: 'Escalated',
+  closed: 'Closed',
+  rejected: 'Rejected',
+};
+
+export const CATEGORY_OPTIONS: (string | 'All')[] = [
   'All',
-  'Pothole',
-  'Street Light',
-  'Waste Management',
-  'Water Supply',
-  'Drainage',
-  'Road Repair',
-  'Park Maintenance',
-  'Public Safety',
+  'road',
+  'electricity',
+  'water',
+  'sanitation',
+  'drainage',
+  'solid_waste',
+  'public_health',
+  'other',
 ];
 
-const SUBCATEGORY_MAP: Record<IssueCategory, IssueSubCategory[]> = {
-  Pothole: ['Minor Pothole', 'Major Pothole', 'Road Cave-in'],
-  'Street Light': ['Street Light Out', 'Flickering Light', 'Damaged Pole'],
-  'Waste Management': ['Garbage Overflow', 'Illegal Dumping'],
-  'Water Supply': ['Water Leakage', 'No Water Supply'],
-  Drainage: ['Drain Overflow', 'Blocked Drain'],
-  'Road Repair': ['Footpath Damage', 'Median Damage'],
-  'Park Maintenance': ['Tree Fallen', 'Equipment Broken'],
-  'Public Safety': ['Noise Complaint', 'Encroachment', 'Other'],
+export const CATEGORY_LABEL_MAP: Record<string, string> = {
+  road: 'Road & Infrastructure',
+  electricity: 'Electricity & Lighting',
+  water: 'Water Supply',
+  sanitation: 'Sanitation & Waste',
+  drainage: 'Drainage & Sewer',
+  solid_waste: 'Solid Waste Management',
+  public_health: 'Public Health',
+  other: 'Other',
+};
+
+export const SUBCATEGORY_MAP: Record<CategoryKey, IssueSubCategory[]> = {
+  sanitation: [
+    'Waste Collection',
+    'Drain Cleaning',
+    'Public Toilet Maintenance',
+    'Garbage Segregation',
+    'Sewage Handling',
+  ],
+
+  road: [
+    'Pothole Repair',
+    'Asphalt Laying',
+    'Footpath Repair',
+    'Speed Breaker Construction',
+    'Road Marking',
+  ],
+
+  water: [
+    'Pipeline Repair',
+    'Leakage Detection',
+    'Valve Maintenance',
+    'Tanker Management',
+    'Water Quality Testing',
+  ],
+
+  electricity: [
+    'Street Light Repair',
+    'Cable Maintenance',
+    'Transformer Inspection',
+    'Meter Repair',
+  ],
+
+  drainage: ['Manhole Cleaning', 'Flood Prevention', 'Storm Water Management', 'Sewer Line Repair'],
+
+  solid_waste: ['Dumping Site Management', 'Waste Transportation', 'Recycling Operations'],
+
+  public_health: [
+    'Mosquito Control',
+    'Disinfection',
+    'Disease Prevention',
+    'Sanitation Inspection',
+  ],
+
+  other: ['General Issue'],
 };
 
 const PRIORITY_OPTIONS: (IssuePriority | 'All')[] = ['All', 'Critical', 'High', 'Medium', 'Low'];
@@ -92,11 +169,8 @@ const PRIORITY_OPTIONS: (IssuePriority | 'All')[] = ['All', 'Critical', 'High', 
 type SLAFilter = 'All' | 'Overdue' | 'Due Soon' | 'On Track';
 const SLA_OPTIONS: SLAFilter[] = ['All', 'Overdue', 'Due Soon', 'On Track'];
 
-const STATUS_META: Record<
-  string,
-  { bg: string; darkBg: string; text: string; darkText: string; dot: string; border: string }
-> = {
-  All: {
+const STATUS_META: Record<StatusKey, StatusMeta> = {
+  all: {
     bg: 'bg-blue-100',
     darkBg: 'dark:bg-blue-900/40',
     text: 'text-blue-700',
@@ -104,7 +178,7 @@ const STATUS_META: Record<
     dot: '#3B82F6',
     border: 'border-blue-200 dark:border-blue-800',
   },
-  Pending: {
+  pending: {
     bg: 'bg-amber-100',
     darkBg: 'dark:bg-amber-900/40',
     text: 'text-amber-700',
@@ -112,7 +186,7 @@ const STATUS_META: Record<
     dot: '#F59E0B',
     border: 'border-amber-200 dark:border-amber-800',
   },
-  Verified: {
+  verified: {
     bg: 'bg-emerald-100',
     darkBg: 'dark:bg-emerald-900/40',
     text: 'text-emerald-700',
@@ -120,7 +194,7 @@ const STATUS_META: Record<
     dot: '#10B981',
     border: 'border-emerald-200 dark:border-emerald-800',
   },
-  Assigned: {
+  assigned: {
     bg: 'bg-blue-100',
     darkBg: 'dark:bg-blue-900/40',
     text: 'text-blue-700',
@@ -128,7 +202,7 @@ const STATUS_META: Record<
     dot: '#3B82F6',
     border: 'border-blue-200 dark:border-blue-800',
   },
-  'In Progress': {
+  in_progress: {
     bg: 'bg-violet-100',
     darkBg: 'dark:bg-violet-900/40',
     text: 'text-violet-700',
@@ -136,7 +210,7 @@ const STATUS_META: Record<
     dot: '#8B5CF6',
     border: 'border-violet-200 dark:border-violet-800',
   },
-  'Pending UO Verification': {
+  pending_uo_verification: {
     bg: 'bg-amber-100',
     darkBg: 'dark:bg-amber-900/40',
     text: 'text-amber-700',
@@ -144,7 +218,7 @@ const STATUS_META: Record<
     dot: '#F59E0B',
     border: 'border-amber-200 dark:border-amber-800',
   },
-  'Rework Required': {
+  rework_required: {
     bg: 'bg-red-100',
     darkBg: 'dark:bg-red-900/40',
     text: 'text-red-700',
@@ -152,7 +226,7 @@ const STATUS_META: Record<
     dot: '#EF4444',
     border: 'border-red-200 dark:border-red-800',
   },
-  Reopened: {
+  reopened: {
     bg: 'bg-orange-100',
     darkBg: 'dark:bg-orange-900/40',
     text: 'text-orange-700',
@@ -160,7 +234,7 @@ const STATUS_META: Record<
     dot: '#F97316',
     border: 'border-orange-200 dark:border-orange-800',
   },
-  Escalated: {
+  escalated: {
     bg: 'bg-red-100',
     darkBg: 'dark:bg-red-900/40',
     text: 'text-red-800',
@@ -168,7 +242,7 @@ const STATUS_META: Record<
     dot: '#DC2626',
     border: 'border-red-200 dark:border-red-800',
   },
-  Closed: {
+  closed: {
     bg: 'bg-slate-100',
     darkBg: 'dark:bg-slate-700/50',
     text: 'text-slate-600',
@@ -176,7 +250,7 @@ const STATUS_META: Record<
     dot: '#94A3B8',
     border: 'border-slate-200 dark:border-slate-600',
   },
-  Rejected: {
+  rejected: {
     bg: 'bg-red-100',
     darkBg: 'dark:bg-red-900/40',
     text: 'text-red-900',
@@ -186,32 +260,29 @@ const STATUS_META: Record<
   },
 };
 
-const PRIORITY_META: Record<
-  string,
-  { bg: string; darkBg: string; text: string; darkText: string; dot: string }
-> = {
-  Critical: {
+const PRIORITY_META: Record<PriorityKey, PriorityMeta> = {
+  critical: {
     bg: 'bg-red-100',
     darkBg: 'dark:bg-red-900/40',
     text: 'text-red-700',
     darkText: 'dark:text-red-300',
     dot: '#DC2626',
   },
-  High: {
+  high: {
     bg: 'bg-orange-100',
     darkBg: 'dark:bg-orange-900/40',
     text: 'text-orange-700',
     darkText: 'dark:text-orange-300',
     dot: '#F97316',
   },
-  Medium: {
+  medium: {
     bg: 'bg-amber-100',
     darkBg: 'dark:bg-amber-900/40',
     text: 'text-amber-700',
     darkText: 'dark:text-amber-300',
     dot: '#F59E0B',
   },
-  Low: {
+  low: {
     bg: 'bg-green-100',
     darkBg: 'dark:bg-green-900/40',
     text: 'text-green-700',
@@ -220,86 +291,80 @@ const PRIORITY_META: Record<
   },
 };
 
-const CATEGORY_META: Record<
-  string,
-  { bg: string; darkBg: string; text: string; darkText: string }
-> = {
-  Pothole: {
-    bg: 'bg-orange-100',
-    darkBg: 'dark:bg-orange-900/40',
-    text: 'text-orange-700',
-    darkText: 'dark:text-orange-300',
-  },
-  'Street Light': {
-    bg: 'bg-yellow-100',
-    darkBg: 'dark:bg-yellow-900/40',
-    text: 'text-yellow-700',
-    darkText: 'dark:text-yellow-300',
-  },
-  'Waste Management': {
-    bg: 'bg-green-100',
-    darkBg: 'dark:bg-green-900/40',
-    text: 'text-green-700',
-    darkText: 'dark:text-green-300',
-  },
-  'Water Supply': {
+const CATEGORY_META: Record<CategoryKey, Meta> = {
+  road: {
     bg: 'bg-blue-100',
     darkBg: 'dark:bg-blue-900/40',
     text: 'text-blue-700',
     darkText: 'dark:text-blue-300',
   },
-  Drainage: {
+  electricity: {
+    bg: 'bg-yellow-100',
+    darkBg: 'dark:bg-yellow-900/40',
+    text: 'text-yellow-700',
+    darkText: 'dark:text-yellow-300',
+  },
+  water: {
     bg: 'bg-cyan-100',
     darkBg: 'dark:bg-cyan-900/40',
     text: 'text-cyan-700',
     darkText: 'dark:text-cyan-300',
   },
-  'Road Repair': {
-    bg: 'bg-slate-100',
-    darkBg: 'dark:bg-slate-700/50',
-    text: 'text-slate-700',
-    darkText: 'dark:text-slate-300',
+  sanitation: {
+    bg: 'bg-green-100',
+    darkBg: 'dark:bg-green-900/40',
+    text: 'text-green-700',
+    darkText: 'dark:text-green-300',
   },
-  'Park Maintenance': {
-    bg: 'bg-emerald-100',
-    darkBg: 'dark:bg-emerald-900/40',
-    text: 'text-emerald-700',
-    darkText: 'dark:text-emerald-300',
+  drainage: {
+    bg: 'bg-purple-100',
+    darkBg: 'dark:bg-purple-900/40',
+    text: 'text-purple-700',
+    darkText: 'dark:text-purple-300',
   },
-  'Public Safety': {
+  solid_waste: {
+    bg: 'bg-orange-100',
+    darkBg: 'dark:bg-orange-900/40',
+    text: 'text-orange-700',
+    darkText: 'dark:text-orange-300',
+  },
+  public_health: {
     bg: 'bg-red-100',
     darkBg: 'dark:bg-red-900/40',
     text: 'text-red-700',
     darkText: 'dark:text-red-300',
   },
+  other: {
+    bg: 'bg-gray-100',
+    darkBg: 'dark:bg-gray-700/50',
+    text: 'text-gray-700',
+    darkText: 'dark:text-gray-300',
+  },
 };
 
-const SLA_META: Record<
-  SLAFilter,
-  { bg: string; darkBg: string; text: string; darkText: string; dot: string }
-> = {
-  All: {
+const SLA_META: Record<SLAKey, SLAMeta> = {
+  all: {
     bg: 'bg-slate-100',
     darkBg: 'dark:bg-slate-700/50',
     text: 'text-slate-600',
     darkText: 'dark:text-slate-300',
     dot: '#94A3B8',
   },
-  Overdue: {
+  overdue: {
     bg: 'bg-red-100',
     darkBg: 'dark:bg-red-900/40',
     text: 'text-red-700',
     darkText: 'dark:text-red-300',
     dot: '#DC2626',
   },
-  'Due Soon': {
+  due_soon: {
     bg: 'bg-amber-100',
     darkBg: 'dark:bg-amber-900/40',
     text: 'text-amber-700',
     darkText: 'dark:text-amber-300',
     dot: '#F59E0B',
   },
-  'On Track': {
+  on_track: {
     bg: 'bg-emerald-100',
     darkBg: 'dark:bg-emerald-900/40',
     text: 'text-emerald-700',
@@ -336,14 +401,9 @@ function formatSlaDeadline(slaDeadline?: string): string | null {
 }
 
 function IssueCard({ issue, onPress }: { issue: Issue; onPress: () => void }) {
-  const sm = STATUS_META[issue.status] ?? STATUS_META.All;
-  const pm = PRIORITY_META[issue.priority] ?? PRIORITY_META.Low;
-  const cm = CATEGORY_META[issue.category] ?? {
-    bg: 'bg-slate-100',
-    darkBg: 'dark:bg-slate-700/50',
-    text: 'text-slate-700',
-    darkText: 'dark:text-slate-300',
-  };
+  const sm = STATUS_META[issue.status as StatusKey] ?? STATUS_META.pending;
+  const pm = PRIORITY_META[issue.priority as PriorityKey] ?? PRIORITY_META.low;
+  const cm = CATEGORY_META[issue.category as CategoryKey] ?? CATEGORY_META.other;
   const slaStatus = getSlaStatus(issue.slaDeadline);
   const slaLabel = formatSlaDeadline(issue.slaDeadline);
   const isOverdue = slaStatus === 'Overdue';
@@ -386,7 +446,7 @@ function IssueCard({ issue, onPress }: { issue: Issue; onPress: () => void }) {
               className={`${cm.text} ${cm.darkText}`}
             />
             <Text className={`text-[10px] font-extrabold tracking-wide ${cm.text} ${cm.darkText}`}>
-              {issue.category.toUpperCase()}
+              {CATEGORY_LABEL_MAP[issue.category]?.toUpperCase()}
             </Text>
           </View>
           <View
@@ -429,7 +489,7 @@ function IssueCard({ issue, onPress }: { issue: Issue; onPress: () => void }) {
             </Text>
           </View>
           <View className="flex-row items-center gap-1.5">
-            <User color="#9CA3AF" size={12} strokeWidth={2} />
+            <UserIcon color="#9CA3AF" size={12} strokeWidth={2} />
             <Text className="text-[12px] text-slate-500 dark:text-slate-400">
               {issue.citizenName}
             </Text>
@@ -496,9 +556,9 @@ function IssueCard({ issue, onPress }: { issue: Issue; onPress: () => void }) {
 }
 
 interface FilterState {
-  status: IssueStatus | 'All';
+  status: StatusKey | 'all';
   sla: SLAFilter;
-  category: IssueCategory | 'All';
+  category: CategoryKey | 'All';
   subCategory: IssueSubCategory | 'All';
   priority: IssuePriority | 'All';
 }
@@ -520,7 +580,7 @@ function FilterModal({
   const [openSection, setOpenSection] = useState<FilterSection | null>('status');
 
   const availableSubcats: (IssueSubCategory | 'All')[] =
-    local.category !== 'All' ? ['All', ...(SUBCATEGORY_MAP[local.category] ?? [])] : ['All'];
+    local.category !== 'All' ? ['All', ...SUBCATEGORY_MAP[local.category]] : ['All'];
 
   const activeCount = [
     local.status !== 'All',
@@ -607,8 +667,10 @@ function FilterModal({
               activeMeta={local.status !== 'All' ? STATUS_META[local.status] : undefined}>
               <View className="flex-row flex-wrap gap-2 px-5 pb-4">
                 {STATUS_OPTIONS.map((s) => {
-                  const m = STATUS_META[s] ?? STATUS_META.All;
+                  const key = s === 'all' ? 'pending' : s; // fallback meta
+                  const m = STATUS_META[key];
                   const isActive = local.status === s;
+
                   return (
                     <TouchableOpacity
                       key={s}
@@ -619,10 +681,16 @@ function FilterModal({
                           : 'border-slate-200 bg-transparent dark:border-slate-700'
                       }`}>
                       <View className="h-2 w-2 rounded-full" style={{ backgroundColor: m.dot }} />
+
                       <Text
-                        className={`text-[12px] font-semibold ${isActive ? `${m.text} ${m.darkText}` : 'text-slate-500 dark:text-slate-400'}`}>
-                        {s}
+                        className={`text-[12px] font-semibold ${
+                          isActive
+                            ? `${m.text} ${m.darkText}`
+                            : 'text-slate-500 dark:text-slate-400'
+                        }`}>
+                        {STATUS_LABEL_MAP[s]}
                       </Text>
+
                       {isActive && <Check size={11} color={m.dot} strokeWidth={3} />}
                     </TouchableOpacity>
                   );
@@ -637,7 +705,9 @@ function FilterModal({
               isOpen={openSection === 'sla'}
               onToggle={() => toggleSection('sla')}
               activeValue={local.sla !== 'All' ? local.sla : undefined}
-              activeMeta={local.sla !== 'All' ? SLA_META[local.sla] : undefined}>
+              activeMeta={
+                local.status !== 'all' ? STATUS_META[local.status as StatusKey] : undefined
+              }>
               <View className="flex-row flex-wrap gap-2 px-5 pb-4">
                 {SLA_OPTIONS.map((s) => {
                   const m = SLA_META[s];
@@ -858,11 +928,15 @@ function FilterAccordion({
   );
 }
 
-export default function UnitOfficerDashboard({
-  userName = 'Kumar Singh',
-  ward = 'Varanasi Zone',
-}: UnitOfficerDashboardProps) {
-  const navigation = useNavigation();
+export default function UnitOfficerDashboard({ user }: UnitOfficerDashboardProps) {
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+  const navigation = useNavigation<any>();
+  const unitOfficer = useQuery(
+    api.unitOfficers.getUnitOfficerByUserId,
+    // @ts-ignore
+    user?.id ? { userId: user.id } : 'skip'
+  );
   const [searchQuery, setSearchQuery] = useState('');
   const [filterVisible, setFilterVisible] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -885,9 +959,31 @@ export default function UnitOfficerDashboard({
     filters.priority !== 'All',
   ].filter(Boolean).length;
 
+  const rawIssues = useQuery(
+    api.unitOfficers.getUnitOfficerIssues,
+    // @ts-ignore
+    user?.id ? { userId: user.id } : 'skip'
+  );
+
+  const isLoading = rawIssues === undefined;
+
+  // rawIssues?.forEach((issue, index) => {
+  //   console.log(`Issue ${index + 1}:`);
+  //   console.log(JSON.stringify(issue, null, 2));
+  // });
+
+  const issues = useMemo(() => {
+    if (!rawIssues) return [];
+
+    return rawIssues.map((issue) => mapIssueToUI(issue, {}));
+  }, [rawIssues]);
+
+  // console.log('USER ID:', user?.id);
+  // console.log('RAW ISSUES:', rawIssues);
+
   const filteredIssues = useMemo(() => {
     const q = searchQuery.toLowerCase();
-    return mockIssues.filter((issue) => {
+    return issues.filter((issue) => {
       if (q) {
         const match =
           issue.title.toLowerCase().includes(q) ||
@@ -906,10 +1002,10 @@ export default function UnitOfficerDashboard({
       if (filters.priority !== 'All' && issue.priority !== filters.priority) return false;
       return true;
     });
-  }, [searchQuery, filters]);
+  }, [issues, searchQuery, filters]);
 
   const overdueCount = useMemo(
-    () => mockIssues.filter((i) => getSlaStatus(i.slaDeadline) === 'Overdue').length,
+    () => issues.filter((i) => getSlaStatus(i.slaDeadline) === 'Overdue').length,
     []
   );
 
@@ -917,26 +1013,26 @@ export default function UnitOfficerDashboard({
     {
       label: 'Total',
       value: mockStats.totalIssues,
-      icon: <FileText color="#5EEAD4" size={20} strokeWidth={2} />,
-      iconBg: 'rgba(94,234,212,0.18)',
+      icon: <FileText color={isDark ? '#FFFFFF' : '#0284C7'} size={20} strokeWidth={2.5} />,
+      iconBg: isDark ? 'rgba(255,255,255,0.15)' : '#E0F2FE',
     },
     {
       label: 'Pending',
       value: mockStats.pendingVerification,
-      icon: <Clock color="#FDE68A" size={20} strokeWidth={2} />,
-      iconBg: 'rgba(253,230,138,0.18)',
+      icon: <Clock color={isDark ? '#FDE047' : '#B45309'} size={20} strokeWidth={2.5} />,
+      iconBg: isDark ? 'rgba(253,224,71,0.2)' : '#FEF3C7',
     },
     {
       label: 'Assigned',
       value: mockStats.assigned,
-      icon: <AlertCircle color="#7DD3FC" size={20} strokeWidth={2} />,
-      iconBg: 'rgba(125,211,252,0.18)',
+      icon: <AlertCircle color={isDark ? '#F9A8D4' : '#BE123C'} size={20} strokeWidth={2.5} />,
+      iconBg: isDark ? 'rgba(249,168,212,0.2)' : '#FFE4E6',
     },
     {
       label: 'Closed',
       value: mockStats.closed,
-      icon: <CheckCircle color="#86EFAC" size={20} strokeWidth={2} />,
-      iconBg: 'rgba(134,239,172,0.18)',
+      icon: <CheckCircle color={isDark ? '#6EE7B7' : '#047857'} size={20} strokeWidth={2.5} />,
+      iconBg: isDark ? 'rgba(110,231,183,0.2)' : '#D1FAE5',
     },
   ];
 
@@ -956,7 +1052,7 @@ export default function UnitOfficerDashboard({
         keyboardShouldPersistTaps="handled">
         {/* ── HEADER ── */}
         <LinearGradient
-          colors={['#0F766E', '#0891B2', '#0C4A6E']}
+          colors={isDark ? ['#164E63', '#083344', '#0E7490'] : ['#0891B2', '#06B6D4', '#22D3EE']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.header}>
@@ -964,11 +1060,11 @@ export default function UnitOfficerDashboard({
             <View className="flex-1">
               <Text className="mb-1 text-[13px] font-medium text-white/70">Welcome back,</Text>
               <Text className="mb-2.5 text-[26px] font-extrabold tracking-tight text-white">
-                {userName}
+                {unitOfficer?.fullName}
               </Text>
               <View className="flex-row items-center gap-1 self-start rounded-full bg-white/[0.16] px-2.5 py-1">
                 <MapPin color="rgba(255,255,255,0.85)" size={10} strokeWidth={2.5} />
-                <Text className="text-[11px] font-bold text-white">{ward}</Text>
+                <Text className="text-[11px] font-bold text-white">{unitOfficer?.city}</Text>
               </View>
             </View>
             <View className="items-end gap-2">
@@ -1128,7 +1224,16 @@ export default function UnitOfficerDashboard({
           </View>
 
           {/* Issue list */}
-          {filteredIssues.length === 0 ? (
+          {isLoading ? (
+            <View className="gap-3">
+              {[1, 2, 3].map((i) => (
+                <View
+                  key={i}
+                  className="h-32 animate-pulse rounded-2xl bg-slate-200 dark:bg-slate-700"
+                />
+              ))}
+            </View>
+          ) : filteredIssues.length === 0 ? (
             <View className="items-center gap-3 py-14">
               <View className="mb-1 h-20 w-20 items-center justify-center rounded-3xl bg-slate-100 dark:bg-slate-800">
                 <FileText color="#D1D5DB" size={40} strokeWidth={1.5} />
@@ -1145,8 +1250,8 @@ export default function UnitOfficerDashboard({
               <IssueCard
                 key={issue.id}
                 issue={issue}
-                onPress={() =>
-                  // @ts-expect-error - navigation params typing
+                onPress={
+                  () =>
                   navigation.navigate('IssueDetail' as never, { issueId: issue.id } as never)
                 }
               />
@@ -1155,12 +1260,12 @@ export default function UnitOfficerDashboard({
         </View>
       </ScrollView>
 
-      <FilterModal
+      {/* <FilterModal
         visible={filterVisible}
         onClose={() => setFilterVisible(false)}
         filters={filters}
         onChange={setFilters}
-      />
+      /> */}
 
       <NotificationPanel
         visible={showNotifications}

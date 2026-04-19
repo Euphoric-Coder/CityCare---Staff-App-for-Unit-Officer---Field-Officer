@@ -155,6 +155,10 @@ export default defineSchema({
     // Single videos
     videos: v.union(v.id('_storage'), v.null()),
 
+    // Field Officer Reports
+    beforePhotos: v.optional(v.array(v.id('_storage'))),
+    afterPhotos: v.optional(v.array(v.id('_storage'))),
+
     // Workflow
     status: v.string(),
 
@@ -163,8 +167,32 @@ export default defineSchema({
     withdrawalReason: v.optional(v.string()),
     withdrawalCategory: v.optional(v.string()),
 
+    // Assignments
     assignedUnitOfficer: v.union(v.id('users'), v.null()),
     assignedFieldOfficer: v.union(v.id('users'), v.null()),
+
+    // Verification
+    verificationChecklist: v.optional(
+      v.object({
+        isValidIssue: v.boolean(),
+        isWithinJurisdiction: v.boolean(),
+        hasSufficientEvidence: v.boolean(),
+        isDuplicate: v.boolean(),
+        notes: v.optional(v.string()),
+        verifiedBy: v.id('users'),
+        verifiedAt: v.number(),
+      })
+    ),
+
+    // Rejection
+    rejection: v.optional(
+      v.object({
+        reason: v.string(),
+        comment: v.optional(v.string()),
+        rejectedBy: v.id('users'),
+        rejectedAt: v.number(),
+      })
+    ),
 
     possibleDuplicateIds: v.array(v.id('issues')),
 

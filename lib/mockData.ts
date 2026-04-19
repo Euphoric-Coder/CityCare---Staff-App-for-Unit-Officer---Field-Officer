@@ -207,7 +207,7 @@ export const mockIssues: Issue[] = [
     subCategories: ['Street Light Out', 'Damaged Pole'],
     tags: ['#publicsafety', '#streetlight', '#nightsafety', '#critical', '#godowlia'],
     priority: 'Critical',
-    status: 'Verified',
+    status: 'Pending',
     location: 'Godowlia Chowk',
     ward: 'Varanasi Zone',
     citizenName: 'Sanjay Gupta',
@@ -243,7 +243,7 @@ export const mockIssues: Issue[] = [
         createdAt: '2024-02-27T09:00:00Z',
       },
     ],
-    slaDeadline: '2026-04-15T23:59:59Z',
+    slaDeadline: '2026-05-15T23:59:59Z',
     coordinates: { latitude: 25.3108, longitude: 83.0107 },
     createdAt: '2024-02-26T18:45:00Z',
     images: [

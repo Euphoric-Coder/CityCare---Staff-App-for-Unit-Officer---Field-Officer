@@ -39,11 +39,10 @@ const Stack = createNativeStackNavigator();
 const convex = new ConvexReactClient(process.env.EXPO_PUBLIC_CONVEX_URL!);
 
 // Unit Officer Stacks
-function DashboardStack() {
+function DashboardStack({ user }: { user: User }) {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="DashboardHome" component={UnitOfficerDashboard} />
-      {/* @ts-ignore */}
+      <Stack.Screen name="DashboardHome">{() => <UnitOfficerDashboard user={user} />}</Stack.Screen>
       <Stack.Screen name="IssueDetail" component={IssueDetailScreen} />
     </Stack.Navigator>
   );
@@ -97,11 +96,11 @@ function UnitOfficerTabNavigator({ user, onSignOut }: TabNavigatorProps) {
       }}>
       <Tab.Screen
         name="Dashboard"
-        component={DashboardStack}
         options={{
           tabBarIcon: ({ color, size }) => <Home size={size} color={color} />,
-        }}
-      />
+        }}>
+        {() => <DashboardStack user={user} />}
+      </Tab.Screen>
       {/* <Tab.Screen
         name="Public"
         component={PublicStack}

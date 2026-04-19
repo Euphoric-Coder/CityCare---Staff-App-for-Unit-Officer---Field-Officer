@@ -7,6 +7,7 @@ import {
   Platform,
   Modal,
   useColorScheme,
+  TextInput,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -22,11 +23,12 @@ import {
   CheckCheck,
   TriangleAlert as AlertTriangle,
   XCircle,
+  Notebook,
 } from 'lucide-react-native';
 import { VerificationChecklist } from '../lib/types';
 
 interface VerificationFlowProps {
-  onVerify: (checklist: VerificationChecklist, slaDate: string) => void;
+  onVerify: (checklist: VerificationChecklist, slaDate: string, notes: string) => void;
   onReject: () => void;
 }
 
@@ -42,7 +44,7 @@ const CHECKLIST_ITEMS = [
     bgDark: '#0C4A6E',
   },
   {
-    key: 'evidenceSufficient' as keyof VerificationChecklist,
+    key: 'hasSufficientEvidence' as keyof VerificationChecklist,
     label: 'Evidence is sufficient',
     description: 'Photos and description clearly document the issue',
     Icon: Camera,
@@ -63,7 +65,7 @@ const CHECKLIST_ITEMS = [
     hint: 'Search for similar issues before proceeding',
   },
   {
-    key: 'withinJurisdiction' as keyof VerificationChecklist,
+    key: 'isWithinJurisdiction' as keyof VerificationChecklist,
     label: 'Within municipal jurisdiction',
     description: "Location falls under this unit's area of responsibility",
     Icon: Building2,
@@ -97,10 +99,12 @@ export default function VerificationFlow({ onVerify, onReject }: VerificationFlo
 
   const [checklist, setChecklist] = useState<VerificationChecklist>({
     locationValid: false,
-    evidenceSufficient: false,
+    hasSufficientEvidence: false,
     notDuplicate: false,
-    withinJurisdiction: false,
+    isWithinJurisdiction: false,
   });
+
+  const [notes, setNotes] = useState<string>('');
 
   const defaultSla = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
   const [slaDate, setSlaDate] = useState<Date>(defaultSla);
@@ -111,11 +115,12 @@ export default function VerificationFlow({ onVerify, onReject }: VerificationFlo
 
   const checkedCount = Object.values(checklist).filter(Boolean).length;
   const totalCount = CHECKLIST_ITEMS.length;
-  const canVerify = checkedCount === totalCount;
+  const wordCount = notes.trim() ? notes.trim().split(/\s+/).length : 0;
+  const canVerify = checkedCount === totalCount && wordCount >= 10;
   const progressPct = (checkedCount / totalCount) * 100;
 
   const handleVerify = () => {
-    if (canVerify) onVerify(checklist, slaDate.toISOString());
+    if (canVerify) onVerify(checklist, slaDate.toISOString(), notes);
   };
 
   const openDatePicker = () => {
@@ -245,6 +250,59 @@ export default function VerificationFlow({ onVerify, onReject }: VerificationFlo
             </TouchableOpacity>
           );
         })}
+      </View>
+
+      {/* Notes Section */}
+      <View
+        className={`mb-5 overflow-hidden rounded-[24px] border bg-white shadow-sm dark:bg-slate-900 ${
+          notes && wordCount < 10
+            ? 'border-amber-300 dark:border-amber-900/60'
+            : 'border-slate-200 dark:border-slate-800'
+        }`}>
+        <View className="flex-row items-center justify-between border-b border-slate-100 bg-slate-50/80 px-4 py-3.5 dark:border-slate-800/80 dark:bg-slate-800/40">
+          <View className="flex-row items-center gap-2.5">
+            <View className="h-8 w-8 items-center justify-center rounded-xl bg-amber-100 dark:bg-amber-900/40">
+              <Notebook color={isDark ? '#FBBF24' : '#F59E0B'} size={15} strokeWidth={2.5} />
+            </View>
+            <Text className="text-[14px] font-black tracking-tight text-slate-800 dark:text-slate-100">
+              Field Notes
+            </Text>
+          </View>
+          
+          <View
+            className={`rounded-lg px-2.5 py-1.5 ${
+              wordCount >= 10
+                ? 'bg-emerald-100 dark:bg-emerald-900/40'
+                : 'bg-amber-100 dark:bg-amber-900/40'
+            }`}>
+            <Text
+              className={`text-[10px] font-black ${
+                wordCount >= 10
+                  ? 'text-emerald-700 dark:text-emerald-400'
+                  : 'text-amber-700 dark:text-amber-400'
+              }`}>
+              {wordCount} WORDS {wordCount < 10 && '(MIN 10)'}
+            </Text>
+          </View>
+        </View>
+
+        <View className="px-1 py-1">
+          <TextInput
+            className="min-h-[110px] bg-transparent px-4 py-3"
+            placeholder="Document verification details here. Be specific about observations..."
+            value={notes}
+            onChangeText={setNotes}
+            multiline
+            placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
+            style={{
+              fontSize: 15,
+              lineHeight: 24,
+              textAlignVertical: 'top',
+              color: isDark ? '#F1F5F9' : '#1F2937',
+              fontWeight: '500',
+            }}
+          />
+        </View>
       </View>
 
       {/* SLA Deadline */}

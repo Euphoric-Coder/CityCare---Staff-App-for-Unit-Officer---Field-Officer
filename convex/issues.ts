@@ -63,7 +63,6 @@ export const createIssue = mutation({
 
   handler: async (ctx, args) => {
     // Generate Issue Code
-    // @ts-ignore
     const prefix = CATEGORY_PREFIX[args.category] ?? 'OT';
 
     const randomPart = generateRandomCode(6);
@@ -253,15 +252,40 @@ export const getIssueById = query({
 
     if (!issue) return null;
 
-    // Optional: attach photo preview (same logic as dashboard)
+    // 🔹 Main preview (first photo)
     let photoUrl = null;
     if (issue.photos && issue.photos.length > 0) {
       photoUrl = await ctx.storage.getUrl(issue.photos[0]);
     }
 
+    // 🔹 Resolve BEFORE photos
+    const beforePhotos = await Promise.all(
+      (issue.beforePhotos || []).map(async (fileId) => {
+        const url = await ctx.storage.getUrl(fileId);
+        return url;
+      })
+    );
+
+    // 🔹 Resolve AFTER photos
+    const afterPhotos = await Promise.all(
+      (issue.afterPhotos || []).map(async (fileId) => {
+        const url = await ctx.storage.getUrl(fileId);
+        return url;
+      })
+    );
+
+    // 🔹 Resolve videos (if exists)
+    let videoUrl = null;
+    if (issue.videos) {
+      videoUrl = await ctx.storage.getUrl(issue.videos);
+    }
+
     return {
       ...issue,
       photoUrl,
+      beforePhotos,
+      afterPhotos,
+      videoUrl,
     };
   },
 });

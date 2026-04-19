@@ -1,16 +1,16 @@
 export type IssueStatus =
-  | 'Pending'
-  | 'Verified'
-  | 'Assigned'
-  | 'In Progress'
-  | 'Pending UO Verification'
-  | 'Rework Required'
-  | 'Reopened'
-  | 'Escalated'
-  | 'Closed'
-  | 'Rejected';
+  | 'pending'
+  | 'verified'
+  | 'assigned'
+  | 'in_progress'
+  | 'pending_uo_verification'
+  | 'rework_required'
+  | 'reopened'
+  | 'escalated'
+  | 'closed'
+  | 'rejected';
 
-export type IssuePriority = 'Low' | 'Medium' | 'High' | 'Critical';
+export type IssuePriority = 'low' | 'medium' | 'high' | 'critical';
 
 export type IssueCategory =
   | 'Pothole'
@@ -22,26 +22,99 @@ export type IssueCategory =
   | 'Park Maintenance'
   | 'Public Safety';
 
+  export type CategoryKey =
+    | 'road'
+    | 'electricity'
+    | 'water'
+    | 'sanitation'
+    | 'drainage'
+    | 'solid_waste'
+    | 'public_health'
+    | 'other';
+
+  export const SUBCATEGORY_MAP: Record<CategoryKey, IssueSubCategory[]> = {
+    sanitation: [
+      'Waste Collection',
+      'Drain Cleaning',
+      'Public Toilet Maintenance',
+      'Garbage Segregation',
+      'Sewage Handling',
+    ],
+
+    road: [
+      'Pothole Repair',
+      'Asphalt Laying',
+      'Footpath Repair',
+      'Speed Breaker Construction',
+      'Road Marking',
+    ],
+
+    water: [
+      'Pipeline Repair',
+      'Leakage Detection',
+      'Valve Maintenance',
+      'Tanker Management',
+      'Water Quality Testing',
+    ],
+
+    electricity: [
+      'Street Light Repair',
+      'Cable Maintenance',
+      'Transformer Inspection',
+      'Meter Repair',
+    ],
+
+    drainage: [
+      'Manhole Cleaning',
+      'Flood Prevention',
+      'Storm Water Management',
+      'Sewer Line Repair',
+    ],
+
+    solid_waste: ['Dumping Site Management', 'Waste Transportation', 'Recycling Operations'],
+
+    public_health: [
+      'Mosquito Control',
+      'Disinfection',
+      'Disease Prevention',
+      'Sanitation Inspection',
+    ],
+
+    other: ['General Issue'],
+  };
+
 export type IssueSubCategory =
-  | 'Minor Pothole'
-  | 'Major Pothole'
-  | 'Road Cave-in'
-  | 'Street Light Out'
-  | 'Flickering Light'
-  | 'Damaged Pole'
-  | 'Garbage Overflow'
-  | 'Illegal Dumping'
-  | 'Water Leakage'
-  | 'No Water Supply'
-  | 'Drain Overflow'
-  | 'Blocked Drain'
-  | 'Footpath Damage'
-  | 'Median Damage'
-  | 'Tree Fallen'
-  | 'Equipment Broken'
-  | 'Noise Complaint'
-  | 'Encroachment'
-  | 'Other';
+  | 'Waste Collection'
+  | 'Drain Cleaning'
+  | 'Public Toilet Maintenance'
+  | 'Garbage Segregation'
+  | 'Sewage Handling'
+  | 'Pothole Repair'
+  | 'Asphalt Laying'
+  | 'Footpath Repair'
+  | 'Speed Breaker Construction'
+  | 'Road Marking'
+  | 'Pipeline Repair'
+  | 'Leakage Detection'
+  | 'Valve Maintenance'
+  | 'Tanker Management'
+  | 'Water Quality Testing'
+  | 'Street Light Repair'
+  | 'Cable Maintenance'
+  | 'Transformer Inspection'
+  | 'Meter Repair'
+  | 'Manhole Cleaning'
+  | 'Flood Prevention'
+  | 'Storm Water Management'
+  | 'Sewer Line Repair'
+  | 'Dumping Site Management'
+  | 'Waste Transportation'
+  | 'Recycling Operations'
+  | 'Mosquito Control'
+  | 'Disinfection'
+  | 'Disease Prevention'
+  | 'Sanitation Inspection'
+  | 'General Issue';
 
 export type RejectionReason =
   | 'Duplicate'
@@ -90,11 +163,48 @@ export type SLAExtensionReason =
   | 'Scope of work increased'
   | 'Other';
 
+  export type StatusKey =
+    | 'all'
+    | 'pending'
+    | 'verified'
+    | 'assigned'
+    | 'in_progress'
+    | 'pending_uo_verification'
+    | 'rework_required'
+    | 'reopened'
+    | 'escalated'
+    | 'closed'
+    | 'rejected';
+
+  export type PriorityKey = 'critical' | 'high' | 'medium' | 'low';
+
+  export type SLAKey = 'all' | 'overdue' | 'due_soon' | 'on_track';
+
+  export type Meta = {
+    bg: string;
+    darkBg: string;
+    text: string;
+    darkText: string;
+  };
+
+  export type StatusMeta = Meta & {
+    dot: string;
+    border: string;
+  };
+
+ export type PriorityMeta = Meta & {
+    dot: string;
+  };
+
+ export type SLAMeta = Meta & {
+    dot: string;
+  };
+
 export interface VerificationChecklist {
   locationValid: boolean;
-  evidenceSufficient: boolean;
+  hasSufficientEvidence: boolean;
   notDuplicate: boolean;
-  withinJurisdiction: boolean;
+  isWithinJurisdiction: boolean;
 }
 
 export type UserRole = 'UnitOfficer' | 'FieldOfficer' | 'Citizen' | 'Admin';
@@ -136,49 +246,88 @@ export interface Conversation {
 
 export interface Issue {
   id: string;
+  issueCode: string;
+
   title: string;
   description: string;
+
   category: IssueCategory;
-  subCategories?: IssueSubCategory[];
-  tags?: string[];
+  subCategories: IssueSubCategory[];
+  tags: string[];
+
   priority: IssuePriority;
   status: IssueStatus;
+
   location: string;
   ward: string;
+
   citizenName: string;
   citizenEmail: string;
   citizenPhone: string;
-  dateReported: string;
+
+  dateReported: string; // ISO string (used in UI)
+  createdAt: number; // raw timestamp (for sorting, keys)
+
   assignedOfficer?: string;
   assignedOfficerId?: string;
+
   beforePhotos: string[];
   afterPhotos?: string[];
-  videoEvidence?: string[];
-  issueUpdates: IssueUpdate[];
+  videoEvidence: string[];
+
+  issueUpdates?: IssueUpdate[];
+
   slaDeadline?: string;
-  distance?: number;
-  coordinates: { latitude: number; longitude: number };
-  images?: string[];
-  createdAt: string;
+
+  coordinates: {
+    latitude: number;
+    longitude: number;
+  };
+
+  images: string[];
+
+  // ---- Optional advanced workflow fields ----
   verificationChecklist?: VerificationChecklist;
+
   rejectionReason?: RejectionReason;
   rejectionComment?: string;
+
   reassignmentReason?: ReassignmentReason;
   reassignmentComment?: string;
+
   reworkReason?: ReworkReason;
   reworkComment?: string;
+
   escalationReason?: EscalationReason;
   escalationComment?: string;
+
   submissionComment?: string;
-  submissionLocation?: { latitude: number; longitude: number };
+  submissionLocation?: {
+    latitude: number;
+    longitude: number;
+  };
   submissionTimestamp?: string;
+
   foResolutionDescription?: string;
-  foBeforeLocation?: { latitude: number; longitude: number; timestamp: string };
-  foAfterLocation?: { latitude: number; longitude: number; timestamp: string };
+
+  foBeforeLocation?: {
+    latitude: number;
+    longitude: number;
+    timestamp: string;
+  };
+
+  foAfterLocation?: {
+    latitude: number;
+    longitude: number;
+    timestamp: string;
+  };
+
   slaOverdueRejectionReason?: SLAOverdueRejectionReason;
   slaOverdueRejectionComment?: string;
+
   slaExtensionReason?: SLAExtensionReason;
   slaExtensionComment?: string;
+
   slaAdminEscalationComment?: string;
 }
 

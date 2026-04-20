@@ -8,6 +8,7 @@ import {
   StyleSheet,
   Modal,
   useColorScheme,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -62,6 +63,7 @@ import { User } from '../lib/auth';
 import { useQuery } from 'convex/react';
 import { api } from 'convex/_generated/api';
 import { mapIssueToUI } from 'lib/issueMapper';
+import { useUser } from 'context/UserContext';
 
 interface UnitOfficerDashboardProps {
   user: User;
@@ -928,7 +930,8 @@ function FilterAccordion({
   );
 }
 
-export default function UnitOfficerDashboard({ user }: UnitOfficerDashboardProps) {
+export default function UnitOfficerDashboard() {
+  const user = useUser();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const navigation = useNavigation<any>();
@@ -1040,6 +1043,17 @@ export default function UnitOfficerDashboard({ user }: UnitOfficerDashboardProps
   const activeSla = filters.sla !== 'All' ? SLA_META[filters.sla] : null;
   const activeCat = filters.category !== 'All' ? CATEGORY_META[filters.category] : null;
   const activePri = filters.priority !== 'All' ? PRIORITY_META[filters.priority] : null;
+
+  if (!unitOfficer) {
+    return (
+      <View className="flex-1 items-center justify-center bg-slate-50 dark:bg-slate-900">
+        <ActivityIndicator size="large" color="#0D9488" />
+        <Text className="mt-3 text-sm font-medium text-slate-400">
+          Loading Unit Officer Dashboard...
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-slate-50 dark:bg-slate-900" edges={['top']}>
@@ -1250,8 +1264,7 @@ export default function UnitOfficerDashboard({ user }: UnitOfficerDashboardProps
               <IssueCard
                 key={issue.id}
                 issue={issue}
-                onPress={
-                  () =>
+                onPress={() =>
                   navigation.navigate('IssueDetail' as never, { issueId: issue.id } as never)
                 }
               />

@@ -171,20 +171,20 @@ export default defineSchema({
     assignedUnitOfficer: v.union(v.id('users'), v.null()),
     assignedFieldOfficer: v.union(v.id('users'), v.null()),
 
-    // Verification
+    // Issue Verification
     verificationChecklist: v.optional(
       v.object({
-        isValidIssue: v.boolean(),
-        isWithinJurisdiction: v.boolean(),
+        locationValid: v.boolean(),
         hasSufficientEvidence: v.boolean(),
-        isDuplicate: v.boolean(),
+        notDuplicate: v.boolean(),
+        isWithinJurisdiction: v.boolean(),
         notes: v.optional(v.string()),
         verifiedBy: v.id('users'),
         verifiedAt: v.number(),
       })
     ),
 
-    // Rejection
+    // Issue Rejection
     rejection: v.optional(
       v.object({
         reason: v.string(),
@@ -230,7 +230,7 @@ export default defineSchema({
     comment: v.union(v.string(), v.null()),
 
     // Who performed the update
-    updatedBy: v.id('users'),
+    updatedBy: v.optional(v.id('users')),
 
     role: v.union(
       v.literal('citizen'),

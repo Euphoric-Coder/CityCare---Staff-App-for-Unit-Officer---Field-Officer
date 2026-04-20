@@ -32,9 +32,17 @@ import ProfileTab from 'screens/ProfileTab';
 import ChangePasswordScreen from 'screens/ChangePasswordScreen';
 import { getUnitOfficerByUserId } from 'lib/convexClient';
 import { ConvexProvider, ConvexReactClient } from 'convex/react';
+import { UserContext } from 'context/UserContext';
+
+type RootStackParamList = {
+  DashboardHome: undefined;
+  FieldDashboardHome: undefined;
+  FieldIssueDetail: undefined;
+  IssueDetail: { issueId: string };
+};
 
 const Tab = createBottomTabNavigator();
-const Stack = createNativeStackNavigator();
+const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const convex = new ConvexReactClient(process.env.EXPO_PUBLIC_CONVEX_URL!);
 
@@ -42,7 +50,7 @@ const convex = new ConvexReactClient(process.env.EXPO_PUBLIC_CONVEX_URL!);
 function DashboardStack({ user }: { user: User }) {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="DashboardHome">{() => <UnitOfficerDashboard user={user} />}</Stack.Screen>
+      <Stack.Screen name="DashboardHome">{() => <UnitOfficerDashboard />}</Stack.Screen>
       <Stack.Screen name="IssueDetail" component={IssueDetailScreen} />
     </Stack.Navigator>
   );
@@ -204,9 +212,13 @@ function FieldOfficerTabNavigator({ user, onSignOut }: TabNavigatorProps) {
   );
 }
 
-function App() {
+type AppProps = {
+  user: User | null;
+  setUser: React.Dispatch<React.SetStateAction<User | null>>;
+};
+
+function App({ user, setUser }: AppProps) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [mustChangePassword, setMustChangePassword] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
@@ -290,9 +302,13 @@ function App() {
 }
 
 export default function AppWrapper() {
+  const [user, setUser] = useState<User | null>(null);
+
   return (
     <ConvexProvider client={convex}>
-      <App />
+      <UserContext.Provider value={user}>
+        <App user={user} setUser={setUser} />
+      </UserContext.Provider>
     </ConvexProvider>
   );
 }

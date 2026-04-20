@@ -14,6 +14,8 @@ import {
   Linking,
   Platform,
   Modal,
+  Pressable,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
@@ -78,6 +80,7 @@ import SLAOverduePanel from 'components/SLAOverduePanel';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from 'convex/_generated/api';
 import { mapIssueToUI } from 'lib/issueMapper';
+import { useUser } from 'context/UserContext';
 
 interface IssueDetailScreenProps {
   route: { params: { issueId: string } };
@@ -363,6 +366,7 @@ function VideoEvidenceCard({ videoUrl, isDark }: { videoUrl: string; isDark: boo
 }
 
 export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
+  const user = useUser();
   const navigation = useNavigation();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
@@ -394,6 +398,7 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
   const [updateAttachments, setUpdateAttachments] = useState<FileAttachment[]>([]);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
   const pendingPicker = useRef<'camera' | 'gallery' | 'document' | null>(null);
+  const [previewAttachment, setPreviewAttachment] = useState<any>(null);
 
   const launchCamera = useCallback(async () => {
     try {
@@ -496,25 +501,32 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
   }, [showAttachMenu, launchCamera, launchGallery, launchDocumentPicker]);
 
   const handleVerify = (checklist: VerificationChecklist, slaDate: string, notes: string) => {
-    const newUpdate: IssueUpdate = {
-      id: `upd-${Date.now()}`,
-      issueId: mappedIssue!.id,
-      status: 'verified',
-      comment: 'Issue verified and ready for officer assignment.',
-      role: 'UnitOfficer',
-      attachments: [],
-      updatedBy: 'uo-1',
-      scope: 'field_and_citizen',
-      createdAt: new Date().toISOString(),
-    };
-    console.log('Issue Update:', newUpdate);
-    console.log('Verification Checklist', {
-      status: 'Verified',
-      verificationChecklist: checklist,
-      slaDeadline: slaDate,
-      notes: notes,
-    });
-    Alert.alert('Success', 'Issue has been verified and is ready for assignment.');
+    try {
+      const newUpdate: IssueUpdate = {
+        id: `upd-${Date.now()}`,
+        issueId: mappedIssue!.id,
+        status: 'verified',
+        comment: 'Issue verified and ready for officer assignment.',
+        role: 'UnitOfficer',
+        attachments: [],
+        updatedBy: 'uo-1',
+        scope: 'field_and_citizen',
+        createdAt: new Date().toISOString(),
+      };
+      console.log('Issue Update:', newUpdate);
+      console.log('Verification Checklist', {
+        issueId: issue?._id,
+        status: 'verified',
+        verificationChecklist: checklist,
+        slaDeadline: slaDate,
+        notes: notes,
+      });
+
+      Alert.alert('Success', 'Issue has been verified and is ready for assignment.');
+    } catch (err) {
+      console.error(err);
+      Alert.alert('Error', 'Failed to verify issue.');
+    }
   };
 
   const handleReverify = (checklist: VerificationChecklist, slaDate: string) => {
@@ -577,7 +589,7 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
     const timelineEntry: IssueUpdate = {
       id: `upd-${Date.now()}`,
       issueId: mappedIssue.id,
-      status: 'Assigned',
+      status: 'assigned',
       comment: isReassign
         ? `Issue reassigned from ${previousOfficer ?? 'previous officer'} to ${officer.name}.${pendingReassignMeta?.reason ? ` Reason: ${pendingReassignMeta.reason}.` : ''}${pendingReassignMeta?.comment ? ` ${pendingReassignMeta.comment}` : ''}`
         : `Issue assigned to field officer ${officer.name} (Rating: ${officer.rating.toFixed(1)}, Success Rate: ${officer.successRate}%).`,
@@ -804,7 +816,7 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
     allBeforePhotos.length > 0 || allAfterPhotos.length > 0 || mappedIssue.images.length > 0;
   const hasVideo = (mappedIssue.videoEvidence?.length ?? 0) > 0;
 
-  console.log(mappedIssue.images);
+  // console.log(mappedIssue.images);
 
   return (
     <SafeAreaView className="flex-1 bg-slate-100 dark:bg-slate-900" edges={['top']}>
@@ -1285,21 +1297,29 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
             title="Issue Updates"
             icon={
               <MessageSquarePlus
-                color={isDark ? '#94A3B8' : '#64748B'}
-                size={16}
+                color={isDark ? '#38BDF8' : '#0284C7'}
+                size={18}
                 strokeWidth={2.5}
               />
             }
           />
-          <View className="px-5 py-4">
+          <View className="bg-slate-50/50 px-5 py-5 dark:bg-slate-900/30">
             {issueUpdates?.length === 0 ? (
-              <View className="items-center py-8">
-                <Text className="text-sm text-slate-400 dark:text-slate-600">No updates yet</Text>
+              <View className="items-center py-10">
+                <View className="mb-3 h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 dark:bg-slate-800">
+                  <MessageSquarePlus
+                    color={isDark ? '#475569' : '#CBD5E1'}
+                    size={20}
+                    strokeWidth={2}
+                  />
+                </View>
+                <Text className="text-[13px] font-bold text-slate-400 dark:text-slate-500">
+                  No updates yet
+                </Text>
               </View>
             ) : (
               (issueUpdates ?? []).map((upd, index) => {
                 const dotColor = STATUS_DOT_COLORS[upd.status] ?? '#94A3B8';
-
                 const isLast = index === (issueUpdates?.length ?? 0) - 1;
 
                 const scopeMeta =
@@ -1307,24 +1327,21 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
                     ? {
                         label: 'Citizen only',
                         icon: <Eye color="#0284C7" size={11} strokeWidth={2.5} />,
-                        bg: 'bg-sky-50 dark:bg-sky-900/20',
+                        bg: 'bg-sky-50 dark:bg-sky-900/40',
                         text: 'text-sky-700 dark:text-sky-300',
-                        border: 'border-sky-200 dark:border-sky-700/40',
                       }
                     : upd.scope === 'field_and_citizen'
                       ? {
                           label: 'Officer & Citizen',
                           icon: <Users color="#059669" size={11} strokeWidth={2.5} />,
-                          bg: 'bg-emerald-50 dark:bg-emerald-900/20',
+                          bg: 'bg-emerald-50 dark:bg-emerald-900/40',
                           text: 'text-emerald-700 dark:text-emerald-300',
-                          border: 'border-emerald-200 dark:border-emerald-700/40',
                         }
                       : {
                           label: 'Admin only',
                           icon: <ShieldAlert color="#DC2626" size={11} strokeWidth={2.5} />,
-                          bg: 'bg-red-50 dark:bg-red-900/20',
+                          bg: 'bg-red-50 dark:bg-red-900/40',
                           text: 'text-red-700 dark:text-red-300',
-                          border: 'border-red-200 dark:border-red-700/40',
                         };
 
                 return (
@@ -1334,50 +1351,48 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
                       <View
                         style={[
                           styles.timelineDot,
-                          { backgroundColor: dotColor, shadowColor: dotColor },
+                          {
+                            backgroundColor: dotColor,
+                            shadowColor: dotColor,
+                            shadowOffset: { width: 0, height: 4 },
+                            shadowOpacity: 0.4,
+                            shadowRadius: 8,
+                            elevation: 5,
+                            borderWidth: 2,
+                            borderColor: isDark ? '#1E293B' : '#FFFFFF',
+                          },
                         ]}
                       />
-                      {!isLast && <View style={styles.timelineLine} />}
+                      {!isLast && (
+                        <LinearGradient
+                          colors={[dotColor, isDark ? '#334155' : '#E2E8F0']}
+                          style={[
+                            styles.timelineLine,
+                            { flex: 1, width: 2, opacity: 0.5, marginTop: 4, marginBottom: 4 },
+                          ]}
+                        />
+                      )}
                     </View>
 
                     {/* CARD */}
                     <View
-                      className={`mb-4 ml-3 flex-1 overflow-hidden rounded-2xl border ${
+                      className={`mb-5 ml-4 flex-1 overflow-hidden rounded-[24px] border ${
                         isLast
-                          ? 'border-teal-200 dark:border-teal-700/40'
-                          : 'border-slate-100 dark:border-slate-700/30'
+                          ? 'border-cyan-300/60 bg-white shadow-sm dark:border-cyan-800/60 dark:bg-slate-800'
+                          : 'border-slate-200/60 bg-white/60 dark:border-slate-700/50 dark:bg-slate-800/60'
                       }`}>
                       {/* HEADER */}
-                      <View
-                        className={`px-3 pb-2 pt-3 ${
-                          isLast
-                            ? 'bg-teal-50 dark:bg-teal-900/20'
-                            : 'bg-slate-50 dark:bg-slate-700/40'
-                        }`}>
-                        {/* STATUS + TIME */}
-                        <View className="mb-1.5 flex-row items-center justify-between">
-                          <View className="flex-1 flex-row items-center gap-2">
-                            <View
-                              style={{
-                                width: 8,
-                                height: 8,
-                                borderRadius: 4,
-                                backgroundColor: dotColor,
-                              }}
-                            />
-                            <Text className="text-[13px] font-extrabold text-slate-800 dark:text-slate-100">
-                              {STATUS_LABELS[upd.status] || upd.status}
-                            </Text>
-                          </View>
-
-                          <Text className="text-[10px] font-semibold text-slate-400 dark:text-slate-500">
+                      <View className="flex-row items-center justify-between border-b border-slate-100 px-4 py-3 dark:border-slate-700/50">
+                        <View>
+                          <Text className="mb-0.5 text-[14px] font-black text-slate-800 dark:text-slate-100">
+                            {STATUS_LABELS[upd.status] || upd.status}
+                          </Text>
+                          <Text className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
                             {formatTimestamp(upd.createdAt)}
                           </Text>
                         </View>
 
-                        {/* ROLE + SCOPE */}
-                        <View className="flex-row items-center justify-between">
-                          {/* ROLE FIX */}
+                        <View className="items-end gap-1.5">
                           <Text
                             style={{
                               color:
@@ -1389,19 +1404,17 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
                                       ? '#D97706'
                                       : '#7C3AED',
                             }}
-                            className="text-[11px] font-bold">
+                            className="text-[11px] font-black uppercase">
                             {upd.role === 'unit_officer'
                               ? 'Unit Officer'
                               : upd.role === 'field_officer'
                                 ? 'Field Officer'
                                 : upd.role.charAt(0).toUpperCase() + upd.role.slice(1)}
                           </Text>
-
-                          {/* SCOPE BADGE */}
                           <View
-                            className={`flex-row items-center gap-1 rounded-lg border px-2 py-0.5 ${scopeMeta.bg} ${scopeMeta.border}`}>
+                            className={`flex-row items-center gap-1.5 rounded-lg px-2 py-1 ${scopeMeta.bg}`}>
                             {scopeMeta.icon}
-                            <Text className={`text-[10px] font-bold ${scopeMeta.text}`}>
+                            <Text className={`text-[9px] font-black uppercase ${scopeMeta.text}`}>
                               {scopeMeta.label}
                             </Text>
                           </View>
@@ -1410,94 +1423,108 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
 
                       {/* COMMENT */}
                       {upd.comment && (
-                        <View
-                          className={`px-3 py-2.5 ${
-                            isLast
-                              ? 'bg-teal-50/50 dark:bg-teal-900/10'
-                              : 'bg-white dark:bg-slate-800'
-                          }`}>
-                          <Text className="text-[13px] leading-[20px] text-slate-600 dark:text-slate-300">
+                        <View className="px-4 py-3.5">
+                          <Text className="text-[14px] font-medium leading-[22px] text-slate-600 dark:text-slate-300">
                             {upd.comment}
                           </Text>
                         </View>
                       )}
 
-                      {/* ATTACHMENTS FIX */}
+                      {/* ATTACHMENTS */}
                       {upd.attachments?.length > 0 && (
-                        <View className="gap-2 bg-white px-3 pb-3 pt-2 dark:bg-slate-800">
-                          <View className="mb-1 flex-row items-center gap-1">
+                        <View className="border-t border-slate-100 bg-slate-50/50 px-4 py-3 dark:border-slate-700/40 dark:bg-slate-900/20">
+                          <View className="mb-2.5 flex-row items-center gap-1.5">
                             <Paperclip
                               color={isDark ? '#64748B' : '#94A3B8'}
-                              size={11}
+                              size={12}
                               strokeWidth={2.5}
                             />
-                            <Text className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                            <Text className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
                               Attachments ({upd.attachments.length})
                             </Text>
                           </View>
 
-                          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                            <View className="flex-row gap-2">
-                              {upd.attachments.map((att, ai) => {
-                                const isImage = att.contentType?.startsWith('image');
-                                const isVideo = att.contentType?.startsWith('video');
-                                const isPDF = att.contentType?.includes('pdf');
+                          <ScrollView
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            contentContainerStyle={{ gap: 10 }}>
+                            {upd.attachments.map((att: any, ai: number) => {
+                              const isImage = att.contentType?.startsWith('image');
+                              const isVideo = att.contentType?.startsWith('video');
+                              const isPDF = att.contentType?.includes('pdf');
 
-                                if (isImage) {
-                                  return (
+                              if (isImage) {
+                                return (
+                                  <TouchableOpacity
+                                    key={ai}
+                                    activeOpacity={0.8}
+                                    onPress={() => setPreviewAttachment({ ...att, type: 'image' })}>
                                     <Image
-                                      key={ai}
                                       source={{ uri: att.url }}
-                                      style={styles.attachmentThumb}
+                                      style={[
+                                        styles.attachmentThumb,
+                                        {
+                                          borderRadius: 12,
+                                          borderWidth: 1,
+                                          borderColor: isDark ? '#334155' : '#E2E8F0',
+                                        },
+                                      ]}
                                       resizeMode="cover"
                                     />
-                                  );
-                                }
+                                  </TouchableOpacity>
+                                );
+                              }
 
-                                if (isVideo) {
-                                  return (
-                                    <View
-                                      key={ai}
-                                      style={[
-                                        styles.attachmentThumb,
-                                        {
-                                          backgroundColor: '#1E293B',
-                                          alignItems: 'center',
-                                          justifyContent: 'center',
-                                        },
-                                      ]}>
-                                      <Video color="#fff" size={20} />
+                              if (isVideo) {
+                                return (
+                                  <TouchableOpacity
+                                    key={ai}
+                                    activeOpacity={0.8}
+                                    onPress={() => setPreviewAttachment({ ...att, type: 'video' })}
+                                    style={[
+                                      styles.attachmentThumb,
+                                      {
+                                        backgroundColor: '#0F172A',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        borderRadius: 12,
+                                        borderWidth: 1,
+                                        borderColor: isDark ? '#334155' : '#E2E8F0',
+                                      },
+                                    ]}>
+                                    <View className="h-8 w-8 items-center justify-center rounded-full bg-white/20">
+                                      <Play color="#fff" size={14} fill="#fff" />
                                     </View>
-                                  );
-                                }
+                                  </TouchableOpacity>
+                                );
+                              }
 
-                                if (isPDF) {
-                                  return (
-                                    <View
-                                      key={ai}
-                                      style={[
-                                        styles.attachmentThumb,
-                                        {
-                                          backgroundColor: '#FEF2F2',
-                                          alignItems: 'center',
-                                          justifyContent: 'center',
-                                        },
-                                      ]}>
-                                      <Text
-                                        style={{
-                                          color: '#DC2626',
-                                          fontWeight: '900',
-                                          fontSize: 10,
-                                        }}>
-                                        PDF
-                                      </Text>
+                              if (isPDF) {
+                                return (
+                                  <TouchableOpacity
+                                    key={ai}
+                                    activeOpacity={0.8}
+                                    onPress={() => setPreviewAttachment({ ...att, type: 'pdf' })}
+                                    style={[
+                                      styles.attachmentThumb,
+                                      {
+                                        backgroundColor: '#FEF2F2',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        borderRadius: 12,
+                                        borderWidth: 1,
+                                        borderColor: isDark ? '#334155' : '#E2E8F0',
+                                      },
+                                    ]}>
+                                    <View className="h-8 w-8 items-center justify-center rounded-full bg-red-100">
+                                      <FileText color="#DC2626" size={14} strokeWidth={2.5} />
                                     </View>
-                                  );
-                                }
+                                  </TouchableOpacity>
+                                );
+                              }
 
-                                return null;
-                              })}
-                            </View>
+                              return null;
+                            })}
                           </ScrollView>
                         </View>
                       )}
@@ -2243,6 +2270,69 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
                 Cancel
               </Text>
             </TouchableOpacity>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* ATTACHMENT PREVIEW MODAL */}
+      <Modal
+        visible={!!previewAttachment}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPreviewAttachment(null)}>
+        <TouchableOpacity
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.95)',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+          activeOpacity={1}
+          onPress={() => setPreviewAttachment(null)}>
+          <View className="absolute right-6 top-14 z-50">
+            <View className="h-14 w-14 items-center justify-center rounded-full border-[1.5px] border-white/20 bg-slate-800/80 backdrop-blur-md">
+              <X color="#ffffff" size={32} strokeWidth={2.5} />
+            </View>
+          </View>
+
+          <TouchableOpacity
+            activeOpacity={1}
+            style={{ width: '100%', alignItems: 'center', justifyContent: 'center' }}
+            onPress={() => {}}>
+            {previewAttachment?.type === 'image' && (
+              <Image
+                source={{ uri: previewAttachment.url }}
+                style={{ width: SCREEN_WIDTH, height: '80%' }}
+                resizeMode="contain"
+              />
+            )}
+
+            {(previewAttachment?.type === 'video' || previewAttachment?.type === 'pdf') && (
+              <View className="items-center px-10">
+                <View
+                  className={`h-24 w-24 items-center justify-center rounded-3xl ${previewAttachment.type === 'video' ? 'bg-cyan-500/20' : 'bg-red-500/20'} mb-6`}>
+                  {previewAttachment.type === 'video' ? (
+                    <Video color="#22D3EE" size={40} strokeWidth={2} />
+                  ) : (
+                    <FileText color="#EF4444" size={40} strokeWidth={2} />
+                  )}
+                </View>
+                <Text className="mb-2 text-center text-[20px] font-black tracking-tight text-white">
+                  {previewAttachment.type === 'video' ? 'Video Evidence' : 'Document Evidence'}
+                </Text>
+                <Text className="mb-8 text-center text-[13px] font-medium text-slate-400">
+                  Due to native platform requirements, please open this file in your system's
+                  default viewer.
+                </Text>
+                <TouchableOpacity
+                  onPress={() => Linking.openURL(previewAttachment.url)}
+                  className="w-full flex-row items-center justify-center gap-2 rounded-2xl bg-white px-6 py-4">
+                  <Text className="text-[15px] font-black text-slate-900">
+                    Open External Viewer
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>

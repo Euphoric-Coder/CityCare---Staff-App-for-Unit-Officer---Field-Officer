@@ -81,6 +81,7 @@ import { useMutation, useQuery } from 'convex/react';
 import { api } from 'convex/_generated/api';
 import { mapIssueToUI } from 'lib/issueMapper';
 import { useUser } from 'context/UserContext';
+import { Id } from 'convex/_generated/dataModel';
 
 interface IssueDetailScreenProps {
   route: { params: { issueId: string } };
@@ -382,7 +383,7 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
   const issue = useQuery(api.issues.getIssueById, { issueId });
 
   // @ts-ignore
-  const verifyIssue = useMutation(api.issues.verifyIssue);
+  const verifyIssue = useMutation(api.unitOfficers.verifyIssue);
 
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [assignModalMode, setAssignModalMode] = useState<'assign' | 'reassign'>('assign');
@@ -500,26 +501,22 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
     }
   }, [showAttachMenu, launchCamera, launchGallery, launchDocumentPicker]);
 
-  const handleVerify = (checklist: VerificationChecklist, slaDate: string, notes: string) => {
+  const handleVerify = async (checklist: VerificationChecklist, slaDate: string, notes: string) => {
+    if (!issue || !user) {
+      throw new Error('Missing issue or user');
+    }
+
     try {
-      const newUpdate: IssueUpdate = {
-        id: `upd-${Date.now()}`,
-        issueId: mappedIssue!.id,
-        status: 'verified',
-        comment: 'Issue verified and ready for officer assignment.',
-        role: 'UnitOfficer',
-        attachments: [],
-        updatedBy: 'uo-1',
-        scope: 'field_and_citizen',
-        createdAt: new Date().toISOString(),
-      };
-      console.log('Issue Update:', newUpdate);
-      console.log('Verification Checklist', {
-        issueId: issue?._id,
-        status: 'verified',
+      await verifyIssue({
+        issueId: issue._id,
+        issueCode: issue.issueCode,
         verificationChecklist: checklist,
-        slaDeadline: slaDate,
+        slaDeadline: new Date(slaDate).getTime(),
         notes: notes,
+        UOName: user.name,
+        verifiedBy: user.id as Id<'users'>,
+        issueName: issue.title,
+        reporterId: issue.reportedBy as Id<'users'>,
       });
 
       Alert.alert('Success', 'Issue has been verified and is ready for assignment.');

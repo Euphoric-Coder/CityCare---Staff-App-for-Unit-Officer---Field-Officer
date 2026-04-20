@@ -34,6 +34,13 @@ import {
   Layers,
   TriangleAlert as AlertTriangle,
   SlidersHorizontal,
+  Zap,
+  Droplets,
+  Trash2,
+  Recycle,
+  Package,
+  HeartPulse,
+  MoreHorizontal,
 } from 'lucide-react-native';
 import {
   Issue,
@@ -403,8 +410,41 @@ function formatSlaDeadline(slaDeadline?: string): string | null {
 }
 
 function IssueCard({ issue, onPress }: { issue: Issue; onPress: () => void }) {
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
   const sm = STATUS_META[issue.status as StatusKey] ?? STATUS_META.pending;
   const pm = PRIORITY_META[issue.priority as PriorityKey] ?? PRIORITY_META.low;
+
+  const getCategoryStyle = (categoryValue: string) => {
+    switch (categoryValue) {
+      case 'road': return { icon: MapPin, textClass: 'text-blue-600 dark:text-blue-400', border: 'border-blue-200/50 dark:border-blue-500/30', hex: isDark ? '#60A5FA' : '#2563EB' };
+      case 'electricity': return { icon: Zap, textClass: 'text-yellow-600 dark:text-yellow-400', border: 'border-yellow-200/50 dark:border-yellow-500/30', hex: isDark ? '#FACC15' : '#CA8A04' };
+      case 'water': return { icon: Droplets, textClass: 'text-cyan-600 dark:text-cyan-400', border: 'border-cyan-200/50 dark:border-cyan-500/30', hex: isDark ? '#22D3EE' : '#0891B2' };
+      case 'sanitation': return { icon: Trash2, textClass: 'text-green-600 dark:text-green-400', border: 'border-green-200/50 dark:border-green-500/30', hex: isDark ? '#4ADE80' : '#16A34A' };
+      case 'drainage': return { icon: Recycle, textClass: 'text-purple-600 dark:text-purple-400', border: 'border-purple-200/50 dark:border-purple-500/30', hex: isDark ? '#C084FC' : '#9333EA' };
+      case 'solid_waste': return { icon: Package, textClass: 'text-orange-600 dark:text-orange-400', border: 'border-orange-200/50 dark:border-orange-500/30', hex: isDark ? '#FB923C' : '#EA580C' };
+      case 'public_health': return { icon: HeartPulse, textClass: 'text-red-600 dark:text-red-400', border: 'border-red-200/50 dark:border-red-500/30', hex: isDark ? '#F87171' : '#DC2626' };
+      default: return { icon: MoreHorizontal, textClass: 'text-gray-600 dark:text-gray-400', border: 'border-gray-200/50 dark:border-gray-500/30', hex: isDark ? '#9CA3AF' : '#4B5563' };
+    }
+  };
+  const catStyle = getCategoryStyle(issue.category);
+  const CategoryIcon = catStyle.icon;
+
+  const getStatusIcon = (statusValue: string) => {
+    switch (statusValue) {
+      case 'pending': 
+      case 'pending_uo_verification': return Clock;
+      case 'verified': return CheckCircle;
+      case 'assigned': return UserCheck;
+      case 'in_progress': return TrendingUp;
+      case 'rework_required': return AlertTriangle;
+      case 'resolved':
+      case 'closed': return CheckCircle;
+      default: return AlertCircle;
+    }
+  };
+  const StatusIcon = getStatusIcon(issue.status);
+  
   const cm = CATEGORY_META[issue.category as CategoryKey] ?? CATEGORY_META.other;
   const slaStatus = getSlaStatus(issue.slaDeadline);
   const slaLabel = formatSlaDeadline(issue.slaDeadline);
@@ -414,65 +454,126 @@ function IssueCard({ issue, onPress }: { issue: Issue; onPress: () => void }) {
   return (
     <TouchableOpacity
       onPress={onPress}
-      activeOpacity={0.78}
-      className={`mb-3 overflow-hidden rounded-3xl border bg-white dark:bg-slate-800 ${
-        isOverdue
-          ? 'border-red-200 dark:border-red-800/60'
-          : isDueSoon
-            ? 'border-amber-200 dark:border-amber-800/60'
-            : 'border-slate-100 dark:border-slate-700'
-      }`}
-      style={styles.card}>
+      activeOpacity={0.8}
+      style={{
+        shadowColor: isDark ? '#000000' : '#475569',
+        shadowOffset: { width: 0, height: 12 },
+        shadowOpacity: isDark ? 0.7 : 0.1,
+        shadowRadius: 24,
+        elevation: 8,
+      }}
+      className="mb-5 rounded-[28px] border border-white bg-white/95 dark:border-slate-700/80 dark:bg-[#0F172A]">
+      <View className="overflow-hidden rounded-[26px]">
+      
+      {/* GLOWING PRIORITY STRIP ON THE LEFT */}
+      <View className="absolute bottom-0 left-0 top-0 w-[5px] z-10" style={{ backgroundColor: pm.dot, opacity: isDark ? 1 : 1 }} />
+
+      {/* SLA BANNER */}
       {isOverdue && (
-        <View className="flex-row items-center gap-1.5 bg-red-500 px-4 py-1.5 dark:bg-red-700">
-          <AlertTriangle color="#FFFFFF" size={11} strokeWidth={2.5} />
-          <Text className="text-[10px] font-extrabold tracking-wider text-white">SLA OVERDUE</Text>
-        </View>
+        <LinearGradient
+          colors={['#EF4444', '#9F1239']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          className="flex-row items-center justify-between px-5 py-3 pl-7">
+          <View className="flex-row items-center gap-2">
+            <View className="rounded-full bg-white/30 p-1.5 shadow-sm">
+              <AlertTriangle color="#FFFFFF" size={12} strokeWidth={3} />
+            </View>
+            <Text className="text-[10px] font-black tracking-widest text-white">SLA OVERDUE</Text>
+          </View>
+          <View className="rounded-full bg-white px-2 py-1 shadow-sm">
+             <Text className="text-[9px] font-black tracking-widest text-red-700">IMMEDIATE ACTION</Text>
+          </View>
+        </LinearGradient>
       )}
       {isDueSoon && !isOverdue && (
-        <View className="flex-row items-center gap-1.5 bg-amber-400 px-4 py-1.5 dark:bg-amber-700">
-          <Clock color="#FFFFFF" size={11} strokeWidth={2.5} />
-          <Text className="text-[10px] font-extrabold tracking-wider text-white">SLA DUE SOON</Text>
-        </View>
+        <LinearGradient
+          colors={['#F59E0B', '#92400E']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          className="flex-row items-center justify-between px-5 py-3 pl-7">
+          <View className="flex-row items-center gap-2">
+            <View className="rounded-full bg-white/30 p-1.5 shadow-sm">
+              <Clock color="#FFFFFF" size={12} strokeWidth={3} />
+            </View>
+            <Text className="text-[10px] font-black tracking-widest text-white">SLA DUE SOON</Text>
+          </View>
+        </LinearGradient>
       )}
 
-      <View className="p-4">
-        {/* Top row: category + priority */}
-        <View className="mb-3 flex-row items-center justify-between">
+      {/* BODY CONTENT */}
+      <View className="px-5 py-5 pl-7">
+        {/* PREMIUM TAG HEADERS */}
+        <View className="mb-4 flex-row items-center justify-between gap-2">
           <View
-            className={`flex-row items-center gap-1.5 rounded-lg px-2.5 py-1 ${cm.bg} ${cm.darkBg}`}>
-            <Tag
-              size={10}
-              strokeWidth={2.5}
-              color={undefined}
-              className={`${cm.text} ${cm.darkText}`}
-            />
-            <Text className={`text-[10px] font-extrabold tracking-wide ${cm.text} ${cm.darkText}`}>
-              {CATEGORY_LABEL_MAP[issue.category]?.toUpperCase()}
+            className={`flex-row flex-1 items-center gap-1.5 rounded-xl border px-2.5 py-1.5 shadow-sm ${cm.bg} ${cm.darkBg} ${catStyle.border} dark:bg-slate-800`}>
+            <View className="rounded-full bg-white p-1 shadow-sm dark:bg-black/40">
+              <CategoryIcon
+                size={10}
+                strokeWidth={2.5}
+                color={catStyle.hex}
+              />
+            </View>
+            <Text className={`flex-1 text-[10px] font-black tracking-widest ${catStyle.textClass}`} numberOfLines={1}>
+              {CATEGORY_LABEL_MAP[issue.category]?.toUpperCase() ?? issue.category.toUpperCase()}
             </Text>
           </View>
+
           <View
-            className={`flex-row items-center gap-1 rounded-lg px-2.5 py-1 ${pm.bg} ${pm.darkBg}`}>
-            <View className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: pm.dot }} />
-            <Text className={`text-[10px] font-extrabold ${pm.text} ${pm.darkText}`}>
+            className={`flex-row items-center gap-1.5 rounded-xl border px-2.5 py-1.5 shadow-sm ${pm.bg} ${pm.darkBg} border-slate-200/50 dark:border-white/10 dark:bg-slate-800`}>
+            <View
+              className="h-2 w-2 rounded-full border border-white/50"
+              style={{
+                backgroundColor: pm.dot,
+                shadowColor: pm.dot,
+                shadowOffset: { width: 0, height: 1 },
+                shadowOpacity: 1,
+                shadowRadius: 3,
+              }}
+            />
+            <Text className={`text-[10px] font-black tracking-widest ${pm.text} ${pm.darkText}`}>
               {issue.priority.toUpperCase()}
             </Text>
           </View>
         </View>
 
-        {/* Title */}
+        {/* HERO TITLE */}
         <Text
-          className="mb-3 text-[15px] font-extrabold leading-[21px] text-slate-900 dark:text-slate-50"
+          className="mb-4 text-[16px] font-black leading-[22px] tracking-tight text-slate-900 dark:text-white"
           numberOfLines={2}>
           {issue.title}
         </Text>
 
-        {/* Sub-categories */}
+        {/* GLASSMORPHIC METADATA BOX DEFINITE CONTRAST */}
+        <View className="mb-4 overflow-hidden rounded-[16px] border border-slate-200 bg-slate-50 shadow-sm dark:border-slate-700 dark:bg-slate-800/90">
+          <View className="flex-row items-start gap-3 border-b border-slate-200 p-3 dark:border-slate-700">
+            <View className="mt-0.5 rounded-lg bg-white p-2 shadow-sm dark:bg-slate-900">
+              <MapPin color={isDark ? '#94A3B8' : '#475569'} size={14} strokeWidth={2.5} />
+            </View>
+            <Text
+              className="mt-1 flex-1 text-[13px] font-extrabold text-slate-800 dark:text-slate-100"
+              numberOfLines={3}>
+              {issue.location}
+            </Text>
+          </View>
+          <View className="flex-row items-center gap-3 p-3">
+            <View className="rounded-lg bg-white p-2 shadow-sm dark:bg-slate-900">
+              <UserIcon color={isDark ? '#94A3B8' : '#475569'} size={14} strokeWidth={2.5} />
+            </View>
+            <Text className="flex-1 text-[13px] font-extrabold text-slate-800 dark:text-slate-100">
+              {issue.citizenName}
+            </Text>
+          </View>
+        </View>
+
+        {/* DYNAMIC SUBCATEGORIES HIGH CONTRAST */}
         {issue.subCategories && issue.subCategories.length > 0 && (
-          <View className="mb-2.5 flex-row flex-wrap gap-1.5">
-            {issue.subCategories.slice(0, 2).map((sc) => (
-              <View key={sc} className="rounded-md bg-slate-100 px-2 py-0.5 dark:bg-slate-700">
-                <Text className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">
+          <View className="mb-4 flex-row flex-wrap gap-2">
+            {issue.subCategories.slice(0, 3).map((sc) => (
+              <View
+                key={sc}
+                className="rounded-[10px] border border-slate-200 bg-white px-3 py-1.5 shadow-sm dark:border-slate-600 dark:bg-slate-800">
+                <Text className="text-[11px] font-black tracking-wide text-slate-700 dark:text-slate-200">
                   {sc}
                 </Text>
               </View>
@@ -480,77 +581,62 @@ function IssueCard({ issue, onPress }: { issue: Issue; onPress: () => void }) {
           </View>
         )}
 
-        {/* Location + citizen */}
-        <View className="mb-2.5 gap-1.5">
-          <View className="flex-row items-center gap-1.5">
-            <MapPin color="#9CA3AF" size={12} strokeWidth={2} />
-            <Text
-              className="flex-1 text-[12px] text-slate-500 dark:text-slate-400"
-              numberOfLines={1}>
-              {issue.location}
-            </Text>
+        {/* PREMIUM ASSIGNED OFFICER POD */}
+        {issue.assignedOfficer && (
+          <LinearGradient
+            colors={isDark ? ['#1E3A8A', '#312E81'] : ['#DBEAFE', '#EFF6FF']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            className="mb-5 flex-row items-center justify-between rounded-[20px] border border-blue-300/80 p-3 shadow-sm dark:border-blue-500/40">
+            <View className="flex-row items-center gap-3">
+              <View className="h-10 w-10 items-center justify-center rounded-2xl bg-white shadow-sm dark:border dark:border-blue-400 dark:bg-[#0F172A]">
+                <UserCheck color={isDark ? '#60A5FA' : '#2563EB'} size={18} strokeWidth={2.5} />
+              </View>
+              <View>
+                <Text className="text-[10px] font-black uppercase tracking-widest text-blue-700 dark:text-blue-300">
+                  Assigned Officer
+                </Text>
+                <Text
+                  className="text-[14px] font-black text-blue-950 dark:text-white"
+                  numberOfLines={1}>
+                  {issue.assignedOfficer}
+                </Text>
+              </View>
+            </View>
+          </LinearGradient>
+        )}
+
+        {/* GLOWING SEPARATOR */}
+        <View className="mb-4 h-[1px] w-full bg-slate-200 dark:bg-slate-700" />
+
+        {/* ULTRA CRISP FOOTER WITH FULL BORDERS */}
+        <View className="flex-row items-center justify-between gap-2">
+          <View className="flex-row flex-1 items-center gap-2">
+            <View className="flex-row items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+              <Calendar color={isDark ? '#94A3B8' : '#475569'} size={12} strokeWidth={2.5} />
+              <Text className="text-[10px] font-black tracking-wide text-slate-700 dark:text-slate-200">
+                {formatRelativeDate(issue.dateReported)}
+              </Text>
+            </View>
+            {slaLabel && !isOverdue && !isDueSoon && (
+              <View className="flex-row items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+                <Clock color={isDark ? '#94A3B8' : '#475569'} size={12} strokeWidth={2.5} />
+                <Text className="text-[10px] font-black tracking-wide text-slate-700 dark:text-slate-200">
+                  {slaLabel}
+                </Text>
+              </View>
+            )}
           </View>
-          <View className="flex-row items-center gap-1.5">
-            <UserIcon color="#9CA3AF" size={12} strokeWidth={2} />
-            <Text className="text-[12px] text-slate-500 dark:text-slate-400">
-              {issue.citizenName}
+
+          <View
+            className={`flex-row shrink-0 items-center gap-1.5 rounded-xl border px-3 py-1.5 shadow-sm ${sm.bg} ${sm.darkBg} ${sm.border}`}>
+            <StatusIcon size={12} strokeWidth={3} color={sm.dot} />
+            <Text className={`text-[10px] font-black tracking-widest ${sm.text} dark:text-slate-100`}>
+              {STATUS_LABEL_MAP[issue.status as StatusKey]?.toUpperCase() ??
+                issue.status.toUpperCase()}
             </Text>
           </View>
         </View>
-
-        {/* Assigned officer pill */}
-        {issue.assignedOfficer && (
-          <View className="mb-3 flex-row items-center gap-2 rounded-xl border border-teal-100 bg-teal-50 px-3 py-2 dark:border-teal-800/50 dark:bg-teal-900/30">
-            <View className="h-5 w-5 items-center justify-center rounded-full bg-teal-500/20 dark:bg-teal-500/30">
-              <UserCheck color="#0F766E" size={11} strokeWidth={2.5} />
-            </View>
-            <Text
-              className="flex-1 text-[12px] font-bold text-teal-700 dark:text-teal-400"
-              numberOfLines={1}>
-              {issue.assignedOfficer}
-            </Text>
-            <Text className="text-[10px] font-semibold text-teal-500 dark:text-teal-500">
-              Assigned
-            </Text>
-          </View>
-        )}
-
-        {/* Footer: date + SLA + status */}
-        <View className="flex-row items-center justify-between border-t border-slate-100 pt-2.5 dark:border-slate-700/70">
-          <View className="flex-row items-center gap-1.5">
-            <Calendar color="#9CA3AF" size={11} strokeWidth={2} />
-            <Text className="text-[11px] font-semibold text-slate-400 dark:text-slate-500">
-              {formatRelativeDate(issue.dateReported)}
-            </Text>
-          </View>
-
-          {slaLabel && (
-            <View className="flex-row items-center gap-1">
-              <Clock
-                color={isOverdue ? '#DC2626' : isDueSoon ? '#F59E0B' : '#94A3B8'}
-                size={11}
-                strokeWidth={2}
-              />
-              <Text
-                className={`text-[11px] font-bold ${
-                  isOverdue
-                    ? 'text-red-600 dark:text-red-400'
-                    : isDueSoon
-                      ? 'text-amber-600 dark:text-amber-400'
-                      : 'text-slate-400 dark:text-slate-500'
-                }`}>
-                {isOverdue ? 'Overdue' : slaLabel}
-              </Text>
-            </View>
-          )}
-
-          <View
-            className={`flex-row items-center gap-1 rounded-lg px-2.5 py-1 ${sm.bg} ${sm.darkBg}`}>
-            <View className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: sm.dot }} />
-            <Text className={`text-[10px] font-bold ${sm.text} ${sm.darkText}`}>
-              {issue.status}
-            </Text>
-          </View>
         </View>
       </View>
     </TouchableOpacity>

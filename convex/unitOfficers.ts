@@ -31,30 +31,38 @@ export const verifyIssue = mutation({
   args: {
     issueId: v.id('issues'),
 
-    checklist: v.object({
-      isValidIssue: v.boolean(),
+    issueCode: v.string(),
+
+    verificationChecklist: v.object({
+      locationValid: v.boolean(),
       isWithinJurisdiction: v.boolean(),
       hasSufficientEvidence: v.boolean(),
-      isDuplicate: v.boolean(),
+      notDuplicate: v.boolean(),
     }),
 
     notes: v.optional(v.string()),
 
     slaDeadline: v.number(),
 
+    UOName: v.string(),
+
     verifiedBy: v.id('users'),
+
+    issueName: v.string(),
+
+    reporterId: v.id('users'),
   },
 
   handler: async (ctx, args) => {
     const issue = await ctx.db.get(args.issueId);
     if (!issue) throw new Error('Issue not found');
 
-    // Update Issue Status to "verified" and add verification details
+    // Update Issue Status
     await ctx.db.patch(args.issueId, {
       status: 'verified',
 
       verificationChecklist: {
-        ...args.checklist,
+        ...args.verificationChecklist,
         notes: args.notes,
         verifiedBy: args.verifiedBy,
         verifiedAt: Date.now(),
@@ -63,15 +71,35 @@ export const verifyIssue = mutation({
       slaDeadline: args.slaDeadline,
     });
 
-    // Add timeline update
+    // Add the Issue Timeline Update
     await ctx.db.insert('issueUpdates', {
       issueId: args.issueId,
       status: 'verified',
-      comment: 'Issue verified and ready for assignment',
+      comment: `Issue verified by Unit Officer ${args.UOName} and ready for assignment.`,
       role: 'unit_officer',
       attachments: [],
       updatedBy: args.verifiedBy,
       scope: 'field_and_citizen',
+      createdAt: Date.now(),
+    });
+
+    // Add Notification to Citizen
+    await ctx.db.insert('notifications', {
+      userId: args.reporterId, // citizen
+      issueId: args.issueId,
+      message: `Your issue "${args.issueName}" with Issue Code "${args.issueCode}" has been successfully verified by the Unit Officer ${args.UOName} and will be assigned shortly.`,
+      type: 'verified',
+      read: false,
+      createdAt: Date.now(),
+    });
+
+    // Add Notification to Unit Officer
+    await ctx.db.insert('notifications', {
+      userId: args.verifiedBy,
+      issueId: args.issueId,
+      message: `You have successfully verified the issue "${args.issueName}" with Issue Code "${args.issueCode}".`,
+      type: 'verified',
+      read: false,
       createdAt: Date.now(),
     });
   },

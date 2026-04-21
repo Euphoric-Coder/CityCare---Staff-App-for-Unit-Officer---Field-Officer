@@ -1,5 +1,5 @@
-import { mutation } from './_generated/server';
-import { v } from 'convex/values';
+import { mutation } from "./_generated/server";
+import { v } from "convex/values";
 
 export const signUp = mutation({
   args: {
@@ -8,11 +8,10 @@ export const signUp = mutation({
     password: v.string(),
 
     role: v.union(
-      v.literal('citizen'),
-      v.literal('unit_officer'),
-      v.literal('field_officer'),
-      v.literal('admin'),
-      v.literal('city_admin')
+      v.literal("citizen"),
+      v.literal("unit_officer"),
+      v.literal("field_officer"),
+      v.literal("admin"),
     ),
 
     // Common
@@ -41,19 +40,19 @@ export const signUp = mutation({
     ---------------------------- */
 
     const existing = await ctx.db
-      .query('users')
-      .withIndex('by_email', (q) => q.eq('email', args.email))
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", args.email))
       .unique();
 
     if (existing) {
-      return { success: false, error: 'User already exists.' };
+      return { success: false, error: "User already exists." };
     }
 
     /* ---------------------------
        Create User (Auth)
     ---------------------------- */
 
-    const userId = await ctx.db.insert('users', {
+    const userId = await ctx.db.insert("users", {
       fullName: args.fullName,
       email: args.email,
       password: args.password,
@@ -66,41 +65,41 @@ export const signUp = mutation({
     ---------------------------- */
 
     // Citizen Profile
-    if (args.role === 'citizen') {
-      await ctx.db.insert('citizens', {
+    if (args.role === "citizen") {
+      await ctx.db.insert("citizens", {
         userId,
 
         fullName: args.fullName,
         email: args.email,
 
-        city: args.city || '',
-        state: args.state || '',
-        region: args.region || '',
+        city: args.city || "",
+        state: args.state || "",
+        region: args.region || "",
 
-        postal: args.postal || '',
-        fullAddress: args.fullAddress || '',
+        postal: args.postal || "",
+        fullAddress: args.fullAddress || "",
 
-        latitude: args.latitude || '',
-        longitude: args.longitude || '',
+        latitude: args.latitude || "",
+        longitude: args.longitude || "",
 
         points: 0,
       });
     }
 
     // Unit Officer Profile
-    if (args.role === 'unit_officer') {
-      await ctx.db.insert('unitOfficers', {
+    if (args.role === "unit_officer") {
+      await ctx.db.insert("unitOfficers", {
         userId,
 
         fullName: args.fullName,
         email: args.email,
-        phone: args.phone || '',
+        phone: args.phone || "",
 
-        state: args.state || '',
-        city: args.city || '',
-        district: args.district || '',
+        state: args.state || "",
+        city: args.city || "",
+        district: args.district || "",
 
-        department: args.department || '',
+        department: args.department || "",
 
         totalVerifiedIssues: 0,
         totalRejectedIssues: 0,
@@ -121,19 +120,19 @@ export const signUp = mutation({
     }
 
     // Field Officer Profile
-    if (args.role === 'field_officer') {
-      await ctx.db.insert('fieldOfficers', {
+    if (args.role === "field_officer") {
+      await ctx.db.insert("fieldOfficers", {
         userId,
 
         fullName: args.fullName,
         email: args.email,
-        phone: args.phone || '',
+        phone: args.phone || "",
 
-        state: args.state || '',
-        city: args.city || '',
-        district: args.district || '',
+        state: args.state || "",
+        city: args.city || "",
+        district: args.district || "",
 
-        department: args.department || '',
+        department: args.department || "",
 
         specialisations: args.specialisations || [],
 
@@ -163,9 +162,8 @@ export const signUp = mutation({
        Admin (Optional)
     ---------------------------- */
 
-    if (args.role === 'admin') {
-      // @ts-ignore
-      await ctx.db.insert('admins', {
+    if (args.role === "admin") {
+      await ctx.db.insert("admins", {
         userId,
         fullName: args.fullName,
         email: args.email,

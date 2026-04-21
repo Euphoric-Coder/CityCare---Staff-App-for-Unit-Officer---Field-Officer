@@ -1,5 +1,5 @@
-import { mutation, query } from './_generated/server';
-import { v } from 'convex/values';
+import { mutation, query } from "./_generated/server";
+import { v } from "convex/values";
 
 /* Generate Upload URL */
 export const generateUploadUrl = mutation(async (ctx) => {
@@ -9,7 +9,7 @@ export const generateUploadUrl = mutation(async (ctx) => {
 /* Get Public URL */
 export const getMediaUrl = query({
   args: {
-    storageId: v.id('_storage'),
+    storageId: v.id("_storage"),
   },
 
   handler: async (ctx, args) => {
@@ -20,7 +20,7 @@ export const getMediaUrl = query({
 /* Delete Media */
 export const deleteMedia = mutation({
   args: {
-    storageId: v.id('_storage'),
+    storageId: v.id("_storage"),
   },
 
   handler: async (ctx, args) => {
@@ -31,7 +31,7 @@ export const deleteMedia = mutation({
 
 export const getFileMeta = query({
   args: {
-    storageId: v.id('_storage'),
+    storageId: v.id("_storage"),
   },
   handler: async (ctx, args) => {
     const url = await ctx.storage.getUrl(args.storageId);
@@ -39,7 +39,7 @@ export const getFileMeta = query({
 
     return {
       url,
-      contentType: meta?.contentType || '',
+      contentType: meta?.contentType || "",
     };
   },
 });

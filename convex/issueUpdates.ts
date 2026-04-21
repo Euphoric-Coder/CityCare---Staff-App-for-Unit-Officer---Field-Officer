@@ -1,15 +1,15 @@
-import { query } from './_generated/server';
-import { v } from 'convex/values';
+import { query } from "./_generated/server";
+import { v } from "convex/values";
 
 export const getByIssueId = query({
   args: {
-    issueId: v.id('issues'),
+    issueId: v.id("issues"),
   },
   handler: async (ctx, args) => {
     const updates = await ctx.db
-      .query('issueUpdates')
-      .withIndex('by_issue', (q) => q.eq('issueId', args.issueId))
-      .order('asc')
+      .query("issueUpdates")
+      .withIndex("by_issue", (q) => q.eq("issueId", args.issueId))
+      .order("asc")
       .collect();
 
     const enriched = await Promise.all(
@@ -20,15 +20,15 @@ export const getByIssueId = query({
           (u.attachments || []).map(async (fileId) => {
             const url = await ctx.storage.getUrl(fileId);
 
-            // 🔥 KEY PART
+            // KEY PART
             const meta = await ctx.db.system.get(fileId);
 
             return {
               url,
-              contentType: meta?.contentType || '',
+              contentType: meta?.contentType || "",
               storageId: fileId,
             };
-          })
+          }),
         );
 
         return {
@@ -36,7 +36,7 @@ export const getByIssueId = query({
           updater: user,
           attachments,
         };
-      })
+      }),
     );
 
     return enriched;

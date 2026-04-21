@@ -22,66 +22,61 @@ export type IssueCategory =
   | 'Park Maintenance'
   | 'Public Safety';
 
-  export type CategoryKey =
-    | 'road'
-    | 'electricity'
-    | 'water'
-    | 'sanitation'
-    | 'drainage'
-    | 'solid_waste'
-    | 'public_health'
-    | 'other';
+export type CategoryKey =
+  | 'road'
+  | 'electricity'
+  | 'water'
+  | 'sanitation'
+  | 'drainage'
+  | 'solid_waste'
+  | 'public_health'
+  | 'other';
 
-  export const SUBCATEGORY_MAP: Record<CategoryKey, IssueSubCategory[]> = {
-    sanitation: [
-      'Waste Collection',
-      'Drain Cleaning',
-      'Public Toilet Maintenance',
-      'Garbage Segregation',
-      'Sewage Handling',
-    ],
+export const SUBCATEGORY_MAP: Record<CategoryKey, IssueSubCategory[]> = {
+  sanitation: [
+    'Waste Collection',
+    'Drain Cleaning',
+    'Public Toilet Maintenance',
+    'Garbage Segregation',
+    'Sewage Handling',
+  ],
 
-    road: [
-      'Pothole Repair',
-      'Asphalt Laying',
-      'Footpath Repair',
-      'Speed Breaker Construction',
-      'Road Marking',
-    ],
+  road: [
+    'Pothole Repair',
+    'Asphalt Laying',
+    'Footpath Repair',
+    'Speed Breaker Construction',
+    'Road Marking',
+  ],
 
-    water: [
-      'Pipeline Repair',
-      'Leakage Detection',
-      'Valve Maintenance',
-      'Tanker Management',
-      'Water Quality Testing',
-    ],
+  water: [
+    'Pipeline Repair',
+    'Leakage Detection',
+    'Valve Maintenance',
+    'Tanker Management',
+    'Water Quality Testing',
+  ],
 
-    electricity: [
-      'Street Light Repair',
-      'Cable Maintenance',
-      'Transformer Inspection',
-      'Meter Repair',
-    ],
+  electricity: [
+    'Street Light Repair',
+    'Cable Maintenance',
+    'Transformer Inspection',
+    'Meter Repair',
+  ],
 
-    drainage: [
-      'Manhole Cleaning',
-      'Flood Prevention',
-      'Storm Water Management',
-      'Sewer Line Repair',
-    ],
+  drainage: ['Manhole Cleaning', 'Flood Prevention', 'Storm Water Management', 'Sewer Line Repair'],
 
-    solid_waste: ['Dumping Site Management', 'Waste Transportation', 'Recycling Operations'],
+  solid_waste: ['Dumping Site Management', 'Waste Transportation', 'Recycling Operations'],
 
-    public_health: [
-      'Mosquito Control',
-      'Disinfection',
-      'Disease Prevention',
-      'Sanitation Inspection',
-    ],
+  public_health: [
+    'Mosquito Control',
+    'Disinfection',
+    'Disease Prevention',
+    'Sanitation Inspection',
+  ],
 
-    other: ['General Issue'],
-  };
+  other: ['General Issue'],
+};
 
 export type IssueSubCategory =
   | 'Waste Collection'
@@ -163,42 +158,43 @@ export type SLAExtensionReason =
   | 'Scope of work increased'
   | 'Other';
 
-  export type StatusKey =
-    | 'all'
-    | 'pending'
-    | 'verified'
-    | 'assigned'
-    | 'in_progress'
-    | 'pending_uo_verification'
-    | 'rework_required'
-    | 'reopened'
-    | 'escalated'
-    | 'closed'
-    | 'rejected';
+export type StatusKey =
+  | 'all'
+  | 'pending'
+  | 'verified'
+  | 'assigned'
+  | 'in_progress'
+  | 'pending_uo_verification'
+  | 'rework_required'
+  | 'reopened'
+  | 'escalated'
+  | 'closed'
+  | 'rejected'
+  | 'resolved';
 
-  export type PriorityKey = 'critical' | 'high' | 'medium' | 'low';
+export type PriorityKey = 'critical' | 'high' | 'medium' | 'low';
 
-  export type SLAKey = 'all' | 'overdue' | 'due_soon' | 'on_track';
+export type SLAKey = 'all' | 'overdue' | 'due_soon' | 'on_track';
 
-  export type Meta = {
-    bg: string;
-    darkBg: string;
-    text: string;
-    darkText: string;
-  };
+export type Meta = {
+  bg: string;
+  darkBg: string;
+  text: string;
+  darkText: string;
+};
 
-  export type StatusMeta = Meta & {
-    dot: string;
-    border: string;
-  };
+export type StatusMeta = Meta & {
+  dot: string;
+  border: string;
+};
 
- export type PriorityMeta = Meta & {
-    dot: string;
-  };
+export type PriorityMeta = Meta & {
+  dot: string;
+};
 
- export type SLAMeta = Meta & {
-    dot: string;
-  };
+export type SLAMeta = Meta & {
+  dot: string;
+};
 
 export interface VerificationChecklist {
   locationValid: boolean;

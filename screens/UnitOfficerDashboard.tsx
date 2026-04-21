@@ -220,12 +220,12 @@ const STATUS_META: Record<StatusKey, StatusMeta> = {
     border: 'border-violet-200 dark:border-violet-800',
   },
   pending_uo_verification: {
-    bg: 'bg-amber-100',
-    darkBg: 'dark:bg-amber-900/40',
-    text: 'text-amber-700',
-    darkText: 'dark:text-amber-300',
-    dot: '#F59E0B',
-    border: 'border-amber-200 dark:border-amber-800',
+    bg: 'bg-amber-500',
+    darkBg: 'dark:bg-amber-800',
+    text: 'text-white',
+    darkText: 'dark:text-white',
+    dot: '#FFFFFF',
+    border: 'border-amber-400 dark:border-amber-500',
   },
   rework_required: {
     bg: 'bg-red-100',
@@ -250,6 +250,14 @@ const STATUS_META: Record<StatusKey, StatusMeta> = {
     darkText: 'dark:text-red-300',
     dot: '#DC2626',
     border: 'border-red-200 dark:border-red-800',
+  },
+  resolved: {
+    bg: 'bg-emerald-500',
+    darkBg: 'dark:bg-emerald-800',
+    text: 'text-white',
+    darkText: 'dark:text-white',
+    dot: '#FFFFFF',
+    border: 'border-emerald-400 dark:border-emerald-600',
   },
   closed: {
     bg: 'bg-slate-100',
@@ -462,10 +470,10 @@ function IssueCard({ issue, onPress }: { issue: Issue; onPress: () => void }) {
         shadowRadius: 24,
         elevation: 8,
       }}
-      className="mb-5 rounded-[28px] border border-white bg-white/95 dark:border-slate-700/80 dark:bg-[#0F172A]">
-      <View className="overflow-hidden rounded-[26px]">
+      className="mb-6 rounded-[30px] border border-white/80 bg-white/95 dark:border-slate-700/80 dark:bg-[#0F172A]">
+      <View className="overflow-hidden rounded-[28px]">
       
-      {/* GLOWING PRIORITY STRIP ON THE LEFT */}
+      {/* EXTREME GLOWING PRIORITY STRIP ON THE LEFT */}
       <View className="absolute bottom-0 left-0 top-0 w-[5px] z-10" style={{ backgroundColor: pm.dot, opacity: isDark ? 1 : 1 }} />
 
       {/* SLA BANNER */}
@@ -506,7 +514,7 @@ function IssueCard({ issue, onPress }: { issue: Issue; onPress: () => void }) {
         {/* PREMIUM TAG HEADERS */}
         <View className="mb-4 flex-row items-center justify-between gap-2">
           <View
-            className={`flex-row flex-1 items-center gap-1.5 rounded-xl border px-2.5 py-1.5 shadow-sm ${cm.bg} ${cm.darkBg} ${catStyle.border} dark:bg-slate-800`}>
+            className={`flex-row flex-1 items-center gap-1.5 rounded-[14px] border px-2.5 py-1.5 shadow-sm ${cm.bg} ${cm.darkBg} ${catStyle.border}`}>
             <View className="rounded-full bg-white p-1 shadow-sm dark:bg-black/40">
               <CategoryIcon
                 size={10}
@@ -520,7 +528,7 @@ function IssueCard({ issue, onPress }: { issue: Issue; onPress: () => void }) {
           </View>
 
           <View
-            className={`flex-row items-center gap-1.5 rounded-xl border px-2.5 py-1.5 shadow-sm ${pm.bg} ${pm.darkBg} border-slate-200/50 dark:border-white/10 dark:bg-slate-800`}>
+            className={`flex-row items-center gap-1.5 rounded-[14px] border px-2.5 py-1.5 shadow-sm ${pm.bg} ${pm.darkBg} border-slate-200/50 dark:border-white/10 dark:bg-slate-800`}>
             <View
               className="h-2 w-2 rounded-full border border-white/50"
               style={{
@@ -539,28 +547,49 @@ function IssueCard({ issue, onPress }: { issue: Issue; onPress: () => void }) {
 
         {/* HERO TITLE */}
         <Text
-          className="mb-4 text-[16px] font-black leading-[22px] tracking-tight text-slate-900 dark:text-white"
+          className="mb-4 text-[17px] font-black leading-[24px] tracking-tight text-slate-900 dark:text-white"
           numberOfLines={2}>
           {issue.title}
         </Text>
 
-        {/* GLASSMORPHIC METADATA BOX DEFINITE CONTRAST */}
-        <View className="mb-4 overflow-hidden rounded-[16px] border border-slate-200 bg-slate-50 shadow-sm dark:border-slate-700 dark:bg-slate-800/90">
-          <View className="flex-row items-start gap-3 border-b border-slate-200 p-3 dark:border-slate-700">
-            <View className="mt-0.5 rounded-lg bg-white p-2 shadow-sm dark:bg-slate-900">
-              <MapPin color={isDark ? '#94A3B8' : '#475569'} size={14} strokeWidth={2.5} />
-            </View>
-            <Text
-              className="mt-1 flex-1 text-[13px] font-extrabold text-slate-800 dark:text-slate-100"
-              numberOfLines={3}>
-              {issue.location}
+        {/* DATES MOVED TO TOP */}
+        <View className="mb-5 flex-row flex-wrap items-center gap-2">
+          <View className="flex-row items-center gap-1.5 rounded-[10px] border border-slate-200/60 bg-slate-50/80 px-2.5 py-1 shadow-sm dark:border-slate-700/60 dark:bg-slate-800/60">
+            <Calendar color={isDark ? '#9CA3AF' : '#64748B'} size={11} strokeWidth={2.5} />
+            <Text className="text-[10px] font-black tracking-widest text-slate-500 dark:text-slate-400">
+              {formatRelativeDate(issue.dateReported)}
             </Text>
           </View>
-          <View className="flex-row items-center gap-3 p-3">
-            <View className="rounded-lg bg-white p-2 shadow-sm dark:bg-slate-900">
+          {slaLabel && !isOverdue && !isDueSoon && (
+            <View className="flex-row items-center gap-1.5 rounded-[10px] border border-slate-200/60 bg-slate-50/80 px-2.5 py-1 shadow-sm dark:border-slate-700/60 dark:bg-slate-800/60">
+              <Clock color={isDark ? '#9CA3AF' : '#64748B'} size={11} strokeWidth={2.5} />
+              <Text className="text-[10px] font-black tracking-widest text-slate-500 dark:text-slate-400">
+                {slaLabel}
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {/* ENHANCED METADATA BOX DEFINITE CONTRAST */}
+        <View className="mb-5 overflow-hidden rounded-[18px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900/60">
+          <View className="absolute bottom-0 left-0 top-0 w-1" style={{ backgroundColor: catStyle.hex }} />
+          <View className="flex-row items-start gap-3 border-b border-slate-100 p-3 pl-4 dark:border-slate-800">
+            <View className="mt-0.5 rounded-[10px] bg-slate-50 p-1.5 shadow-sm dark:bg-slate-800">
+              <MapPin color={isDark ? '#94A3B8' : '#475569'} size={14} strokeWidth={2.5} />
+            </View>
+            <View className="flex-1 justify-center pt-0.5">
+              <Text
+                className="text-[13px] font-black leading-[18px] text-slate-800 dark:text-slate-100"
+                numberOfLines={2}>
+                {[issue.city, issue.state, issue.postal].filter(Boolean).join(', ') || issue.location || issue.address || 'Location Unspecified'}
+              </Text>
+            </View>
+          </View>
+          <View className="flex-row items-center gap-3 p-3 pl-4">
+            <View className="rounded-[10px] bg-slate-50 p-1.5 shadow-sm dark:bg-slate-800">
               <UserIcon color={isDark ? '#94A3B8' : '#475569'} size={14} strokeWidth={2.5} />
             </View>
-            <Text className="flex-1 text-[13px] font-extrabold text-slate-800 dark:text-slate-100">
+            <Text className="flex-1 text-[13px] font-black text-slate-800 dark:text-slate-100">
               {issue.citizenName}
             </Text>
           </View>
@@ -568,13 +597,13 @@ function IssueCard({ issue, onPress }: { issue: Issue; onPress: () => void }) {
 
         {/* DYNAMIC SUBCATEGORIES HIGH CONTRAST */}
         {issue.subCategories && issue.subCategories.length > 0 && (
-          <View className="mb-4 flex-row flex-wrap gap-2">
+          <View className="mb-5 flex-row flex-wrap gap-2">
             {issue.subCategories.slice(0, 3).map((sc) => (
               <View
                 key={sc}
-                className="rounded-[10px] border border-slate-200 bg-white px-3 py-1.5 shadow-sm dark:border-slate-600 dark:bg-slate-800">
-                <Text className="text-[11px] font-black tracking-wide text-slate-700 dark:text-slate-200">
-                  {sc}
+                className="rounded-full border border-slate-200/80 bg-slate-50/80 px-3 py-1.5 dark:border-slate-700/80 dark:bg-slate-800/80">
+                <Text className="text-[9px] font-black tracking-wider text-slate-600 dark:text-slate-300">
+                  {sc.toUpperCase()}
                 </Text>
               </View>
             ))}
@@ -587,17 +616,17 @@ function IssueCard({ issue, onPress }: { issue: Issue; onPress: () => void }) {
             colors={isDark ? ['#1E3A8A', '#312E81'] : ['#DBEAFE', '#EFF6FF']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
-            className="mb-5 flex-row items-center justify-between rounded-[20px] border border-blue-300/80 p-3 shadow-sm dark:border-blue-500/40">
-            <View className="flex-row items-center gap-3">
-              <View className="h-10 w-10 items-center justify-center rounded-2xl bg-white shadow-sm dark:border dark:border-blue-400 dark:bg-[#0F172A]">
+            className="mb-5 flex-row items-center justify-between rounded-[22px] border border-blue-200 p-3.5 shadow-sm dark:border-blue-500/30">
+            <View className="flex-row items-center gap-3.5">
+              <View className="h-[42px] w-[42px] items-center justify-center rounded-2xl bg-white shadow-sm dark:border dark:border-blue-500/40 dark:bg-[#0F172A]">
                 <UserCheck color={isDark ? '#60A5FA' : '#2563EB'} size={18} strokeWidth={2.5} />
               </View>
               <View>
-                <Text className="text-[10px] font-black uppercase tracking-widest text-blue-700 dark:text-blue-300">
+                <Text className="text-[9px] font-black uppercase tracking-[0.2em] text-blue-700 dark:text-blue-300">
                   Assigned Officer
                 </Text>
                 <Text
-                  className="text-[14px] font-black text-blue-950 dark:text-white"
+                  className="mt-0.5 text-[14px] font-black text-blue-950 dark:text-white"
                   numberOfLines={1}>
                   {issue.assignedOfficer}
                 </Text>
@@ -606,32 +635,18 @@ function IssueCard({ issue, onPress }: { issue: Issue; onPress: () => void }) {
           </LinearGradient>
         )}
 
-        {/* GLOWING SEPARATOR */}
-        <View className="mb-4 h-[1px] w-full bg-slate-200 dark:bg-slate-700" />
+        {/* ELEGANT DIVIDER */}
+        <View className="mb-4 h-[1px] w-full bg-slate-100 dark:bg-slate-800" />
 
-        {/* ULTRA CRISP FOOTER WITH FULL BORDERS */}
-        <View className="flex-row items-center justify-between gap-2">
-          <View className="flex-row flex-1 items-center gap-2">
-            <View className="flex-row items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-              <Calendar color={isDark ? '#94A3B8' : '#475569'} size={12} strokeWidth={2.5} />
-              <Text className="text-[10px] font-black tracking-wide text-slate-700 dark:text-slate-200">
-                {formatRelativeDate(issue.dateReported)}
-              </Text>
-            </View>
-            {slaLabel && !isOverdue && !isDueSoon && (
-              <View className="flex-row items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-                <Clock color={isDark ? '#94A3B8' : '#475569'} size={12} strokeWidth={2.5} />
-                <Text className="text-[10px] font-black tracking-wide text-slate-700 dark:text-slate-200">
-                  {slaLabel}
-                </Text>
-              </View>
-            )}
-          </View>
-
+        {/* BALANCED FOOTER */}
+        <View className="flex-row items-center justify-between">
+          <Text className="text-[10px] font-black tracking-widest text-slate-400 dark:text-slate-500">
+             ID: #{issue.id ? issue.id.slice(0, 6).toUpperCase() : 'ISSUE'}
+          </Text>
           <View
             className={`flex-row shrink-0 items-center gap-1.5 rounded-xl border px-3 py-1.5 shadow-sm ${sm.bg} ${sm.darkBg} ${sm.border}`}>
-            <StatusIcon size={12} strokeWidth={3} color={sm.dot} />
-            <Text className={`text-[10px] font-black tracking-widest ${sm.text} dark:text-slate-100`}>
+            <StatusIcon size={12} strokeWidth={3} color={sm.text === 'text-white' || sm.bg.includes('500') ? '#FFFFFF' : sm.dot} />
+            <Text className={`text-[10px] font-black tracking-widest ${sm.text} ${sm.darkText}`}>
               {STATUS_LABEL_MAP[issue.status as StatusKey]?.toUpperCase() ??
                 issue.status.toUpperCase()}
             </Text>

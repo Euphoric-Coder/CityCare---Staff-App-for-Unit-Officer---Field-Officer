@@ -193,8 +193,8 @@ const CATEGORY_COLORS: Record<
   },
 };
 
-function formatTimestamp(dateString: string) {
-  const date = new Date(dateString);
+function formatTimestamp(dateValue: string | number) {
+  const date = new Date(dateValue);
   return date.toLocaleString('en-US', {
     month: 'short',
     day: 'numeric',
@@ -203,8 +203,8 @@ function formatTimestamp(dateString: string) {
   });
 }
 
-function formatDateFull(dateString: string) {
-  const date = new Date(dateString);
+function formatDateFull(dateValue: string | number) {
+  const date = new Date(dateValue);
   return date.toLocaleString('en-US', {
     weekday: 'long',
     year: 'numeric',
@@ -376,7 +376,7 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
   const issueUpdates = useQuery(
     api.issueUpdates.getByIssueId,
     // @ts-ignore
-    true ? { issueId: 'j97dhhhrkanah3whm87r5y90cn8504te' } : 'skip'
+    true ? { issueId: issueId } : 'skip'
   );
 
   // @ts-ignore
@@ -753,8 +753,12 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
   };
 
   const openMaps = () => {
+    // @ts-ignore
     const { latitude, longitude } = mappedIssue.coordinates;
+
+    // @ts-ignore
     const label = encodeURIComponent(mappedIssue.location);
+
     const scheme = Platform.select({
       ios: `maps:${latitude},${longitude}?q=${label}`,
       android: `geo:${latitude},${longitude}?q=${latitude},${longitude}(${label})`,
@@ -817,7 +821,7 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
 
   return (
     <SafeAreaView className="flex-1 bg-slate-100 dark:bg-slate-900" edges={['top']}>
-      <StatusBar style="light" />
+      <StatusBar style={isDark ? 'light' : 'dark'} />
 
       {/* HEADER */}
       <LinearGradient
@@ -1101,7 +1105,7 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
                   Sub-Categories
                 </Text>
                 <View className="flex-row flex-wrap gap-2">
-                  {mappedIssue.subCategories.map((sub, i) => (
+                  {mappedIssue.subCategories.map((sub: string, i: number) => (
                     <View
                       key={i}
                       className="flex-row items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-100 px-3 py-2 dark:border-slate-600/50 dark:bg-slate-700/80">
@@ -1122,7 +1126,7 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
                   Tags
                 </Text>
                 <View className="flex-row flex-wrap gap-2">
-                  {mappedIssue.tags.map((tag, i) => (
+                  {mappedIssue.tags.map((tag: string, i: number) => (
                     <View
                       key={i}
                       className="flex-row items-center gap-1 rounded-lg border border-teal-200 bg-teal-50 px-2.5 py-1.5 dark:border-teal-700/50 dark:bg-teal-900/30">
@@ -1136,13 +1140,13 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
               </View>
             )}
 
-            {/* Ward */}
+            {/* City */}
             <View className="flex-row items-center gap-2 rounded-xl bg-slate-50 px-4 py-3 dark:bg-slate-700/40">
               <Text className="w-20 text-[12px] font-bold text-slate-500 dark:text-slate-400">
-                Ward
+                City
               </Text>
               <Text className="flex-1 text-[13px] font-semibold text-slate-700 dark:text-slate-200">
-                {mappedIssue.ward}
+                {mappedIssue.city}
               </Text>
             </View>
           </View>
@@ -1160,7 +1164,7 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
                 <Text className="text-[20px] font-extrabold text-blue-700 dark:text-blue-300">
                   {mappedIssue.citizenName
                     .split(' ')
-                    .map((n) => n[0])
+                    .map((n: string) => n[0])
                     .join('')
                     .slice(0, 2)}
                 </Text>
@@ -1905,7 +1909,7 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
         )}
 
         {/* ASSIGN OFFICER (Verified) */}
-        {mappedIssue.status === 'Verified' && (
+        {mappedIssue.status === 'verified' && (
           // <SectionCard>
           //   <View className="p-5">
           //     <View className="mb-1 flex-row items-center gap-2">
@@ -1933,7 +1937,9 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
           //     </TouchableOpacity>
           //   </View>
           // </SectionCard>
-          <></>
+          <>
+            <Text>Assigned Officer </Text>
+          </>
         )}
 
         {/* IN PROGRESS */}

@@ -17,7 +17,12 @@ export function mapIssueToUI(issue: any, userMap: Record<string, any>) {
     status: (issue.status || 'pending').toLowerCase().trim(),
     priority: (issue.priority || 'low').toLowerCase().trim(),
 
+    address: issue.address,
+    city: issue.city,
+    state: issue.state,
+    postal: issue.postal,
     location: `${issue.address}, ${issue.city}, ${issue.state}, ${issue.postal}`,
+    
     ward: issue.city,
 
     reportedBy: issue.reportedBy,

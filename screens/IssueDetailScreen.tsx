@@ -16,6 +16,7 @@ import {
   Modal,
   Pressable,
   TouchableWithoutFeedback,
+  KeyboardAvoidingView,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
@@ -58,9 +59,17 @@ import {
   Camera,
   Image as ImageIcon,
   FileText,
+  Zap,
+  Droplets,
+  Trash2,
+  Recycle,
+  Package,
+  HeartPulse,
+  MoreHorizontal,
+  Notebook,
 } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
-import { Issue, IssueUpdate, UpdateScope } from '../lib/types';
+import { Issue, IssueStatus, IssueUpdate, UpdateScope } from '../lib/types';
 import { mockFieldOfficers } from '../lib/mockData';
 import { issueService } from '../lib/issueService';
 import StatusBadge, { PriorityBadge } from '../components/StatusBadge';
@@ -91,6 +100,7 @@ interface FileAttachment {
   uri: string;
   type: 'image' | 'video' | 'pdf';
   name: string;
+  mimeType?: string;
 }
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -122,6 +132,17 @@ const STATUS_LABELS: Record<string, string> = {
   reopened: 'Reopened',
   escalated: 'Escalated',
   resolved: 'Resolved',
+};
+
+const CATEGORY_LABEL_MAP: Record<string, string> = {
+  road: 'Road & Infrastructure',
+  electricity: 'Electricity & Lighting',
+  water: 'Water Supply',
+  sanitation: 'Sanitation & Waste',
+  drainage: 'Drainage & Sewer',
+  solid_waste: 'Solid Waste Management',
+  public_health: 'Public Health',
+  other: 'Other',
 };
 
 const CATEGORY_COLORS: Record<
@@ -216,10 +237,17 @@ function formatDateFull(dateValue: string | number) {
 }
 
 function SectionCard({ children }: { children: React.ReactNode }) {
+  const isDark = useColorScheme() === 'dark';
   return (
     <View
-      className="mx-4 mb-3 overflow-hidden rounded-2xl bg-white dark:bg-slate-800"
-      style={styles.sectionCard}>
+      className="mx-4 mb-5 overflow-hidden rounded-[26px] border border-slate-200/50 bg-white dark:border-slate-800 dark:bg-[#0F172A]/90"
+      style={{
+        shadowColor: isDark ? '#000000' : '#475569',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: isDark ? 0.5 : 0.06,
+        shadowRadius: 20,
+        elevation: 6,
+      }}>
       {children}
     </View>
   );
@@ -227,9 +255,9 @@ function SectionCard({ children }: { children: React.ReactNode }) {
 
 function SectionHeader({ title, icon }: { title: string; icon?: React.ReactNode }) {
   return (
-    <View className="flex-row items-center gap-2 border-b border-slate-100 px-5 pb-3 pt-5 dark:border-slate-700/60">
+    <View className="flex-row items-center gap-2.5 border-b border-slate-100/50 px-5 pb-4 pt-5 dark:border-slate-800">
       {icon}
-      <Text className="text-[15px] font-extrabold tracking-tight text-slate-800 dark:text-slate-100">
+      <Text className="text-[16px] font-black tracking-tight text-slate-800 dark:text-slate-100">
         {title}
       </Text>
     </View>
@@ -380,7 +408,12 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
   );
 
   // @ts-ignore
-  const issue = useQuery(api.issues.getIssueById, { issueId });
+  const issue = useQuery(api.unitOfficers.getIssueById, { issueId });
+
+  const generateUploadUrl = useMutation(api.issuesMedia.generateUploadUrl);
+
+  // @ts-ignore
+  const createIssueUpdate = useMutation(api.issueUpdates.createIssueUpdate);
 
   // @ts-ignore
   const verifyIssue = useMutation(api.unitOfficers.verifyIssue);
@@ -450,6 +483,7 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
           uri: asset.uri,
           type: asset.type === 'video' ? 'video' : 'image',
           name: asset.fileName ?? `media_${Date.now()}`,
+          mimeType: asset.mimeType || undefined,
         }));
         setUpdateAttachments((prev) => [...prev, ...newFiles]);
       }
@@ -471,6 +505,7 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
           uri: asset.uri,
           type: 'pdf',
           name: asset.name,
+          mimeType: asset.mimeType,
         }));
         setUpdateAttachments((prev) => [...prev, ...newFiles]);
       }
@@ -500,6 +535,50 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
       return () => clearTimeout(timer);
     }
   }, [showAttachMenu, launchCamera, launchGallery, launchDocumentPicker]);
+
+  const uploadFileToConvex = async (file: FileAttachment) => {
+    try {
+      const uploadUrl = await generateUploadUrl();
+
+      const fileResponse = await fetch(file.uri);
+
+      if (!fileResponse.ok) {
+        throw new Error('Failed to read file');
+      }
+
+      const blob = await fileResponse.blob();
+
+      // Use actual mimeType OR fallback
+      const contentType =
+        file.mimeType ||
+        (file.type === 'image'
+          ? 'image/*'
+          : file.type === 'video'
+            ? 'video/*'
+            : 'application/octet-stream');
+
+      const res = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': contentType,
+        },
+        body: blob,
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        console.error('Upload failed:', text);
+        throw new Error('Upload failed');
+      }
+
+      const { storageId } = await res.json();
+
+      return storageId;
+    } catch (err) {
+      console.error('Upload error:', err);
+      throw err;
+    }
+  };
 
   const handleVerify = async (checklist: VerificationChecklist, slaDate: string, notes: string) => {
     if (!issue || !user) {
@@ -710,27 +789,50 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
     Alert.alert('Rework Requested', 'Field officer has been notified to redo the work.');
   };
 
-  const handlePostUpdate = () => {
-    if (!updateText.trim()) {
-      Alert.alert('Error', 'Please enter an update comment.');
+  const handlePostUpdate = async () => {
+    const textWords = updateText
+      .trim()
+      .split(/\s+/)
+      .filter((word) => word.length > 0);
+    const wordCount = textWords.length;
+
+    if (wordCount < 5) {
+      Alert.alert(
+        'Insufficient Detail',
+        `You have only entered ${wordCount} word${
+          wordCount === 1 ? '' : 's'
+        }. An official update requires a minimum of 5 words to be filed.`
+      );
       return;
     }
-    const newUpdate: IssueUpdate = {
-      id: `upd-${Date.now()}`,
-      issueId: mappedIssue!.id,
-      status: mappedIssue!.status,
-      comment: updateText.trim(),
-      role: 'UnitOfficer',
-      attachments: updateAttachments.map((a) => a.uri),
-      updatedBy: 'uo-1',
-      scope: updateScope,
-      createdAt: new Date().toISOString(),
-    };
-    console.log('Issue Update:', newUpdate);
-    setUpdateText('');
-    setUpdateAttachments([]);
-    setUpdateScope('field_and_citizen');
-    Alert.alert('Success', 'Update posted successfully.');
+
+    try {
+      // Upload all attachments first to DB
+      const uploadedStorageIds = await Promise.all(
+        updateAttachments.map((file) => uploadFileToConvex(file))
+      );
+
+      console.log('Uploaded Storage ID:', uploadedStorageIds);
+
+      // Create Issue Update with storageIds
+      await createIssueUpdate({
+        issueId: issue?._id as Id<'issues'>,
+        status: issue?.status as IssueStatus,
+        comment: updateText as string,
+        updatedBy: user?.id as Id<'users'>,
+        role: 'unit_officer',
+        attachments: uploadedStorageIds,
+        scope: updateScope,
+      });
+
+      setUpdateText('');
+      setUpdateAttachments([]);
+      setUpdateScope('field_and_citizen');
+
+      Alert.alert('Success', 'Update posted successfully.');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to upload attachments.');
+    }
   };
 
   const handleShowAttachMenu = () => {
@@ -817,883 +919,1270 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
     allBeforePhotos.length > 0 || allAfterPhotos.length > 0 || mappedIssue.images.length > 0;
   const hasVideo = (mappedIssue.videoEvidence?.length ?? 0) > 0;
 
-  // console.log(mappedIssue.images);
-
   return (
     <SafeAreaView className="flex-1 bg-slate-100 dark:bg-slate-900" edges={['top']}>
-      <StatusBar style={isDark ? 'light' : 'dark'} />
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <StatusBar style={isDark ? 'light' : 'dark'} />
 
-      {/* HEADER */}
-      <LinearGradient
-        colors={isDark ? ['#0F172A', '#1E293B'] : ['#0F766E', '#0891B2', '#0C4A6E']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.header}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          activeOpacity={0.75}
-          className="h-10 w-10 items-center justify-center rounded-full bg-white/20">
-          <ArrowLeft color="#FFFFFF" size={22} strokeWidth={2.5} />
-        </TouchableOpacity>
+        {/* HEADER */}
+        <View
+          style={[
+            styles.header,
+            {
+              zIndex: 10,
+              shadowColor: isDark ? '#000000' : '#0369A1',
+              shadowOffset: { width: 0, height: 12 },
+              shadowOpacity: isDark ? 0.4 : 0.3,
+              shadowRadius: 24,
+            },
+          ]}>
+          <LinearGradient
+            colors={isDark ? ['#0F766E', '#0891B2', '#0C4A6E'] : ['#67B7CC', '#0284C7', '#6B8CF0']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={StyleSheet.absoluteFillObject}
+          />
+          <View className="mt-2 w-full flex-row items-center justify-between">
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              activeOpacity={0.75}
+              className="h-[46px] w-[46px] items-center justify-center rounded-[18px] border border-white/30 bg-white/20 shadow-md dark:border-white/20 dark:bg-white/10">
+              <ArrowLeft color="#FFFFFF" size={22} strokeWidth={3} />
+            </TouchableOpacity>
 
-        <View className="flex-1 items-center px-3">
-          <Text className="mb-0.5 text-[11px] font-semibold uppercase tracking-widest text-white/60">
-            Issue #{mappedIssue.id.slice(-6).toUpperCase()}
-          </Text>
-          <Text className="text-[17px] font-extrabold text-white" numberOfLines={1}>
-            Issue Details
-          </Text>
-        </View>
-
-        <View className="h-10 w-10 items-center justify-center rounded-full bg-white/10">
-          <View style={[styles.statusIndicator, { backgroundColor: statusDotColor }]} />
-        </View>
-      </LinearGradient>
-
-      <ScrollView
-        className="flex-1"
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}>
-        {/* HERO TITLE CARD */}
-        <SectionCard>
-          <View className="px-5 pb-4 pt-5">
-            <View className="mb-4 flex-row flex-wrap gap-2">
-              <PriorityBadge priority={mappedIssue.priority} />
-              <StatusBadge status={mappedIssue.status} />
+            <View className="flex-1 items-center px-2">
+              <View className="mb-1.5 flex-row items-center justify-center rounded-full border border-white/30 bg-white/20 px-3.5 py-1.5 shadow-sm dark:border-white/20 dark:bg-white/10">
+                <Text className="text-[10px] font-black uppercase tracking-[0.25em] text-white/95">
+                  Issue #{mappedIssue.issueCode}
+                </Text>
+              </View>
+              <Text
+                className="text-center text-[19px] font-black tracking-tight text-white"
+                numberOfLines={1}>
+                Issue Details
+              </Text>
             </View>
 
-            <Text className="mb-4 text-[22px] font-extrabold leading-8 tracking-tight text-slate-900 dark:text-white">
-              {mappedIssue.title}
-            </Text>
+            <View className="h-[46px] w-[46px] items-center justify-center rounded-[18px] border border-white/30 bg-white/20 shadow-md dark:border-white/20 dark:bg-white/10">
+              <View
+                className="h-4 w-4 rounded-full border-2 border-white/90"
+                style={{
+                  backgroundColor: statusDotColor,
+                  shadowColor: statusDotColor,
+                  shadowOffset: { width: 0, height: 0 },
+                  shadowOpacity: 1,
+                  shadowRadius: 8,
+                }}
+              />
+            </View>
+          </View>
+        </View>
 
-            {mappedIssue.slaDeadline &&
-              (() => {
-                const isOverdue =
-                  new Date(mappedIssue.slaDeadline) < new Date() &&
-                  !['Closed', 'Rejected', 'Escalated'].includes(mappedIssue.status);
+        <ScrollView
+          className="flex-1"
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}>
+          {/* HERO TITLE CARD */}
+          <SectionCard>
+            <View className="px-5 pb-4 pt-5">
+              {(() => {
+                const STATUS_META: Record<string, any> = {
+                  pending: {
+                    bg: 'bg-amber-100',
+                    darkBg: 'dark:bg-amber-900/40',
+                    text: 'text-amber-700',
+                    darkText: 'dark:text-amber-300',
+                    dot: '#F59E0B',
+                    border: 'border-amber-200 dark:border-amber-800',
+                  },
+                  verified: {
+                    bg: 'bg-emerald-100',
+                    darkBg: 'dark:bg-emerald-900/40',
+                    text: 'text-emerald-700',
+                    darkText: 'dark:text-emerald-300',
+                    dot: '#10B981',
+                    border: 'border-emerald-200 dark:border-emerald-800',
+                  },
+                  assigned: {
+                    bg: 'bg-blue-100',
+                    darkBg: 'dark:bg-blue-900/40',
+                    text: 'text-blue-700',
+                    darkText: 'dark:text-blue-300',
+                    dot: '#3B82F6',
+                    border: 'border-blue-200 dark:border-blue-800',
+                  },
+                  in_progress: {
+                    bg: 'bg-violet-100',
+                    darkBg: 'dark:bg-violet-900/40',
+                    text: 'text-violet-700',
+                    darkText: 'dark:text-violet-300',
+                    dot: '#8B5CF6',
+                    border: 'border-violet-200 dark:border-violet-800',
+                  },
+                  pending_uo_verification: {
+                    bg: 'bg-amber-500',
+                    darkBg: 'dark:bg-amber-800',
+                    text: 'text-white',
+                    darkText: 'dark:text-white',
+                    dot: '#FFFFFF',
+                    border: 'border-amber-400 dark:border-amber-500',
+                  },
+                  rework_required: {
+                    bg: 'bg-red-100',
+                    darkBg: 'dark:bg-red-900/40',
+                    text: 'text-red-700',
+                    darkText: 'dark:text-red-300',
+                    dot: '#EF4444',
+                    border: 'border-red-200 dark:border-red-800',
+                  },
+                  resolved: {
+                    bg: 'bg-emerald-500',
+                    darkBg: 'dark:bg-emerald-800',
+                    text: 'text-white',
+                    darkText: 'dark:text-white',
+                    dot: '#FFFFFF',
+                    border: 'border-emerald-400 dark:border-emerald-600',
+                  },
+                  closed: {
+                    bg: 'bg-slate-100',
+                    darkBg: 'dark:bg-slate-700/50',
+                    text: 'text-slate-600',
+                    darkText: 'dark:text-slate-400',
+                    dot: '#94A3B8',
+                    border: 'border-slate-200 dark:border-slate-600',
+                  },
+                  rejected: {
+                    bg: 'bg-red-100',
+                    darkBg: 'dark:bg-red-900/40',
+                    text: 'text-red-900',
+                    darkText: 'dark:text-red-400',
+                    dot: '#991B1B',
+                    border: 'border-red-200 dark:border-red-800',
+                  },
+                };
+                const PRIORITY_META: Record<string, any> = {
+                  critical: {
+                    bg: 'bg-red-100',
+                    darkBg: 'dark:bg-red-900/40',
+                    text: 'text-red-700',
+                    darkText: 'dark:text-red-300',
+                    dot: '#DC2626',
+                  },
+                  high: {
+                    bg: 'bg-orange-100',
+                    darkBg: 'dark:bg-orange-900/40',
+                    text: 'text-orange-700',
+                    darkText: 'dark:text-orange-300',
+                    dot: '#F97316',
+                  },
+                  medium: {
+                    bg: 'bg-amber-100',
+                    darkBg: 'dark:bg-amber-900/40',
+                    text: 'text-amber-700',
+                    darkText: 'dark:text-amber-300',
+                    dot: '#F59E0B',
+                  },
+                  low: {
+                    bg: 'bg-green-100',
+                    darkBg: 'dark:bg-green-900/40',
+                    text: 'text-green-700',
+                    darkText: 'dark:text-green-300',
+                    dot: '#10B981',
+                  },
+                };
+
+                const getStatusIconValue = (val: string) => {
+                  switch (val) {
+                    case 'pending':
+                    case 'pending_uo_verification':
+                      return Clock;
+                    case 'verified':
+                    case 'resolved':
+                    case 'closed':
+                      return CheckCircle;
+                    case 'assigned':
+                      return UserCheck;
+                    case 'in_progress':
+                      return TrendingUp;
+                    case 'rework_required':
+                      return AlertTriangle;
+                    default:
+                      return CheckCircle;
+                  }
+                };
+
+                const sm = STATUS_META[mappedIssue.status] || STATUS_META.pending;
+                const pm = PRIORITY_META[mappedIssue.priority] || PRIORITY_META.medium;
+                const StatusIconValue = getStatusIconValue(mappedIssue.status);
+
                 return (
-                  <View
-                    className={`flex-row items-center gap-3 rounded-xl px-4 py-3 ${
-                      isOverdue ? 'bg-red-100 dark:bg-red-900/40' : 'bg-red-50 dark:bg-red-900/20'
-                    }`}>
+                  <View className="mb-4 flex-row flex-wrap items-center gap-2">
                     <View
-                      className={`h-8 w-8 items-center justify-center rounded-lg ${isOverdue ? 'bg-red-200 dark:bg-red-800/60' : 'bg-red-100 dark:bg-red-900/40'}`}>
-                      <Clock
-                        color={isOverdue ? '#B91C1C' : '#DC2626'}
-                        size={15}
-                        strokeWidth={2.5}
+                      className={`shrink-0 flex-row items-center gap-1.5 rounded-full border px-3.5 py-1.5 shadow-sm ${sm.bg} ${sm.darkBg} ${sm.border}`}>
+                      <StatusIconValue
+                        size={12}
+                        strokeWidth={3}
+                        color={
+                          sm.text === 'text-white' || sm.bg.includes('500') ? '#FFFFFF' : sm.dot
+                        }
                       />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      {isOverdue && (
-                        <Text
-                          style={{
-                            fontSize: 10,
-                            fontWeight: '800',
-                            color: '#B91C1C',
-                            letterSpacing: 1,
-                            marginBottom: 2,
-                          }}>
-                          SLA OVERDUE
-                        </Text>
-                      )}
                       <Text
-                        className={`flex-1 text-[13px] font-semibold ${isOverdue ? 'text-red-700 dark:text-red-300' : 'text-red-600 dark:text-red-400'}`}>
-                        {isOverdue ? 'Was due: ' : 'SLA Deadline: '}
-                        {formatTimestamp(mappedIssue.slaDeadline)}
+                        className={`text-[10px] font-black tracking-widest ${sm.text} ${sm.darkText}`}>
+                        {STATUS_LABELS[mappedIssue.status]?.toUpperCase() ??
+                          mappedIssue.status.toUpperCase()}
                       </Text>
                     </View>
-                    {isOverdue && (
+
+                    <View
+                      className={`flex-row items-center gap-1.5 rounded-full border px-3 py-1.5 shadow-sm ${pm.bg} ${pm.darkBg} border-slate-200/50 dark:border-white/10 dark:bg-slate-800`}>
                       <View
+                        className="h-2 w-2 rounded-full border border-white/50"
                         style={{
-                          backgroundColor: '#B91C1C',
-                          paddingHorizontal: 8,
-                          paddingVertical: 3,
-                          borderRadius: 8,
-                        }}>
-                        <Text style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '800' }}>
-                          OVERDUE
-                        </Text>
-                      </View>
-                    )}
+                          backgroundColor: pm.dot,
+                          shadowColor: pm.dot,
+                          shadowOffset: { width: 0, height: 1 },
+                          shadowOpacity: 1,
+                          shadowRadius: 3,
+                        }}
+                      />
+                      <Text
+                        className={`text-[10px] font-black tracking-widest ${pm.text} ${pm.darkText}`}>
+                        {mappedIssue.priority.toUpperCase()}
+                      </Text>
+                    </View>
                   </View>
                 );
               })()}
 
-            {/* Assigned Officer card */}
-            {mappedIssue && (
-              // Change the above to this:
-              // {mappedIssue.assignedOfficer && (
-              // <View
-              //   className="mt-3 overflow-hidden rounded-2xl border border-teal-200 dark:border-teal-700/50"
-              //   style={styles.officerCard}>
-              //   <LinearGradient
-              //     colors={isDark ? ['#0d3330', '#0f172a'] : ['#f0fdfa', '#e6fffa']}
-              //     start={{ x: 0, y: 0 }}
-              //     end={{ x: 1, y: 1 }}
-              //     style={styles.officerGradient}>
-              //     {/* Top row */}
-              //     <View className="flex-row items-start gap-3">
-              //       {/* Avatar */}
-              //       <View style={styles.officerAvatar}>
-              //         {assignedOfficerData?.avatar ? (
-              //           <Image
-              //             source={{ uri: assignedOfficerData.avatar }}
-              //             style={styles.officerAvatarImg}
-              //           />
-              //         ) : (
-              //           <View
-              //             className="h-full w-full items-center justify-center"
-              //             style={{ backgroundColor: isDark ? '#134E4A' : '#CCFBF1' }}>
-              //             <UserCheck
-              //               color={isDark ? '#5EEAD4' : '#0F766E'}
-              //               size={22}
-              //               strokeWidth={2.5}
-              //             />
-              //           </View>
-              //         )}
-              //       </View>
-
-              //       <View className="flex-1">
-              //         {/* <Text className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-teal-600 dark:text-teal-400">
-              //           Assigned Officer
-              //         </Text>
-              //         <Text className="mb-1 text-[16px] font-extrabold text-teal-800 dark:text-teal-200">
-              //           {mappedIssue.assignedOfficer}
-              //         </Text> */}
-
-              //         {/* Stats row */}
-              //         {/* {assignedOfficerData && (
-              //           <View className="flex-row items-center gap-3">
-              //             <View className="flex-row items-center gap-1">
-              //               <Star color="#F59E0B" size={12} fill="#F59E0B" strokeWidth={2} />
-              //               <Text className="text-[12px] font-bold text-amber-500">
-              //                 {assignedOfficerData.rating.toFixed(1)}
-              //               </Text>
-              //             </View>
-              //             <View className="flex-row items-center gap-1">
-              //               <TrendingUp
-              //                 color={isDark ? '#10B981' : '#059669'}
-              //                 size={12}
-              //                 strokeWidth={2.5}
-              //               />
-              //               <Text className="text-[12px] font-semibold text-emerald-600 dark:text-emerald-400">
-              //                 {assignedOfficerData.successRate}%
-              //               </Text>
-              //             </View>
-              //             <View className="flex-row items-center gap-1">
-              //               <Briefcase
-              //                 color={isDark ? '#6B7280' : '#9CA3AF'}
-              //                 size={11}
-              //                 strokeWidth={2}
-              //               />
-              //               <Text className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-              //                 {assignedOfficerData.activeIssues} active
-              //               </Text>
-              //             </View>
-              //           </View>
-              //         )} */}
-              //       </View>
-
-              //       {(mappedIssue.status === 'Assigned' || mappedIssue.status === 'In Progress') && (
-              //         <TouchableOpacity
-              //           onPress={() => setShowReassignModal(true)}
-              //           activeOpacity={0.75}
-              //           className="h-10 w-10 items-center justify-center rounded-xl border border-amber-200 bg-amber-100 dark:border-amber-700/50 dark:bg-amber-900/40">
-              //           <RefreshCw color="#D97706" size={17} strokeWidth={2.5} />
-              //         </TouchableOpacity>
-              //       )}
-              //     </View>
-
-              //     {/* Specialisations */}
-              //     {assignedOfficerData?.specializations &&
-              //       assignedOfficerData.specializations.length > 0 && (
-              //         <View className="mt-3 flex-row flex-wrap gap-1.5">
-              //           {assignedOfficerData.specializations.map((spec, i) => (
-              //             <View
-              //               key={i}
-              //               className="rounded-full px-2.5 py-1"
-              //               style={{
-              //                 backgroundColor: isDark ? '#0C2A3F' : '#EFF6FF',
-              //                 borderWidth: 1,
-              //                 borderColor: isDark ? '#1E3A5F' : '#BFDBFE',
-              //               }}>
-              //               <Text className="text-[11px] font-bold text-blue-600 dark:text-blue-300">
-              //                 {spec}
-              //               </Text>
-              //             </View>
-              //           ))}
-              //         </View>
-              //       )}
-
-              //     {/* Workload bar */}
-              //     {assignedOfficerData && (
-              //       <View className="mt-3">
-              //         <View className="mb-1.5 flex-row items-center justify-between">
-              //           <Text className="text-[11px] font-semibold text-teal-700 dark:text-teal-400">
-              //             Current Workload
-              //           </Text>
-              //           <Text
-              //             className="text-[12px] font-extrabold"
-              //             style={{
-              //               color:
-              //                 assignedOfficerData.workloadPercentage >= 85
-              //                   ? '#EF4444'
-              //                   : assignedOfficerData.workloadPercentage >= 55
-              //                     ? '#F59E0B'
-              //                     : '#10B981',
-              //             }}>
-              //             {assignedOfficerData.workloadPercentage}%
-              //           </Text>
-              //         </View>
-              //         <View
-              //           className="h-1.5 overflow-hidden rounded-full"
-              //           style={{ backgroundColor: isDark ? '#1E293B' : '#CCFBF1' }}>
-              //           <View
-              //             style={{
-              //               width: `${Math.min(assignedOfficerData.workloadPercentage, 100)}%`,
-              //               height: '100%',
-              //               backgroundColor:
-              //                 assignedOfficerData.workloadPercentage >= 85
-              //                   ? '#EF4444'
-              //                   : assignedOfficerData.workloadPercentage >= 55
-              //                     ? '#F59E0B'
-              //                     : '#10B981',
-              //               borderRadius: 99,
-              //             }}
-              //           />
-              //         </View>
-              //       </View>
-              //     )}
-              //   </LinearGradient>
-              // </View>
-              <></>
-            )}
-          </View>
-        </SectionCard>
-
-        {/* CATEGORY & SUBCATEGORY */}
-        <SectionCard>
-          <SectionHeader
-            title="Category Details"
-            icon={<Tag color={isDark ? '#94A3B8' : '#64748B'} size={16} strokeWidth={2.5} />}
-          />
-          <View className="gap-4 px-5 py-4">
-            {/* Primary category chip */}
-            <View>
-              <Text className="mb-2 text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
-                Category
+              <Text className="mb-5 text-[26px] font-black leading-[34px] tracking-tight text-slate-900 dark:text-white">
+                {mappedIssue.title}
               </Text>
-              <View
-                style={[
-                  styles.categoryBadge,
-                  { backgroundColor: isDark ? catColor.darkBg : catColor.bg },
-                ]}>
-                <Layers color={catColor.icon} size={14} strokeWidth={2.5} />
-                <Text
-                  style={{ color: isDark ? catColor.darkText : catColor.text }}
-                  className="ml-1.5 text-[13px] font-extrabold tracking-wide">
-                  {mappedIssue.category}
-                </Text>
-              </View>
-            </View>
 
-            {/* Sub-categories — array of chips */}
-            {mappedIssue.subCategories && mappedIssue.subCategories.length > 0 && (
-              <View>
-                <Text className="mb-2 text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
-                  Sub-Categories
-                </Text>
-                <View className="flex-row flex-wrap gap-2">
-                  {mappedIssue.subCategories.map((sub: string, i: number) => (
-                    <View
-                      key={i}
-                      className="flex-row items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-100 px-3 py-2 dark:border-slate-600/50 dark:bg-slate-700/80">
-                      <Tag color={isDark ? '#94A3B8' : '#64748B'} size={12} strokeWidth={2.5} />
-                      <Text className="text-[12px] font-semibold text-slate-600 dark:text-slate-300">
-                        {sub}
-                      </Text>
+              {/* SLA DEADLINE ENHANCED */}
+              {mappedIssue.slaDeadline &&
+                (() => {
+                  const isOverdue =
+                    new Date(mappedIssue.slaDeadline) < new Date() &&
+                    !['resolved', 'closed', 'rejected', 'escalated'].includes(mappedIssue.status);
+
+                  if (isOverdue) {
+                    return (
+                      <LinearGradient
+                        colors={['#EF4444', '#9F1239']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                        className="mb-5 flex-row items-center justify-between rounded-[20px] px-5 py-4 shadow-sm">
+                        <View className="flex-row items-center gap-3.5">
+                          <View className="rounded-full bg-white/30 p-2.5 shadow-sm">
+                            <AlertTriangle color="#FFFFFF" size={16} strokeWidth={3} />
+                          </View>
+                          <View>
+                            <Text className="mb-0.5 text-[10px] font-black uppercase tracking-[0.2em] text-white/90">
+                              SLA OVERDUE
+                            </Text>
+                            <Text className="text-[14px] font-black tracking-wide text-white">
+                              Was due: {formatTimestamp(mappedIssue.slaDeadline)}
+                            </Text>
+                          </View>
+                        </View>
+                        <View className="rounded-full border border-red-200 bg-white px-3 py-1.5 shadow-sm">
+                          <Text className="text-[10px] font-black uppercase tracking-widest text-red-700">
+                            IMMEDIATE ACTION
+                          </Text>
+                        </View>
+                      </LinearGradient>
+                    );
+                  }
+
+                  return (
+                    <View className="mb-5 flex-row items-center gap-3.5 rounded-[20px] border border-orange-200/60 bg-orange-50/80 px-4 py-4 shadow-sm dark:border-orange-800/50 dark:bg-orange-900/20">
+                      <View className="rounded-full bg-orange-100 p-2.5 shadow-sm dark:bg-orange-900/60">
+                        <Clock color={isDark ? '#FCA5A5' : '#EA580C'} size={16} strokeWidth={2.5} />
+                      </View>
+                      <View>
+                        <Text className="mb-0.5 text-[10px] font-black uppercase tracking-[0.2em] text-orange-600/80 dark:text-orange-400">
+                          SLA Deadline
+                        </Text>
+                        <Text className="text-[14px] font-black tracking-wide text-orange-700 dark:text-orange-300">
+                          Due: {formatTimestamp(mappedIssue.slaDeadline)}
+                        </Text>
+                      </View>
                     </View>
-                  ))}
-                </View>
-              </View>
-            )}
+                  );
+                })()}
 
-            {/* Tags */}
-            {mappedIssue.tags && mappedIssue.tags.length > 0 && (
-              <View>
-                <Text className="mb-2 text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
-                  Tags
-                </Text>
-                <View className="flex-row flex-wrap gap-2">
-                  {mappedIssue.tags.map((tag: string, i: number) => (
-                    <View
-                      key={i}
-                      className="flex-row items-center gap-1 rounded-lg border border-teal-200 bg-teal-50 px-2.5 py-1.5 dark:border-teal-700/50 dark:bg-teal-900/30">
-                      <Hash color={isDark ? '#5EEAD4' : '#0F766E'} size={11} strokeWidth={2.5} />
-                      <Text className="text-[11px] font-bold tracking-wide text-teal-700 dark:text-teal-300">
-                        {tag.replace(/^#/, '')}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-            )}
+              {/* Assigned Officer card */}
+              {mappedIssue && (
+                // Change the above to this:
+                // {mappedIssue.assignedOfficer && (
+                // <View
+                //   className="mt-3 overflow-hidden rounded-2xl border border-teal-200 dark:border-teal-700/50"
+                //   style={styles.officerCard}>
+                //   <LinearGradient
+                //     colors={isDark ? ['#0d3330', '#0f172a'] : ['#f0fdfa', '#e6fffa']}
+                //     start={{ x: 0, y: 0 }}
+                //     end={{ x: 1, y: 1 }}
+                //     style={styles.officerGradient}>
+                //     {/* Top row */}
+                //     <View className="flex-row items-start gap-3">
+                //       {/* Avatar */}
+                //       <View style={styles.officerAvatar}>
+                //         {assignedOfficerData?.avatar ? (
+                //           <Image
+                //             source={{ uri: assignedOfficerData.avatar }}
+                //             style={styles.officerAvatarImg}
+                //           />
+                //         ) : (
+                //           <View
+                //             className="h-full w-full items-center justify-center"
+                //             style={{ backgroundColor: isDark ? '#134E4A' : '#CCFBF1' }}>
+                //             <UserCheck
+                //               color={isDark ? '#5EEAD4' : '#0F766E'}
+                //               size={22}
+                //               strokeWidth={2.5}
+                //             />
+                //           </View>
+                //         )}
+                //       </View>
 
-            {/* City */}
-            <View className="flex-row items-center gap-2 rounded-xl bg-slate-50 px-4 py-3 dark:bg-slate-700/40">
-              <Text className="w-20 text-[12px] font-bold text-slate-500 dark:text-slate-400">
-                City
-              </Text>
-              <Text className="flex-1 text-[13px] font-semibold text-slate-700 dark:text-slate-200">
-                {mappedIssue.city}
-              </Text>
+                //       <View className="flex-1">
+                //         {/* <Text className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-teal-600 dark:text-teal-400">
+                //           Assigned Officer
+                //         </Text>
+                //         <Text className="mb-1 text-[16px] font-extrabold text-teal-800 dark:text-teal-200">
+                //           {mappedIssue.assignedOfficer}
+                //         </Text> */}
+
+                //         {/* Stats row */}
+                //         {/* {assignedOfficerData && (
+                //           <View className="flex-row items-center gap-3">
+                //             <View className="flex-row items-center gap-1">
+                //               <Star color="#F59E0B" size={12} fill="#F59E0B" strokeWidth={2} />
+                //               <Text className="text-[12px] font-bold text-amber-500">
+                //                 {assignedOfficerData.rating.toFixed(1)}
+                //               </Text>
+                //             </View>
+                //             <View className="flex-row items-center gap-1">
+                //               <TrendingUp
+                //                 color={isDark ? '#10B981' : '#059669'}
+                //                 size={12}
+                //                 strokeWidth={2.5}
+                //               />
+                //               <Text className="text-[12px] font-semibold text-emerald-600 dark:text-emerald-400">
+                //                 {assignedOfficerData.successRate}%
+                //               </Text>
+                //             </View>
+                //             <View className="flex-row items-center gap-1">
+                //               <Briefcase
+                //                 color={isDark ? '#6B7280' : '#9CA3AF'}
+                //                 size={11}
+                //                 strokeWidth={2}
+                //               />
+                //               <Text className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                //                 {assignedOfficerData.activeIssues} active
+                //               </Text>
+                //             </View>
+                //           </View>
+                //         )} */}
+                //       </View>
+
+                //       {(mappedIssue.status === 'Assigned' || mappedIssue.status === 'In Progress') && (
+                //         <TouchableOpacity
+                //           onPress={() => setShowReassignModal(true)}
+                //           activeOpacity={0.75}
+                //           className="h-10 w-10 items-center justify-center rounded-xl border border-amber-200 bg-amber-100 dark:border-amber-700/50 dark:bg-amber-900/40">
+                //           <RefreshCw color="#D97706" size={17} strokeWidth={2.5} />
+                //         </TouchableOpacity>
+                //       )}
+                //     </View>
+
+                //     {/* Specialisations */}
+                //     {assignedOfficerData?.specializations &&
+                //       assignedOfficerData.specializations.length > 0 && (
+                //         <View className="mt-3 flex-row flex-wrap gap-1.5">
+                //           {assignedOfficerData.specializations.map((spec, i) => (
+                //             <View
+                //               key={i}
+                //               className="rounded-full px-2.5 py-1"
+                //               style={{
+                //                 backgroundColor: isDark ? '#0C2A3F' : '#EFF6FF',
+                //                 borderWidth: 1,
+                //                 borderColor: isDark ? '#1E3A5F' : '#BFDBFE',
+                //               }}>
+                //               <Text className="text-[11px] font-bold text-blue-600 dark:text-blue-300">
+                //                 {spec}
+                //               </Text>
+                //             </View>
+                //           ))}
+                //         </View>
+                //       )}
+
+                //     {/* Workload bar */}
+                //     {assignedOfficerData && (
+                //       <View className="mt-3">
+                //         <View className="mb-1.5 flex-row items-center justify-between">
+                //           <Text className="text-[11px] font-semibold text-teal-700 dark:text-teal-400">
+                //             Current Workload
+                //           </Text>
+                //           <Text
+                //             className="text-[12px] font-extrabold"
+                //             style={{
+                //               color:
+                //                 assignedOfficerData.workloadPercentage >= 85
+                //                   ? '#EF4444'
+                //                   : assignedOfficerData.workloadPercentage >= 55
+                //                     ? '#F59E0B'
+                //                     : '#10B981',
+                //             }}>
+                //             {assignedOfficerData.workloadPercentage}%
+                //           </Text>
+                //         </View>
+                //         <View
+                //           className="h-1.5 overflow-hidden rounded-full"
+                //           style={{ backgroundColor: isDark ? '#1E293B' : '#CCFBF1' }}>
+                //           <View
+                //             style={{
+                //               width: `${Math.min(assignedOfficerData.workloadPercentage, 100)}%`,
+                //               height: '100%',
+                //               backgroundColor:
+                //                 assignedOfficerData.workloadPercentage >= 85
+                //                   ? '#EF4444'
+                //                   : assignedOfficerData.workloadPercentage >= 55
+                //                     ? '#F59E0B'
+                //                     : '#10B981',
+                //               borderRadius: 99,
+                //             }}
+                //           />
+                //         </View>
+                //       </View>
+                //     )}
+                //   </LinearGradient>
+                // </View>
+                <></>
+              )}
             </View>
-          </View>
-        </SectionCard>
+          </SectionCard>
 
-        {/* REPORTED BY */}
-        <SectionCard>
-          <SectionHeader
-            title="Reported By"
-            icon={<User color={isDark ? '#94A3B8' : '#64748B'} size={16} strokeWidth={2.5} />}
-          />
-          <View className="px-5 py-4">
-            <View className="mb-4 flex-row items-center gap-4">
-              <View className="h-14 w-14 items-center justify-center rounded-2xl bg-blue-100 dark:bg-blue-900/40">
-                <Text className="text-[20px] font-extrabold text-blue-700 dark:text-blue-300">
-                  {mappedIssue.citizenName
-                    .split(' ')
-                    .map((n: string) => n[0])
-                    .join('')
-                    .slice(0, 2)}
-                </Text>
-              </View>
-              <View className="flex-1">
-                <Text className="mb-0.5 text-[17px] font-extrabold text-slate-800 dark:text-slate-100">
-                  {mappedIssue.citizenName}
-                </Text>
-                <Text className="text-[12px] text-slate-400 dark:text-slate-500">Citizen</Text>
-              </View>
-            </View>
-
-            <View className="gap-2.5">
-              <View className="flex-row items-center gap-3 rounded-xl bg-slate-50 px-4 py-3 dark:bg-slate-700/40">
-                <Mail color={isDark ? '#60A5FA' : '#2563EB'} size={14} strokeWidth={2.5} />
-                <Text className="flex-1 text-[13px] font-medium text-slate-600 dark:text-slate-300">
-                  {mappedIssue.citizenEmail}
-                </Text>
-              </View>
-              <View className="flex-row items-center gap-3 rounded-xl bg-slate-50 px-4 py-3 dark:bg-slate-700/40">
-                <Phone color={isDark ? '#34D399' : '#059669'} size={14} strokeWidth={2.5} />
-                <Text className="flex-1 text-[13px] font-medium text-slate-600 dark:text-slate-300">
-                  {mappedIssue.citizenPhone}
-                </Text>
-              </View>
-              <View className="flex-row items-center gap-3 rounded-xl bg-slate-50 px-4 py-3 dark:bg-slate-700/40">
-                <Calendar color={isDark ? '#FBBF24' : '#D97706'} size={14} strokeWidth={2.5} />
-                <Text className="flex-1 text-[13px] font-medium text-slate-600 dark:text-slate-300">
-                  {formatDateFull(mappedIssue.dateReported)}
-                </Text>
-              </View>
-            </View>
-          </View>
-        </SectionCard>
-
-        {/* LOCATION DETAILS */}
-        <SectionCard>
-          <SectionHeader
-            title="Location Details"
-            icon={<MapPin color={isDark ? '#94A3B8' : '#64748B'} size={16} strokeWidth={2.5} />}
-          />
-          <View className="gap-3 px-5 py-4">
-            <View className="rounded-xl bg-slate-50 px-4 py-3 dark:bg-slate-700/40">
-              <Text className="mb-1 text-[13px] font-semibold leading-5 text-slate-700 dark:text-slate-200">
-                {mappedIssue.location}
-              </Text>
-              <Text className="text-[11px] text-slate-400 dark:text-slate-500">
-                {mappedIssue.coordinates.latitude.toFixed(6)},{' '}
-                {mappedIssue.coordinates.longitude.toFixed(6)}
-              </Text>
-            </View>
-
-            <TouchableOpacity onPress={openMaps} activeOpacity={0.85} style={styles.mapsBtn}>
-              <LinearGradient
-                colors={['#0D9488', '#0891B2']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.mapsBtnGradient}>
-                <Navigation color="#FFFFFF" size={17} strokeWidth={2.5} />
-                <Text className="flex-1 text-[14px] font-bold text-white">Open in Google Maps</Text>
-                <ChevronRight color="rgba(255,255,255,0.7)" size={17} strokeWidth={2.5} />
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
-        </SectionCard>
-
-        {/* DESCRIPTION */}
-        <SectionCard>
-          <SectionHeader title="Description" />
-          <Text className="px-5 py-4 text-[14px] leading-[22px] text-slate-600 dark:text-slate-300">
-            {mappedIssue.description}
-          </Text>
-        </SectionCard>
-
-        {/* PHOTO EVIDENCE */}
-        {hasPhotos && (
+          {/* CATEGORY & SUBCATEGORY */}
           <SectionCard>
             <SectionHeader
-              title="Photo Evidence"
+              title="Category Details"
               icon={<Tag color={isDark ? '#94A3B8' : '#64748B'} size={16} strokeWidth={2.5} />}
             />
-            <View className="gap-5 pb-4 pt-4">
-              {mappedIssue.images.length > 0 && (
-                <View className="px-5">
-                  <Text className="mb-3 text-[12px] font-extrabold uppercase tracking-widest text-slate-500 dark:text-slate-400">
-                    Photos by Citizen ({mappedIssue.images.length} photo
-                    {mappedIssue.images.length > 1 ? 's' : ''})
+            <View className="px-5 py-5">
+              {/* Primary category chip */}
+              <View>
+                <View className="mb-3 flex-row items-center gap-2">
+                  <View className="h-1.5 w-1.5 rounded-full bg-blue-500 shadow-sm" />
+                  <Text className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
+                    Primary Classification
                   </Text>
-                  <PhotoCarousel photos={mappedIssue.images} label="PHOTOS" isDark={isDark} />
                 </View>
-              )}
-              {allBeforePhotos.length > 0 && (
-                <View className="px-5">
-                  <Text className="mb-3 text-[12px] font-extrabold uppercase tracking-widest text-slate-500 dark:text-slate-400">
-                    Before ({allBeforePhotos.length} photo{allBeforePhotos.length > 1 ? 's' : ''})
-                  </Text>
-                  <PhotoCarousel photos={allBeforePhotos} label="BEFORE" isDark={isDark} />
-                </View>
-              )}
-              {allAfterPhotos.length > 0 && (
-                <View className="px-5">
-                  <View className="mb-5 h-px bg-slate-100 dark:bg-slate-700/60" />
-                  <Text className="mb-3 text-[12px] font-extrabold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">
-                    After ({allAfterPhotos.length} photo{allAfterPhotos.length > 1 ? 's' : ''})
-                  </Text>
-                  <PhotoCarousel photos={allAfterPhotos} label="AFTER" isDark={isDark} />
-                </View>
-              )}
-            </View>
-          </SectionCard>
-        )}
-
-        {/* VIDEO EVIDENCE */}
-        {hasVideo && (
-          <SectionCard>
-            <SectionHeader
-              title="Video Evidence"
-              icon={<Video color={isDark ? '#94A3B8' : '#64748B'} size={16} strokeWidth={2.5} />}
-            />
-            <View className="gap-2 px-5 pb-4 pt-3">
-              {mappedIssue.videoEvidence!.map((url, i) => (
-                <VideoEvidenceCard key={i} videoUrl={url} isDark={isDark} />
-              ))}
-            </View>
-          </SectionCard>
-        )}
-
-        {/* ISSUE UPDATES */}
-        <SectionCard>
-          <SectionHeader
-            title="Issue Updates"
-            icon={
-              <MessageSquarePlus
-                color={isDark ? '#38BDF8' : '#0284C7'}
-                size={18}
-                strokeWidth={2.5}
-              />
-            }
-          />
-          <View className="bg-slate-50/50 px-5 py-5 dark:bg-slate-900/30">
-            {issueUpdates?.length === 0 ? (
-              <View className="items-center py-10">
-                <View className="mb-3 h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 dark:bg-slate-800">
-                  <MessageSquarePlus
-                    color={isDark ? '#475569' : '#CBD5E1'}
-                    size={20}
-                    strokeWidth={2}
-                  />
-                </View>
-                <Text className="text-[13px] font-bold text-slate-400 dark:text-slate-500">
-                  No updates yet
-                </Text>
-              </View>
-            ) : (
-              (issueUpdates ?? []).map((upd, index) => {
-                const dotColor = STATUS_DOT_COLORS[upd.status] ?? '#94A3B8';
-                const isLast = index === (issueUpdates?.length ?? 0) - 1;
-
-                const scopeMeta =
-                  upd.scope === 'citizen'
-                    ? {
-                        label: 'Citizen only',
-                        icon: <Eye color="#0284C7" size={11} strokeWidth={2.5} />,
-                        bg: 'bg-sky-50 dark:bg-sky-900/40',
-                        text: 'text-sky-700 dark:text-sky-300',
+                <View className="flex-row">
+                  <View
+                    style={[
+                      styles.categoryBadge,
+                      { backgroundColor: isDark ? catColor.darkBg : catColor.bg, borderRadius: 16 },
+                    ]}>
+                    {(() => {
+                      let IconComponent = MoreHorizontal;
+                      switch (mappedIssue.category) {
+                        case 'road':
+                          IconComponent = MapPin;
+                          break;
+                        case 'electricity':
+                          IconComponent = Zap;
+                          break;
+                        case 'water':
+                          IconComponent = Droplets;
+                          break;
+                        case 'sanitation':
+                          IconComponent = Trash2;
+                          break;
+                        case 'drainage':
+                          IconComponent = Recycle;
+                          break;
+                        case 'solid_waste':
+                          IconComponent = Package;
+                          break;
+                        case 'public_health':
+                          IconComponent = HeartPulse;
+                          break;
                       }
-                    : upd.scope === 'field_and_citizen'
-                      ? {
-                          label: 'Officer & Citizen',
-                          icon: <Users color="#059669" size={11} strokeWidth={2.5} />,
-                          bg: 'bg-emerald-50 dark:bg-emerald-900/40',
-                          text: 'text-emerald-700 dark:text-emerald-300',
-                        }
-                      : {
-                          label: 'Admin only',
-                          icon: <ShieldAlert color="#DC2626" size={11} strokeWidth={2.5} />,
-                          bg: 'bg-red-50 dark:bg-red-900/40',
-                          text: 'text-red-700 dark:text-red-300',
-                        };
+                      return <IconComponent color={catColor.icon} size={16} strokeWidth={2.5} />;
+                    })()}
+                    <Text
+                      style={{ color: isDark ? catColor.darkText : catColor.text }}
+                      className="ml-2 text-[14px] font-black tracking-wide">
+                      {CATEGORY_LABEL_MAP[mappedIssue.category] ??
+                        mappedIssue.category.toUpperCase()}
+                    </Text>
+                  </View>
+                </View>
+              </View>
 
-                return (
-                  <View key={upd._id} style={styles.timelineRow}>
-                    {/* LEFT TIMELINE */}
-                    <View className="items-center" style={styles.timelineLeft}>
-                      <View
-                        style={[
-                          styles.timelineDot,
-                          {
-                            backgroundColor: dotColor,
-                            shadowColor: dotColor,
-                            shadowOffset: { width: 0, height: 4 },
-                            shadowOpacity: 0.4,
-                            shadowRadius: 8,
-                            elevation: 5,
-                            borderWidth: 2,
-                            borderColor: isDark ? '#1E293B' : '#FFFFFF',
-                          },
-                        ]}
-                      />
-                      {!isLast && (
-                        <LinearGradient
-                          colors={[dotColor, isDark ? '#334155' : '#E2E8F0']}
-                          style={[
-                            styles.timelineLine,
-                            { flex: 1, width: 2, opacity: 0.5, marginTop: 4, marginBottom: 4 },
-                          ]}
-                        />
-                      )}
+              {/* Sub-categories */}
+              {mappedIssue.subCategories && mappedIssue.subCategories.length > 0 && (
+                <>
+                  <View className="my-5 h-[2px] w-full rounded-full bg-slate-50 dark:bg-slate-800/80" />
+                  <View>
+                    <View className="mb-3 flex-row items-center gap-2">
+                      <View className="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-sm" />
+                      <Text className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
+                        Sub-Categories
+                      </Text>
                     </View>
-
-                    {/* CARD */}
-                    <View
-                      className={`mb-5 ml-4 flex-1 overflow-hidden rounded-[24px] border ${
-                        isLast
-                          ? 'border-cyan-300/60 bg-white shadow-sm dark:border-cyan-800/60 dark:bg-slate-800'
-                          : 'border-slate-200/60 bg-white/60 dark:border-slate-700/50 dark:bg-slate-800/60'
-                      }`}>
-                      {/* HEADER */}
-                      <View className="flex-row items-center justify-between border-b border-slate-100 px-4 py-3 dark:border-slate-700/50">
-                        <View>
-                          <Text className="mb-0.5 text-[14px] font-black text-slate-800 dark:text-slate-100">
-                            {STATUS_LABELS[upd.status] || upd.status}
-                          </Text>
-                          <Text className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                            {formatTimestamp(upd.createdAt)}
+                    <View className="flex-row flex-wrap gap-2.5">
+                      {mappedIssue.subCategories.map((sub: string, i: number) => (
+                        <View
+                          key={i}
+                          className="flex-row items-center gap-1.5 rounded-full border border-slate-200/80 bg-slate-100 px-3.5 py-1.5 shadow-sm dark:border-slate-700/60 dark:bg-slate-800/80">
+                          <Tag color={isDark ? '#94A3B8' : '#64748B'} size={11} strokeWidth={3} />
+                          <Text className="text-[11px] font-black tracking-wider text-slate-700 dark:text-slate-200">
+                            {sub.toUpperCase()}
                           </Text>
                         </View>
-
-                        <View className="items-end gap-1.5">
-                          <Text
-                            style={{
-                              color:
-                                upd.role === 'citizen'
-                                  ? '#2563EB'
-                                  : upd.role === 'unit_officer'
-                                    ? '#0D9488'
-                                    : upd.role === 'field_officer'
-                                      ? '#D97706'
-                                      : '#7C3AED',
-                            }}
-                            className="text-[11px] font-black uppercase">
-                            {upd.role === 'unit_officer'
-                              ? 'Unit Officer'
-                              : upd.role === 'field_officer'
-                                ? 'Field Officer'
-                                : upd.role.charAt(0).toUpperCase() + upd.role.slice(1)}
-                          </Text>
-                          <View
-                            className={`flex-row items-center gap-1.5 rounded-lg px-2 py-1 ${scopeMeta.bg}`}>
-                            {scopeMeta.icon}
-                            <Text className={`text-[9px] font-black uppercase ${scopeMeta.text}`}>
-                              {scopeMeta.label}
-                            </Text>
-                          </View>
-                        </View>
-                      </View>
-
-                      {/* COMMENT */}
-                      {upd.comment && (
-                        <View className="px-4 py-3.5">
-                          <Text className="text-[14px] font-medium leading-[22px] text-slate-600 dark:text-slate-300">
-                            {upd.comment}
-                          </Text>
-                        </View>
-                      )}
-
-                      {/* ATTACHMENTS */}
-                      {upd.attachments?.length > 0 && (
-                        <View className="border-t border-slate-100 bg-slate-50/50 px-4 py-3 dark:border-slate-700/40 dark:bg-slate-900/20">
-                          <View className="mb-2.5 flex-row items-center gap-1.5">
-                            <Paperclip
-                              color={isDark ? '#64748B' : '#94A3B8'}
-                              size={12}
-                              strokeWidth={2.5}
-                            />
-                            <Text className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
-                              Attachments ({upd.attachments.length})
-                            </Text>
-                          </View>
-
-                          <ScrollView
-                            horizontal
-                            showsHorizontalScrollIndicator={false}
-                            contentContainerStyle={{ gap: 10 }}>
-                            {upd.attachments.map((att: any, ai: number) => {
-                              const isImage = att.contentType?.startsWith('image');
-                              const isVideo = att.contentType?.startsWith('video');
-                              const isPDF = att.contentType?.includes('pdf');
-
-                              if (isImage) {
-                                return (
-                                  <TouchableOpacity
-                                    key={ai}
-                                    activeOpacity={0.8}
-                                    onPress={() => setPreviewAttachment({ ...att, type: 'image' })}>
-                                    <Image
-                                      source={{ uri: att.url }}
-                                      style={[
-                                        styles.attachmentThumb,
-                                        {
-                                          borderRadius: 12,
-                                          borderWidth: 1,
-                                          borderColor: isDark ? '#334155' : '#E2E8F0',
-                                        },
-                                      ]}
-                                      resizeMode="cover"
-                                    />
-                                  </TouchableOpacity>
-                                );
-                              }
-
-                              if (isVideo) {
-                                return (
-                                  <TouchableOpacity
-                                    key={ai}
-                                    activeOpacity={0.8}
-                                    onPress={() => setPreviewAttachment({ ...att, type: 'video' })}
-                                    style={[
-                                      styles.attachmentThumb,
-                                      {
-                                        backgroundColor: '#0F172A',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        borderRadius: 12,
-                                        borderWidth: 1,
-                                        borderColor: isDark ? '#334155' : '#E2E8F0',
-                                      },
-                                    ]}>
-                                    <View className="h-8 w-8 items-center justify-center rounded-full bg-white/20">
-                                      <Play color="#fff" size={14} fill="#fff" />
-                                    </View>
-                                  </TouchableOpacity>
-                                );
-                              }
-
-                              if (isPDF) {
-                                return (
-                                  <TouchableOpacity
-                                    key={ai}
-                                    activeOpacity={0.8}
-                                    onPress={() => setPreviewAttachment({ ...att, type: 'pdf' })}
-                                    style={[
-                                      styles.attachmentThumb,
-                                      {
-                                        backgroundColor: '#FEF2F2',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        borderRadius: 12,
-                                        borderWidth: 1,
-                                        borderColor: isDark ? '#334155' : '#E2E8F0',
-                                      },
-                                    ]}>
-                                    <View className="h-8 w-8 items-center justify-center rounded-full bg-red-100">
-                                      <FileText color="#DC2626" size={14} strokeWidth={2.5} />
-                                    </View>
-                                  </TouchableOpacity>
-                                );
-                              }
-
-                              return null;
-                            })}
-                          </ScrollView>
-                        </View>
-                      )}
+                      ))}
                     </View>
                   </View>
-                );
-              })
-            )}
-          </View>
-        </SectionCard>
+                </>
+              )}
 
-        {/* POST UPDATE */}
-        <SectionCard>
-          <SectionHeader
-            title="Post Update"
-            icon={<Send color={isDark ? '#94A3B8' : '#64748B'} size={16} strokeWidth={2.5} />}
-          />
-          <View className="gap-4 px-5 py-4">
-            {/* Scope selector */}
-            <View>
-              <Text className="mb-2 text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
-                Visibility
-              </Text>
-              <View className="flex-row gap-2">
-                {(
-                  [
-                    {
-                      value: 'citizen' as UpdateScope,
-                      label: 'Citizen Only',
-                      icon: <Eye size={13} strokeWidth={2.5} />,
-                      activeColor: '#0284C7',
-                    },
-                    {
-                      value: 'field_and_citizen' as UpdateScope,
-                      label: 'Officer & Citizen',
-                      icon: <Users size={13} strokeWidth={2.5} />,
-                      activeColor: '#059669',
-                    },
-                    {
-                      value: 'admin_only' as UpdateScope,
-                      label: 'Admin Only',
-                      icon: <ShieldAlert size={13} strokeWidth={2.5} />,
-                      activeColor: '#DC2626',
-                    },
-                  ] as const
-                ).map((opt) => {
-                  const isActive = updateScope === opt.value;
-                  return (
-                    <TouchableOpacity
-                      key={opt.value}
-                      onPress={() => setUpdateScope(opt.value)}
-                      activeOpacity={0.75}
-                      style={[
-                        styles.scopeBtn,
-                        isActive
-                          ? {
-                              borderColor: opt.activeColor,
-                              backgroundColor: isDark
-                                ? `${opt.activeColor}20`
-                                : `${opt.activeColor}10`,
-                            }
-                          : {},
-                      ]}>
-                      {React.cloneElement(opt.icon as React.ReactElement<{ color: string }>, {
-                        color: isActive ? opt.activeColor : isDark ? '#64748B' : '#94A3B8',
-                      })}
-                      <Text
-                        style={{
-                          color: isActive ? opt.activeColor : isDark ? '#64748B' : '#94A3B8',
-                        }}
-                        className="text-[11px] font-bold"
-                        numberOfLines={1}>
-                        {opt.label}
+              {/* Tags */}
+              {mappedIssue.tags && mappedIssue.tags.length > 0 && (
+                <>
+                  <View className="my-5 h-[2px] w-full rounded-full bg-slate-50 dark:bg-slate-800/80" />
+                  <View>
+                    <View className="mb-3 flex-row items-center gap-2">
+                      <View className="h-1.5 w-1.5 rounded-full bg-teal-500 shadow-sm" />
+                      <Text className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
+                        Associated Tags
                       </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
-
-            {/* Comment input */}
-            <View className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-700/50">
-              <TextInput
-                className="text-[14px] text-slate-900 dark:text-slate-100"
-                placeholder="Write your update for the citizen..."
-                placeholderTextColor={isDark ? '#64748B' : '#9CA3AF'}
-                value={updateText}
-                onChangeText={setUpdateText}
-                multiline
-                style={styles.updateInput}
-              />
-            </View>
-
-            {/* Attachment previews */}
-            {updateAttachments.length > 0 && (
-              <View>
-                <Text className="mb-2 text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
-                  Attachments ({updateAttachments.length})
-                </Text>
-                <View className="flex-row flex-wrap gap-2">
-                  {updateAttachments.map((att, i) => (
-                    <View key={i} style={styles.attachmentPreviewWrap}>
-                      {att.type === 'image' ? (
-                        <Image
-                          source={{ uri: att.uri }}
-                          style={styles.attachmentPreview}
-                          resizeMode="cover"
-                        />
-                      ) : att.type === 'video' ? (
-                        <View style={[styles.attachmentPreview, styles.attachmentMediaPlaceholder]}>
-                          <Video color="#fff" size={22} strokeWidth={2} />
-                          <Text style={styles.attachmentMediaLabel} numberOfLines={1}>
-                            {att.name}
-                          </Text>
-                        </View>
-                      ) : (
-                        <View style={[styles.attachmentPreview, styles.attachmentPdfPlaceholder]}>
-                          <Text style={styles.attachmentPdfIcon}>PDF</Text>
-                          <Text style={styles.attachmentMediaLabel} numberOfLines={1}>
-                            {att.name}
-                          </Text>
-                        </View>
-                      )}
-                      <TouchableOpacity
-                        onPress={() =>
-                          setUpdateAttachments(updateAttachments.filter((_, idx) => idx !== i))
-                        }
-                        activeOpacity={0.8}
-                        style={styles.attachmentRemove}>
-                        <X color="#fff" size={10} strokeWidth={3} />
-                      </TouchableOpacity>
                     </View>
-                  ))}
+                    <View className="flex-row flex-wrap gap-2">
+                      {mappedIssue.tags.map((tag: string, i: number) => (
+                        <View
+                          key={i}
+                          className="flex-row items-center gap-1 rounded-md border border-teal-200/50 bg-teal-50/50 px-2.5 py-1 dark:border-teal-700/30 dark:bg-teal-900/20">
+                          <Hash color={isDark ? '#5EEAD4' : '#0F766E'} size={11} strokeWidth={3} />
+                          <Text className="text-[10px] font-black tracking-widest text-teal-700 dark:text-teal-300">
+                            {tag.replace(/^#/, '').toUpperCase()}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                </>
+              )}
+            </View>
+          </SectionCard>
+
+          {/* REPORTED BY */}
+          <SectionCard>
+            <SectionHeader
+              title="Reporter Profile"
+              icon={<User color={isDark ? '#94A3B8' : '#64748B'} size={16} strokeWidth={2.5} />}
+            />
+            <View className="px-5 py-5">
+              <View className="mb-5 flex-row items-center gap-4 rounded-[20px] border border-slate-100 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/50">
+                <View className="h-14 w-14 items-center justify-center rounded-2xl bg-blue-100 shadow-sm dark:bg-blue-900/60">
+                  <Text className="text-[20px] font-black tracking-tighter text-blue-700 dark:text-blue-300">
+                    {mappedIssue.citizenName
+                      .split(' ')
+                      .map((n: string) => n[0])
+                      .join('')
+                      .slice(0, 2)}
+                  </Text>
+                </View>
+                <View className="flex-1 justify-center">
+                  <Text className="mb-1 text-[18px] font-black tracking-tight text-slate-800 dark:text-slate-100">
+                    {mappedIssue.citizenName}
+                  </Text>
+                  <View className="flex-row items-center gap-1.5">
+                    <View className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                    <Text className="text-[11px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                      Verified Citizen
+                    </Text>
+                  </View>
                 </View>
               </View>
-            )}
 
-            {/* Action row */}
-            <View className="flex-row gap-3">
-              <TouchableOpacity
-                onPress={handleShowAttachMenu}
-                activeOpacity={0.75}
-                className="flex-row items-center gap-2 rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 dark:border-slate-600/50 dark:bg-slate-700">
-                <Paperclip color={isDark ? '#94A3B8' : '#64748B'} size={15} strokeWidth={2.5} />
-                <Text className="text-[13px] font-semibold text-slate-600 dark:text-slate-300">
-                  Attach
-                </Text>
-              </TouchableOpacity>
+              <View className="gap-3">
+                <View className="flex-row items-center gap-3.5 rounded-2xl bg-slate-100 px-4 py-3.5 shadow-sm dark:bg-slate-800">
+                  <Mail color={isDark ? '#94A3B8' : '#64748B'} size={16} strokeWidth={2.5} />
+                  <Text className="flex-1 text-[13px] font-bold tracking-wide text-slate-700 dark:text-slate-200">
+                    {mappedIssue.citizenEmail}
+                  </Text>
+                </View>
+                <View className="flex-row items-center gap-3.5 rounded-2xl bg-slate-100 px-4 py-3.5 shadow-sm dark:bg-slate-800">
+                  <Phone color={isDark ? '#94A3B8' : '#64748B'} size={16} strokeWidth={2.5} />
+                  <Text className="flex-1 text-[13px] font-bold tracking-wide text-slate-700 dark:text-slate-200">
+                    {mappedIssue.citizenPhone}
+                  </Text>
+                </View>
+                <View className="flex-row items-center gap-3.5 rounded-2xl bg-slate-100 px-4 py-3.5 shadow-sm dark:bg-slate-800">
+                  <Calendar color={isDark ? '#94A3B8' : '#64748B'} size={16} strokeWidth={2.5} />
+                  <Text className="flex-1 text-[13px] font-bold tracking-wide text-slate-700 dark:text-slate-200">
+                    {formatDateFull(mappedIssue.dateReported)}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </SectionCard>
 
-              <TouchableOpacity
-                onPress={handlePostUpdate}
-                activeOpacity={0.85}
-                style={[styles.actionBtn, { flex: 1 }]}>
+          {/* LOCATION DETAILS */}
+          <SectionCard>
+            <SectionHeader
+              title="Location Details"
+              icon={<MapPin color={isDark ? '#94A3B8' : '#64748B'} size={16} strokeWidth={2.5} />}
+            />
+            <View className="px-5 py-5">
+              <View className="mb-4 overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+                <View
+                  className="absolute bottom-0 left-0 top-0 w-1.5"
+                  style={{ backgroundColor: isDark ? '#3B82F6' : '#2563EB' }}
+                />
+                <View className="p-4 pl-5">
+                  <Text className="mb-3 text-[14px] font-black leading-[22px] tracking-tight text-slate-800 dark:text-slate-100">
+                    {mappedIssue.address || 'Address Unspecified'}
+                  </Text>
+                  <View className="flex-row flex-wrap gap-2">
+                    {mappedIssue.city && (
+                      <View className="rounded-[8px] bg-slate-100 px-2.5 py-1 dark:bg-slate-700/50">
+                        <Text className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                          {mappedIssue.city}
+                        </Text>
+                      </View>
+                    )}
+                    {mappedIssue.state && (
+                      <View className="rounded-[8px] bg-slate-100 px-2.5 py-1 dark:bg-slate-700/50">
+                        <Text className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                          {mappedIssue.state}
+                        </Text>
+                      </View>
+                    )}
+                    {mappedIssue.postal && (
+                      <View className="rounded-[8px] bg-slate-100 px-2.5 py-1 dark:bg-slate-700/50">
+                        <Text className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                          {mappedIssue.postal}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+                <View className="flex-row items-center gap-2 border-t border-slate-100 bg-slate-50/50 px-5 py-2.5 dark:border-slate-700/50 dark:bg-slate-900/50">
+                  <MapPin color={isDark ? '#94A3B8' : '#64748B'} size={12} strokeWidth={3} />
+                  <Text className="text-[10px] font-black tracking-widest text-slate-500 dark:text-slate-400">
+                    {mappedIssue.coordinates.latitude.toFixed(6)},{' '}
+                    {mappedIssue.coordinates.longitude.toFixed(6)}
+                  </Text>
+                </View>
+              </View>
+
+              <TouchableOpacity onPress={openMaps} activeOpacity={0.85} style={styles.mapsBtn}>
                 <LinearGradient
                   colors={['#0D9488', '#0891B2']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
-                  style={styles.actionBtnGradient}>
-                  <Send color="#FFFFFF" size={16} strokeWidth={2.5} />
-                  <Text className="text-[14px] font-bold text-white">Post Update</Text>
+                  style={styles.mapsBtnGradient}>
+                  <Navigation color="#FFFFFF" size={17} strokeWidth={3} />
+                  <Text className="flex-1 text-[14px] font-black tracking-wide text-white">
+                    Open in Google Maps
+                  </Text>
+                  <ChevronRight color="rgba(255,255,255,0.7)" size={18} strokeWidth={3} />
                 </LinearGradient>
               </TouchableOpacity>
             </View>
-          </View>
-        </SectionCard>
+          </SectionCard>
 
-        {/* SLA OVERDUE ACTION PANEL */}
-        {/* {isSLAOverdue && (
+          {/* DESCRIPTION */}
+          <SectionCard>
+            <SectionHeader
+              title="Description"
+              icon={<FileText color={isDark ? '#94A3B8' : '#64748B'} size={16} strokeWidth={2.5} />}
+            />
+            <View className="px-5 py-6">
+              <View className="overflow-hidden rounded-[24px] rounded-tl-[6px] border border-blue-100 bg-blue-50/40 px-6 py-5 shadow-sm dark:border-blue-900/30 dark:bg-blue-900/10">
+                {/* Bold Editorial Left-Border */}
+                <View className="absolute bottom-0 left-0 top-0 w-1.5 bg-blue-500" />
+
+                {/* Giant Watermark Background */}
+                <View className="absolute -right-6 -top-6 opacity-[0.04] dark:opacity-5">
+                  <FileText color={isDark ? '#60A5FA' : '#2563EB'} size={140} strokeWidth={2} />
+                </View>
+
+                <Text className="text-[15px] font-medium leading-[28px] tracking-[0.02em] text-slate-700 dark:text-slate-300">
+                  {mappedIssue.description || 'No detailed description provided by the citizen.'}
+                </Text>
+              </View>
+            </View>
+          </SectionCard>
+
+          {/* PHOTO EVIDENCE */}
+          {hasPhotos && (
+            <SectionCard>
+              <SectionHeader
+                title="Photo Evidence"
+                icon={<Tag color={isDark ? '#94A3B8' : '#64748B'} size={16} strokeWidth={2.5} />}
+              />
+              <View className="gap-5 pb-4 pt-4">
+                {mappedIssue.images.length > 0 && (
+                  <View className="px-5">
+                    <Text className="mb-3 text-[12px] font-extrabold uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                      Photos by Citizen ({mappedIssue.images.length} photo
+                      {mappedIssue.images.length > 1 ? 's' : ''})
+                    </Text>
+                    <PhotoCarousel photos={mappedIssue.images} label="PHOTOS" isDark={isDark} />
+                  </View>
+                )}
+                {allBeforePhotos.length > 0 && (
+                  <View className="px-5">
+                    <Text className="mb-3 text-[12px] font-extrabold uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                      Before ({allBeforePhotos.length} photo{allBeforePhotos.length > 1 ? 's' : ''})
+                    </Text>
+                    <PhotoCarousel photos={allBeforePhotos} label="BEFORE" isDark={isDark} />
+                  </View>
+                )}
+                {allAfterPhotos.length > 0 && (
+                  <View className="px-5">
+                    <View className="mb-5 h-px bg-slate-100 dark:bg-slate-700/60" />
+                    <Text className="mb-3 text-[12px] font-extrabold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">
+                      After ({allAfterPhotos.length} photo{allAfterPhotos.length > 1 ? 's' : ''})
+                    </Text>
+                    <PhotoCarousel photos={allAfterPhotos} label="AFTER" isDark={isDark} />
+                  </View>
+                )}
+              </View>
+            </SectionCard>
+          )}
+
+          {/* VIDEO EVIDENCE */}
+          {hasVideo && (
+            <SectionCard>
+              <SectionHeader
+                title="Video Evidence"
+                icon={<Video color={isDark ? '#94A3B8' : '#64748B'} size={16} strokeWidth={2.5} />}
+              />
+              <View className="gap-2 px-5 pb-4 pt-3">
+                {mappedIssue.videoEvidence!.map((url, i) => (
+                  <VideoEvidenceCard key={i} videoUrl={url} isDark={isDark} />
+                ))}
+              </View>
+            </SectionCard>
+          )}
+
+          {/* ISSUE UPDATES */}
+          <SectionCard>
+            <SectionHeader
+              title="Issue Updates"
+              icon={
+                <MessageSquarePlus
+                  color={isDark ? '#38BDF8' : '#0284C7'}
+                  size={18}
+                  strokeWidth={2.5}
+                />
+              }
+            />
+            <View className="bg-slate-50/50 px-5 py-5 dark:bg-slate-900/30">
+              {issueUpdates?.length === 0 ? (
+                <View className="items-center py-10">
+                  <View className="mb-3 h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 dark:bg-slate-800">
+                    <MessageSquarePlus
+                      color={isDark ? '#475569' : '#CBD5E1'}
+                      size={20}
+                      strokeWidth={2}
+                    />
+                  </View>
+                  <Text className="text-[13px] font-bold text-slate-400 dark:text-slate-500">
+                    No updates yet
+                  </Text>
+                </View>
+              ) : (
+                (issueUpdates ?? []).map((upd, index: number) => {
+                  const dotColor = STATUS_DOT_COLORS[upd.status] ?? '#94A3B8';
+                  const isLast = index === (issueUpdates?.length ?? 0) - 1;
+
+                  const scopeMeta =
+                    upd.scope === 'citizen'
+                      ? {
+                          label: 'Citizen only',
+                          icon: <Eye color="#0284C7" size={11} strokeWidth={2.5} />,
+                          bg: 'bg-sky-50 dark:bg-sky-900/40',
+                          text: 'text-sky-700 dark:text-sky-300',
+                        }
+                      : upd.scope === 'field_and_citizen'
+                        ? {
+                            label: 'Officer & Citizen',
+                            icon: <Users color="#059669" size={11} strokeWidth={2.5} />,
+                            bg: 'bg-emerald-50 dark:bg-emerald-900/40',
+                            text: 'text-emerald-700 dark:text-emerald-300',
+                          }
+                        : {
+                            label: 'Admin only',
+                            icon: <ShieldAlert color="#DC2626" size={11} strokeWidth={2.5} />,
+                            bg: 'bg-red-50 dark:bg-red-900/40',
+                            text: 'text-red-700 dark:text-red-300',
+                          };
+
+                  return (
+                    <View key={upd._id} style={styles.timelineRow}>
+                      {/* LEFT TIMELINE */}
+                      <View className="items-center" style={styles.timelineLeft}>
+                        <View
+                          style={[
+                            styles.timelineDot,
+                            {
+                              backgroundColor: dotColor,
+                              shadowColor: dotColor,
+                              shadowOffset: { width: 0, height: 4 },
+                              shadowOpacity: 0.4,
+                              shadowRadius: 8,
+                              elevation: 5,
+                              borderWidth: 2,
+                              borderColor: isDark ? '#1E293B' : '#FFFFFF',
+                            },
+                          ]}
+                        />
+                        {!isLast && (
+                          <LinearGradient
+                            colors={[dotColor, isDark ? '#334155' : '#E2E8F0']}
+                            style={[
+                              styles.timelineLine,
+                              { flex: 1, width: 2, opacity: 0.5, marginTop: 4, marginBottom: 4 },
+                            ]}
+                          />
+                        )}
+                      </View>
+
+                      {/* CARD */}
+                      <View
+                        className={`mb-5 ml-4 flex-1 overflow-hidden rounded-[24px] border ${
+                          isLast
+                            ? 'border-cyan-300/60 bg-white shadow-sm dark:border-cyan-800/60 dark:bg-slate-800'
+                            : 'border-slate-200/60 bg-white/60 dark:border-slate-700/50 dark:bg-slate-800/60'
+                        }`}>
+                        {/* HEADER */}
+                        <View className="flex-row items-center justify-between border-b border-slate-100 px-4 py-3 dark:border-slate-700/50">
+                          <View>
+                            <Text className="mb-0.5 text-[14px] font-black text-slate-800 dark:text-slate-100">
+                              {STATUS_LABELS[upd.status] || upd.status}
+                            </Text>
+                            <Text className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                              {formatTimestamp(upd.createdAt)}
+                            </Text>
+                          </View>
+
+                          <View className="items-end gap-1.5">
+                            <Text
+                              style={{
+                                color:
+                                  upd.role === 'citizen'
+                                    ? '#2563EB'
+                                    : upd.role === 'unit_officer'
+                                      ? '#0D9488'
+                                      : upd.role === 'field_officer'
+                                        ? '#D97706'
+                                        : '#7C3AED',
+                              }}
+                              className="text-[11px] font-black uppercase">
+                              {upd.role === 'unit_officer'
+                                ? 'Unit Officer'
+                                : upd.role === 'field_officer'
+                                  ? 'Field Officer'
+                                  : upd.role.charAt(0).toUpperCase() + upd.role.slice(1)}
+                            </Text>
+                            <View
+                              className={`flex-row items-center gap-1.5 rounded-lg px-2 py-1 ${scopeMeta.bg}`}>
+                              {scopeMeta.icon}
+                              <Text className={`text-[9px] font-black uppercase ${scopeMeta.text}`}>
+                                {scopeMeta.label}
+                              </Text>
+                            </View>
+                          </View>
+                        </View>
+
+                        {/* COMMENT */}
+                        {upd.comment && (
+                          <View className="px-4 py-3.5">
+                            <Text className="text-[14px] font-medium leading-[22px] text-slate-600 dark:text-slate-300">
+                              {upd.comment}
+                            </Text>
+                          </View>
+                        )}
+
+                        {/* ATTACHMENTS */}
+                        {upd.attachments?.length > 0 && (
+                          <View className="border-t border-slate-100 bg-slate-50/50 px-4 py-3 dark:border-slate-700/40 dark:bg-slate-900/20">
+                            <View className="mb-2.5 flex-row items-center gap-1.5">
+                              <Paperclip
+                                color={isDark ? '#64748B' : '#94A3B8'}
+                                size={12}
+                                strokeWidth={2.5}
+                              />
+                              <Text className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                                Attachments ({upd.attachments.length})
+                              </Text>
+                            </View>
+
+                            <ScrollView
+                              horizontal
+                              showsHorizontalScrollIndicator={false}
+                              contentContainerStyle={{ gap: 10 }}>
+                              {upd.attachments.map((att: any, ai: number) => {
+                                const isImage = att.contentType?.startsWith('image');
+                                const isVideo = att.contentType?.startsWith('video');
+                                const isPDF = att.contentType?.includes('pdf');
+
+                                if (isImage) {
+                                  return (
+                                    <TouchableOpacity
+                                      key={ai}
+                                      activeOpacity={0.8}
+                                      onPress={() =>
+                                        setPreviewAttachment({ ...att, type: 'image' })
+                                      }>
+                                      <Image
+                                        source={{ uri: att.url }}
+                                        style={[
+                                          styles.attachmentThumb,
+                                          {
+                                            borderRadius: 12,
+                                            borderWidth: 1,
+                                            borderColor: isDark ? '#334155' : '#E2E8F0',
+                                          },
+                                        ]}
+                                        resizeMode="cover"
+                                      />
+                                    </TouchableOpacity>
+                                  );
+                                }
+
+                                if (isVideo) {
+                                  return (
+                                    <TouchableOpacity
+                                      key={ai}
+                                      activeOpacity={0.8}
+                                      onPress={() =>
+                                        setPreviewAttachment({ ...att, type: 'video' })
+                                      }
+                                      style={[
+                                        styles.attachmentThumb,
+                                        {
+                                          backgroundColor: '#0F172A',
+                                          alignItems: 'center',
+                                          justifyContent: 'center',
+                                          borderRadius: 12,
+                                          borderWidth: 1,
+                                          borderColor: isDark ? '#334155' : '#E2E8F0',
+                                        },
+                                      ]}>
+                                      <View className="h-8 w-8 items-center justify-center rounded-full bg-white/20">
+                                        <Play color="#fff" size={14} fill="#fff" />
+                                      </View>
+                                    </TouchableOpacity>
+                                  );
+                                }
+
+                                if (isPDF) {
+                                  return (
+                                    <TouchableOpacity
+                                      key={ai}
+                                      activeOpacity={0.8}
+                                      onPress={() => setPreviewAttachment({ ...att, type: 'pdf' })}
+                                      style={[
+                                        styles.attachmentThumb,
+                                        {
+                                          backgroundColor: '#FEF2F2',
+                                          alignItems: 'center',
+                                          justifyContent: 'center',
+                                          borderRadius: 12,
+                                          borderWidth: 1,
+                                          borderColor: isDark ? '#334155' : '#E2E8F0',
+                                        },
+                                      ]}>
+                                      <View className="h-8 w-8 items-center justify-center rounded-full bg-red-100">
+                                        <FileText color="#DC2626" size={14} strokeWidth={2.5} />
+                                      </View>
+                                    </TouchableOpacity>
+                                  );
+                                }
+
+                                return null;
+                              })}
+                            </ScrollView>
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                  );
+                })
+              )}
+            </View>
+          </SectionCard>
+
+          {/* POST UPDATE */}
+          <SectionCard>
+            <SectionHeader
+              title="Post Update"
+              icon={<Send color={isDark ? '#94A3B8' : '#64748B'} size={16} strokeWidth={2.5} />}
+            />
+            <View className="gap-4 px-5 py-4">
+              {/* Premium Scope Selector */}
+              <View>
+                <Text className="mb-2.5 ml-1 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
+                  Visibility Scope
+                </Text>
+                <View className="shadow-inner flex-row rounded-full bg-slate-200/60 p-1 dark:bg-slate-800/80">
+                  {(
+                    [
+                      {
+                        value: 'citizen' as UpdateScope,
+                        label: 'Citizen Only',
+                        icon: <Eye size={11} strokeWidth={3} />,
+                        gradientOptions: isDark ? ['#0284C7', '#0369A1'] : ['#38BDF8', '#0284C7'],
+                      },
+                      {
+                        value: 'field_and_citizen' as UpdateScope,
+                        label: 'FO & Citizen',
+                        icon: <Users size={11} strokeWidth={3} />,
+                        gradientOptions: isDark ? ['#059669', '#047857'] : ['#34D399', '#059669'],
+                      },
+                      {
+                        value: 'admin_only' as UpdateScope,
+                        label: 'Admin Only',
+                        icon: <ShieldAlert size={11} strokeWidth={3} />,
+                        gradientOptions: isDark ? ['#E11D48', '#BE123C'] : ['#FB7185', '#E11D48'],
+                      },
+                    ] as const
+                  ).map((opt) => {
+                    const isActive = updateScope === opt.value;
+                    return (
+                      <TouchableOpacity
+                        key={opt.value}
+                        onPress={() => setUpdateScope(opt.value)}
+                        activeOpacity={0.85}
+                        style={{
+                          flex: 1,
+                          borderRadius: 999,
+                          marginHorizontal: 2,
+                        }}>
+                        {isActive ? (
+                          <LinearGradient
+                            // @ts-ignore
+                            colors={opt.gradientOptions}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                            style={{
+                              borderRadius: 999,
+                              paddingVertical: 8,
+                              paddingHorizontal: 6,
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              flexDirection: 'row',
+                              gap: 4,
+                            }}>
+                            {React.cloneElement(opt.icon as React.ReactElement<{ color: string }>, {
+                              color: '#FFFFFF',
+                            })}
+                            <Text
+                              style={{ color: '#fff' }}
+                              numberOfLines={1}
+                              adjustsFontSizeToFit
+                              className="text-[10px] font-black">
+                              {opt.label}
+                            </Text>
+                          </LinearGradient>
+                        ) : (
+                          <View
+                            style={{
+                              borderRadius: 999,
+                              paddingVertical: 8,
+                              paddingHorizontal: 6,
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              flexDirection: 'row',
+                              gap: 4,
+                            }}>
+                            {React.cloneElement(opt.icon as React.ReactElement<{ color: string }>, {
+                              color: isDark ? '#94A3B8' : '#64748B',
+                            })}
+                            <Text
+                              style={{ color: isDark ? '#94A3B8' : '#64748B' }}
+                              numberOfLines={1}
+                              adjustsFontSizeToFit
+                              className="text-[10px] font-bold">
+                              {opt.label}
+                            </Text>
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+
+              {/* Comment Canvas */}
+              <View
+                className={`overflow-hidden rounded-[24px] border bg-white shadow-sm dark:bg-slate-900 ${
+                  updateText &&
+                  updateText
+                    .trim()
+                    .split(/\s+/)
+                    .filter((word) => word.length > 0).length < 5
+                    ? 'border-amber-300 dark:border-amber-900/60'
+                    : 'border-slate-200 dark:border-slate-800'
+                }`}>
+                <View className="flex-row items-center justify-between border-b border-slate-100 bg-slate-50/80 px-4 py-3.5 dark:border-slate-800/80 dark:bg-slate-800/40">
+                  <View className="flex-row items-center gap-2.5">
+                    <View className="h-8 w-8 items-center justify-center rounded-xl bg-amber-100 dark:bg-amber-900/40">
+                      <Notebook
+                        color={isDark ? '#FBBF24' : '#F59E0B'}
+                        size={15}
+                        strokeWidth={2.5}
+                      />
+                    </View>
+                    <Text className="text-[14px] font-black tracking-tight text-slate-800 dark:text-slate-100">
+                      Comment
+                    </Text>
+                  </View>
+
+                  <View
+                    className={`rounded-lg px-2.5 py-1.5 ${
+                      updateText
+                        .trim()
+                        .split(/\s+/)
+                        .filter((word) => word.length > 0).length >= 5
+                        ? 'bg-emerald-100 dark:bg-emerald-900/40'
+                        : 'bg-amber-100 dark:bg-amber-900/40'
+                    }`}>
+                    <Text
+                      className={`text-[10px] font-black ${
+                        updateText
+                          .trim()
+                          .split(/\s+/)
+                          .filter((word) => word.length > 0).length >= 5
+                          ? 'text-emerald-700 dark:text-emerald-400'
+                          : 'text-amber-700 dark:text-amber-400'
+                      }`}>
+                      {
+                        updateText
+                          .trim()
+                          .split(/\s+/)
+                          .filter((word) => word.length > 0).length
+                      }{' '}
+                      WORDS{' '}
+                      {updateText
+                        .trim()
+                        .split(/\s+/)
+                        .filter((word) => word.length > 0).length < 5 && '(MIN 5)'}
+                    </Text>
+                  </View>
+                </View>
+
+                <View className="max-h-[220px] px-1 py-1">
+                  <ScrollView
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={{ flexGrow: 1 }}
+                    nestedScrollEnabled={true}
+                    keyboardShouldPersistTaps="handled">
+                    <TextInput
+                      className="min-h-[110px] bg-transparent px-4 py-3"
+                      placeholder="Record a secure update (minimum 5 words)..."
+                      placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
+                      value={updateText}
+                      onChangeText={setUpdateText}
+                      multiline
+                      scrollEnabled={false}
+                      style={{
+                        fontSize: 15,
+                        lineHeight: 24,
+                        textAlignVertical: 'top',
+                        color: isDark ? '#F1F5F9' : '#1F2937',
+                        fontWeight: '500',
+                      }}
+                    />
+                  </ScrollView>
+                </View>
+              </View>
+
+              {/* Attachment previews */}
+              {updateAttachments.length > 0 && (
+                <View>
+                  <Text className="mb-2 text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                    Attachments ({updateAttachments.length})
+                  </Text>
+                  <View className="flex-row flex-wrap gap-2">
+                    {updateAttachments.map((att, i) => (
+                      <View key={i} style={styles.attachmentPreviewWrap}>
+                        {att.type === 'image' ? (
+                          <Image
+                            source={{ uri: att.uri }}
+                            style={styles.attachmentPreview}
+                            resizeMode="cover"
+                          />
+                        ) : att.type === 'video' ? (
+                          <View
+                            style={[styles.attachmentPreview, styles.attachmentMediaPlaceholder]}>
+                            <Video color="#fff" size={22} strokeWidth={2} />
+                            <Text style={styles.attachmentMediaLabel} numberOfLines={1}>
+                              {att.name}
+                            </Text>
+                          </View>
+                        ) : (
+                          <View style={[styles.attachmentPreview, styles.attachmentPdfPlaceholder]}>
+                            <Text style={styles.attachmentPdfIcon}>PDF</Text>
+                            <Text style={styles.attachmentMediaLabel} numberOfLines={1}>
+                              {att.name}
+                            </Text>
+                          </View>
+                        )}
+                        <TouchableOpacity
+                          onPress={() =>
+                            setUpdateAttachments(updateAttachments.filter((_, idx) => idx !== i))
+                          }
+                          activeOpacity={0.8}
+                          style={styles.attachmentRemove}>
+                          <X color="#fff" size={10} strokeWidth={3} />
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              )}
+
+              {/* Action row */}
+              <View className="flex-row gap-3">
+                <TouchableOpacity
+                  onPress={handleShowAttachMenu}
+                  activeOpacity={0.75}
+                  className="flex-row items-center gap-2 rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 dark:border-slate-600/50 dark:bg-slate-700">
+                  <Paperclip color={isDark ? '#94A3B8' : '#64748B'} size={15} strokeWidth={2.5} />
+                  <Text className="text-[13px] font-semibold text-slate-600 dark:text-slate-300">
+                    Attach
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={handlePostUpdate}
+                  activeOpacity={0.85}
+                  style={[styles.actionBtn, { flex: 1 }]}>
+                  <LinearGradient
+                    colors={['#0D9488', '#0891B2']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.actionBtnGradient}>
+                    <Send color="#FFFFFF" size={16} strokeWidth={2.5} />
+                    <Text className="text-[14px] font-bold text-white">Post Update</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </SectionCard>
+
+          {/* SLA OVERDUE ACTION PANEL */}
+          {/* {isSLAOverdue && (
           <SectionCard>
             <SLAOverduePanel
               issue={mappedIssue}
@@ -1706,345 +2195,351 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
           </SectionCard>
         )} */}
 
-        {/* VERIFICATION (Pending) */}
-        {mappedIssue.status === 'pending' && (
-          <SectionCard>
-            <View className="flex-row border-b border-slate-100 dark:border-slate-700">
-              <TouchableOpacity
-                onPress={() => setVerificationTab('verify')}
-                activeOpacity={0.75}
-                className={`flex-1 flex-row items-center justify-center gap-2 border-b-[3px] py-4 ${
-                  verificationTab === 'verify' ? 'border-emerald-500' : 'border-transparent'
-                }`}>
-                <CheckCircle
-                  color={verificationTab === 'verify' ? '#10B981' : isDark ? '#475569' : '#9CA3AF'}
-                  size={18}
-                  strokeWidth={2.5}
-                />
-                <Text
-                  className={`text-[14px] font-bold ${
-                    verificationTab === 'verify'
-                      ? 'text-emerald-600 dark:text-emerald-400'
-                      : 'text-slate-400 dark:text-slate-500'
-                  }`}>
-                  Verify
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => setVerificationTab('reject')}
-                activeOpacity={0.75}
-                className={`flex-1 flex-row items-center justify-center gap-2 border-b-[3px] py-4 ${
-                  verificationTab === 'reject' ? 'border-red-500' : 'border-transparent'
-                }`}>
-                <XCircle
-                  color={verificationTab === 'reject' ? '#EF4444' : isDark ? '#475569' : '#9CA3AF'}
-                  size={18}
-                  strokeWidth={2.5}
-                />
-                <Text
-                  className={`text-[14px] font-bold ${
-                    verificationTab === 'reject'
-                      ? 'text-red-500 dark:text-red-400'
-                      : 'text-slate-400 dark:text-slate-500'
-                  }`}>
-                  Reject
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {verificationTab === 'verify' ? (
-              <VerificationFlow
-                onVerify={handleVerify}
-                onReject={() => setVerificationTab('reject')}
-              />
-            ) : (
-              <View className="bg-red-50 p-5 dark:bg-red-900/10">
-                <View className="mb-2 flex-row items-center gap-2">
-                  <AlertTriangle color="#DC2626" size={18} strokeWidth={2.5} />
-                  <Text className="text-[17px] font-extrabold text-slate-800 dark:text-slate-100">
-                    Reject Issue
-                  </Text>
-                </View>
-                <Text className="mb-5 text-[13px] leading-5 text-slate-500 dark:text-slate-400">
-                  Provide a reason for rejecting this issue. The citizen will be notified.
-                </Text>
+          {/* VERIFICATION (Pending) */}
+          {mappedIssue.status === 'pending' && (
+            <SectionCard>
+              <View className="flex-row border-b border-slate-100 dark:border-slate-700">
                 <TouchableOpacity
-                  onPress={() => setShowRejectionModal(true)}
-                  activeOpacity={0.85}
-                  className="flex-row items-center justify-center gap-2 rounded-2xl bg-red-500 py-4 dark:bg-red-600">
-                  <XCircle color="#FFFFFF" size={19} strokeWidth={2.5} />
-                  <Text className="text-[15px] font-bold text-white">Select Rejection Reason</Text>
+                  onPress={() => setVerificationTab('verify')}
+                  activeOpacity={0.75}
+                  className={`flex-1 flex-row items-center justify-center gap-2 border-b-[3px] py-4 ${
+                    verificationTab === 'verify' ? 'border-emerald-500' : 'border-transparent'
+                  }`}>
+                  <CheckCircle
+                    color={
+                      verificationTab === 'verify' ? '#10B981' : isDark ? '#475569' : '#9CA3AF'
+                    }
+                    size={18}
+                    strokeWidth={2.5}
+                  />
+                  <Text
+                    className={`text-[14px] font-bold ${
+                      verificationTab === 'verify'
+                        ? 'text-emerald-600 dark:text-emerald-400'
+                        : 'text-slate-400 dark:text-slate-500'
+                    }`}>
+                    Verify
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setVerificationTab('reject')}
+                  activeOpacity={0.75}
+                  className={`flex-1 flex-row items-center justify-center gap-2 border-b-[3px] py-4 ${
+                    verificationTab === 'reject' ? 'border-red-500' : 'border-transparent'
+                  }`}>
+                  <XCircle
+                    color={
+                      verificationTab === 'reject' ? '#EF4444' : isDark ? '#475569' : '#9CA3AF'
+                    }
+                    size={18}
+                    strokeWidth={2.5}
+                  />
+                  <Text
+                    className={`text-[14px] font-bold ${
+                      verificationTab === 'reject'
+                        ? 'text-red-500 dark:text-red-400'
+                        : 'text-slate-400 dark:text-slate-500'
+                    }`}>
+                    Reject
+                  </Text>
                 </TouchableOpacity>
               </View>
-            )}
-          </SectionCard>
-        )}
 
-        {/* RE-VERIFICATION (Reopened) */}
-        {mappedIssue.status === 'Reopened' && (
-          // <SectionCard>
-          //   {/* Reopened context banner */}
-          //   <View className="mx-5 mb-4 mt-5 overflow-hidden rounded-2xl">
-          //     <LinearGradient
-          //       colors={isDark ? ['#4a1938', '#2d1040'] : ['#fdf2f8', '#fce7f3']}
-          //       start={{ x: 0, y: 0 }}
-          //       end={{ x: 1, y: 1 }}
-          //       style={{
-          //         flexDirection: 'row',
-          //         alignItems: 'flex-start',
-          //         gap: 12,
-          //         padding: 14,
-          //         borderRadius: 16,
-          //         borderWidth: 1,
-          //         borderColor: isDark ? '#7c3a60' : '#f9a8d4',
-          //       }}>
-          //       <View
-          //         style={{
-          //           width: 36,
-          //           height: 36,
-          //           borderRadius: 10,
-          //           backgroundColor: isDark ? '#7c1d4a' : '#fce7f3',
-          //           alignItems: 'center',
-          //           justifyContent: 'center',
-          //         }}>
-          //         <RotateCcw color="#EC4899" size={17} strokeWidth={2.5} />
-          //       </View>
-          //       <View style={{ flex: 1 }}>
-          //         <Text
-          //           style={{
-          //             fontSize: 12,
-          //             fontWeight: '800',
-          //             color: '#EC4899',
-          //             letterSpacing: 0.8,
-          //             marginBottom: 3,
-          //           }}>
-          //           ISSUE RE-OPENED BY CITIZEN
-          //         </Text>
-          //         <Text
-          //           style={{
-          //             fontSize: 13,
-          //             color: isDark ? '#f9a8d4' : '#be185d',
-          //             lineHeight: 18,
-          //             fontWeight: '500',
-          //           }}>
-          //           The citizen has re-opened this issue. Review the original concern and re-verify
-          //           to reassign for resolution.
-          //         </Text>
-          //       </View>
-          //     </LinearGradient>
-          //   </View>
+              {verificationTab === 'verify' ? (
+                <VerificationFlow
+                  onVerify={handleVerify}
+                  onReject={() => setVerificationTab('reject')}
+                />
+              ) : (
+                <View className="bg-red-50 p-5 dark:bg-red-900/10">
+                  <View className="mb-2 flex-row items-center gap-2">
+                    <AlertTriangle color="#DC2626" size={18} strokeWidth={2.5} />
+                    <Text className="text-[17px] font-extrabold text-slate-800 dark:text-slate-100">
+                      Reject Issue
+                    </Text>
+                  </View>
+                  <Text className="mb-5 text-[13px] leading-5 text-slate-500 dark:text-slate-400">
+                    Provide a reason for rejecting this issue. The citizen will be notified.
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => setShowRejectionModal(true)}
+                    activeOpacity={0.85}
+                    className="flex-row items-center justify-center gap-2 rounded-2xl bg-red-500 py-4 dark:bg-red-600">
+                    <XCircle color="#FFFFFF" size={19} strokeWidth={2.5} />
+                    <Text className="text-[15px] font-bold text-white">
+                      Select Rejection Reason
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </SectionCard>
+          )}
 
-          //   {/* Re-verification tabs — same UI as Pending */}
-          //   <View className="flex-row border-b border-slate-100 dark:border-slate-700">
-          //     <TouchableOpacity
-          //       onPress={() => setVerificationTab('verify')}
-          //       activeOpacity={0.75}
-          //       className={`flex-1 flex-row items-center justify-center gap-2 border-b-[3px] py-4 ${
-          //         verificationTab === 'verify' ? 'border-emerald-500' : 'border-transparent'
-          //       }`}>
-          //       <CheckCircle
-          //         color={verificationTab === 'verify' ? '#10B981' : isDark ? '#475569' : '#9CA3AF'}
-          //         size={18}
-          //         strokeWidth={2.5}
-          //       />
-          //       <Text
-          //         className={`text-[14px] font-bold ${
-          //           verificationTab === 'verify'
-          //             ? 'text-emerald-600 dark:text-emerald-400'
-          //             : 'text-slate-400 dark:text-slate-500'
-          //         }`}>
-          //         Re-Verify
-          //       </Text>
-          //     </TouchableOpacity>
-          //     <TouchableOpacity
-          //       onPress={() => setVerificationTab('reject')}
-          //       activeOpacity={0.75}
-          //       className={`flex-1 flex-row items-center justify-center gap-2 border-b-[3px] py-4 ${
-          //         verificationTab === 'reject' ? 'border-red-500' : 'border-transparent'
-          //       }`}>
-          //       <XCircle
-          //         color={verificationTab === 'reject' ? '#EF4444' : isDark ? '#475569' : '#9CA3AF'}
-          //         size={18}
-          //         strokeWidth={2.5}
-          //       />
-          //       <Text
-          //         className={`text-[14px] font-bold ${
-          //           verificationTab === 'reject'
-          //             ? 'text-red-500 dark:text-red-400'
-          //             : 'text-slate-400 dark:text-slate-500'
-          //         }`}>
-          //         Reject
-          //       </Text>
-          //     </TouchableOpacity>
-          //   </View>
+          {/* RE-VERIFICATION (Reopened) */}
+          {mappedIssue.status === 'Reopened' && (
+            // <SectionCard>
+            //   {/* Reopened context banner */}
+            //   <View className="mx-5 mb-4 mt-5 overflow-hidden rounded-2xl">
+            //     <LinearGradient
+            //       colors={isDark ? ['#4a1938', '#2d1040'] : ['#fdf2f8', '#fce7f3']}
+            //       start={{ x: 0, y: 0 }}
+            //       end={{ x: 1, y: 1 }}
+            //       style={{
+            //         flexDirection: 'row',
+            //         alignItems: 'flex-start',
+            //         gap: 12,
+            //         padding: 14,
+            //         borderRadius: 16,
+            //         borderWidth: 1,
+            //         borderColor: isDark ? '#7c3a60' : '#f9a8d4',
+            //       }}>
+            //       <View
+            //         style={{
+            //           width: 36,
+            //           height: 36,
+            //           borderRadius: 10,
+            //           backgroundColor: isDark ? '#7c1d4a' : '#fce7f3',
+            //           alignItems: 'center',
+            //           justifyContent: 'center',
+            //         }}>
+            //         <RotateCcw color="#EC4899" size={17} strokeWidth={2.5} />
+            //       </View>
+            //       <View style={{ flex: 1 }}>
+            //         <Text
+            //           style={{
+            //             fontSize: 12,
+            //             fontWeight: '800',
+            //             color: '#EC4899',
+            //             letterSpacing: 0.8,
+            //             marginBottom: 3,
+            //           }}>
+            //           ISSUE RE-OPENED BY CITIZEN
+            //         </Text>
+            //         <Text
+            //           style={{
+            //             fontSize: 13,
+            //             color: isDark ? '#f9a8d4' : '#be185d',
+            //             lineHeight: 18,
+            //             fontWeight: '500',
+            //           }}>
+            //           The citizen has re-opened this issue. Review the original concern and re-verify
+            //           to reassign for resolution.
+            //         </Text>
+            //       </View>
+            //     </LinearGradient>
+            //   </View>
 
-          //   {verificationTab === 'verify' ? (
-          //     <VerificationFlow
-          //       onVerify={handleReverify}
-          //       onReject={() => setVerificationTab('reject')}
-          //     />
-          //   ) : (
-          //     <View className="bg-red-50 p-5 dark:bg-red-900/10">
-          //       <View className="mb-2 flex-row items-center gap-2">
-          //         <AlertTriangle color="#DC2626" size={18} strokeWidth={2.5} />
-          //         <Text className="text-[17px] font-extrabold text-slate-800 dark:text-slate-100">
-          //           Reject Re-opened Issue
-          //         </Text>
-          //       </View>
-          //       <Text className="mb-5 text-[13px] leading-5 text-slate-500 dark:text-slate-400">
-          //         Reject the citizen's re-open request if the concern is invalid or already
-          //         resolved. The citizen will be notified.
-          //       </Text>
-          //       <TouchableOpacity
-          //         onPress={() => setShowRejectionModal(true)}
-          //         activeOpacity={0.85}
-          //         className="flex-row items-center justify-center gap-2 rounded-2xl bg-red-500 py-4 dark:bg-red-600">
-          //         <XCircle color="#FFFFFF" size={19} strokeWidth={2.5} />
-          //         <Text className="text-[15px] font-bold text-white">Select Rejection Reason</Text>
-          //       </TouchableOpacity>
-          //     </View>
-          //   )}
-          // </SectionCard>
-          <></>
-        )}
+            //   {/* Re-verification tabs — same UI as Pending */}
+            //   <View className="flex-row border-b border-slate-100 dark:border-slate-700">
+            //     <TouchableOpacity
+            //       onPress={() => setVerificationTab('verify')}
+            //       activeOpacity={0.75}
+            //       className={`flex-1 flex-row items-center justify-center gap-2 border-b-[3px] py-4 ${
+            //         verificationTab === 'verify' ? 'border-emerald-500' : 'border-transparent'
+            //       }`}>
+            //       <CheckCircle
+            //         color={verificationTab === 'verify' ? '#10B981' : isDark ? '#475569' : '#9CA3AF'}
+            //         size={18}
+            //         strokeWidth={2.5}
+            //       />
+            //       <Text
+            //         className={`text-[14px] font-bold ${
+            //           verificationTab === 'verify'
+            //             ? 'text-emerald-600 dark:text-emerald-400'
+            //             : 'text-slate-400 dark:text-slate-500'
+            //         }`}>
+            //         Re-Verify
+            //       </Text>
+            //     </TouchableOpacity>
+            //     <TouchableOpacity
+            //       onPress={() => setVerificationTab('reject')}
+            //       activeOpacity={0.75}
+            //       className={`flex-1 flex-row items-center justify-center gap-2 border-b-[3px] py-4 ${
+            //         verificationTab === 'reject' ? 'border-red-500' : 'border-transparent'
+            //       }`}>
+            //       <XCircle
+            //         color={verificationTab === 'reject' ? '#EF4444' : isDark ? '#475569' : '#9CA3AF'}
+            //         size={18}
+            //         strokeWidth={2.5}
+            //       />
+            //       <Text
+            //         className={`text-[14px] font-bold ${
+            //           verificationTab === 'reject'
+            //             ? 'text-red-500 dark:text-red-400'
+            //             : 'text-slate-400 dark:text-slate-500'
+            //         }`}>
+            //         Reject
+            //       </Text>
+            //     </TouchableOpacity>
+            //   </View>
 
-        {/* ASSIGN OFFICER (Verified) */}
-        {mappedIssue.status === 'verified' && (
-          // <SectionCard>
-          //   <View className="p-5">
-          //     <View className="mb-1 flex-row items-center gap-2">
-          //       <UserCheck color="#0D9488" size={18} strokeWidth={2.5} />
-          //       <Text className="text-[17px] font-extrabold text-slate-800 dark:text-slate-100">
-          //         Assign Field Officer
-          //       </Text>
-          //     </View>
-          //     <Text className="mb-5 text-[13px] text-slate-500 dark:text-slate-400">
-          //       Issue is verified. Assign a field officer to begin work.
-          //     </Text>
-          //     <TouchableOpacity
-          //       onPress={() => setShowAssignModal(true)}
-          //       activeOpacity={0.85}
-          //       style={styles.actionBtn}>
-          //       <LinearGradient
-          //         colors={['#0D9488', '#0891B2']}
-          //         start={{ x: 0, y: 0 }}
-          //         end={{ x: 1, y: 0 }}
-          //         style={styles.actionBtnGradient}>
-          //         <UserCheck color="#FFFFFF" size={19} strokeWidth={2.5} />
-          //         <Text className="text-[15px] font-bold text-white">Assign to Officer</Text>
-          //         <ChevronRight color="rgba(255,255,255,0.7)" size={18} strokeWidth={2.5} />
-          //       </LinearGradient>
-          //     </TouchableOpacity>
-          //   </View>
-          // </SectionCard>
-          <>
-            <Text>Assigned Officer </Text>
-          </>
-        )}
+            //   {verificationTab === 'verify' ? (
+            //     <VerificationFlow
+            //       onVerify={handleReverify}
+            //       onReject={() => setVerificationTab('reject')}
+            //     />
+            //   ) : (
+            //     <View className="bg-red-50 p-5 dark:bg-red-900/10">
+            //       <View className="mb-2 flex-row items-center gap-2">
+            //         <AlertTriangle color="#DC2626" size={18} strokeWidth={2.5} />
+            //         <Text className="text-[17px] font-extrabold text-slate-800 dark:text-slate-100">
+            //           Reject Re-opened Issue
+            //         </Text>
+            //       </View>
+            //       <Text className="mb-5 text-[13px] leading-5 text-slate-500 dark:text-slate-400">
+            //         Reject the citizen's re-open request if the concern is invalid or already
+            //         resolved. The citizen will be notified.
+            //       </Text>
+            //       <TouchableOpacity
+            //         onPress={() => setShowRejectionModal(true)}
+            //         activeOpacity={0.85}
+            //         className="flex-row items-center justify-center gap-2 rounded-2xl bg-red-500 py-4 dark:bg-red-600">
+            //         <XCircle color="#FFFFFF" size={19} strokeWidth={2.5} />
+            //         <Text className="text-[15px] font-bold text-white">Select Rejection Reason</Text>
+            //       </TouchableOpacity>
+            //     </View>
+            //   )}
+            // </SectionCard>
+            <></>
+          )}
 
-        {/* IN PROGRESS */}
-        {mappedIssue.status === 'In Progress' && (
-          // <SectionCard>
-          //   <View className="flex-row items-center gap-4 p-5">
-          //     <View className="h-12 w-12 items-center justify-center rounded-2xl bg-sky-100 dark:bg-sky-900/30">
-          //       <Clock color="#0EA5E9" size={22} strokeWidth={2.5} />
-          //     </View>
-          //     <View className="flex-1">
-          //       <Text className="mb-1 text-[16px] font-extrabold text-slate-800 dark:text-slate-100">
-          //         Work in Progress
-          //       </Text>
-          //       <Text className="text-[13px] leading-5 text-slate-500 dark:text-slate-400">
-          //         Field officer is currently working on this issue
-          //       </Text>
-          //     </View>
-          //   </View>
-          // </SectionCard>
-          <></>
-        )}
+          {/* ASSIGN OFFICER (Verified) */}
+          {mappedIssue.status === 'verified' && (
+            // <SectionCard>
+            //   <View className="p-5">
+            //     <View className="mb-1 flex-row items-center gap-2">
+            //       <UserCheck color="#0D9488" size={18} strokeWidth={2.5} />
+            //       <Text className="text-[17px] font-extrabold text-slate-800 dark:text-slate-100">
+            //         Assign Field Officer
+            //       </Text>
+            //     </View>
+            //     <Text className="mb-5 text-[13px] text-slate-500 dark:text-slate-400">
+            //       Issue is verified. Assign a field officer to begin work.
+            //     </Text>
+            //     <TouchableOpacity
+            //       onPress={() => setShowAssignModal(true)}
+            //       activeOpacity={0.85}
+            //       style={styles.actionBtn}>
+            //       <LinearGradient
+            //         colors={['#0D9488', '#0891B2']}
+            //         start={{ x: 0, y: 0 }}
+            //         end={{ x: 1, y: 0 }}
+            //         style={styles.actionBtnGradient}>
+            //         <UserCheck color="#FFFFFF" size={19} strokeWidth={2.5} />
+            //         <Text className="text-[15px] font-bold text-white">Assign to Officer</Text>
+            //         <ChevronRight color="rgba(255,255,255,0.7)" size={18} strokeWidth={2.5} />
+            //       </LinearGradient>
+            //     </TouchableOpacity>
+            //   </View>
+            // </SectionCard>
+            <>
+              <Text>Assigned Officer </Text>
+            </>
+          )}
 
-        {/* RESOLUTION */}
-        {mappedIssue.status === 'Assigned' && mappedIssue.afterPhotos && (
-          // <SectionCard>
-          //   <View className="p-5">
-          //     <Text className="mb-1 text-[17px] font-extrabold text-slate-800 dark:text-slate-100">
-          //       Resolution Confirmation
-          //     </Text>
-          //     <Text className="mb-4 text-[13px] text-slate-500 dark:text-slate-400">
-          //       Review work completion and confirm resolution.
-          //     </Text>
-          //     <TouchableOpacity
-          //       onPress={handleMarkResolved}
-          //       activeOpacity={0.85}
-          //       style={styles.actionBtn}>
-          //       <LinearGradient
-          //         colors={['#10B981', '#059669']}
-          //         start={{ x: 0, y: 0 }}
-          //         end={{ x: 1, y: 0 }}
-          //         style={styles.actionBtnGradient}>
-          //         <CheckCircle color="#FFFFFF" size={19} strokeWidth={2.5} />
-          //         <Text className="text-[15px] font-bold text-white">Mark as Resolved</Text>
-          //       </LinearGradient>
-          //     </TouchableOpacity>
-          //     <TouchableOpacity
-          //       onPress={handleReopen}
-          //       activeOpacity={0.85}
-          //       className="mt-3 flex-row items-center justify-center gap-2 rounded-2xl border-2 border-amber-400 bg-amber-50 py-3.5 dark:border-amber-500 dark:bg-amber-900/20">
-          //       <RotateCcw color="#D97706" size={17} strokeWidth={2.5} />
-          //       <Text className="text-[14px] font-bold text-amber-600 dark:text-amber-400">
-          //         Reopen Issue
-          //       </Text>
-          //     </TouchableOpacity>
-          //   </View>
-          // </SectionCard>
-          <></>
-        )}
+          {/* IN PROGRESS */}
+          {mappedIssue.status === 'In Progress' && (
+            // <SectionCard>
+            //   <View className="flex-row items-center gap-4 p-5">
+            //     <View className="h-12 w-12 items-center justify-center rounded-2xl bg-sky-100 dark:bg-sky-900/30">
+            //       <Clock color="#0EA5E9" size={22} strokeWidth={2.5} />
+            //     </View>
+            //     <View className="flex-1">
+            //       <Text className="mb-1 text-[16px] font-extrabold text-slate-800 dark:text-slate-100">
+            //         Work in Progress
+            //       </Text>
+            //       <Text className="text-[13px] leading-5 text-slate-500 dark:text-slate-400">
+            //         Field officer is currently working on this issue
+            //       </Text>
+            //     </View>
+            //   </View>
+            // </SectionCard>
+            <></>
+          )}
 
-        {/* PENDING UO VERIFICATION */}
-        {mappedIssue.status === 'Pending UO Verification' && (
-          // <SectionCard>
-          //   <UOVerificationPanel
-          //     issue={mappedIssue}
-          //     onApprove={handleUOApprove}
-          //     onRework={handleUORework}
-          //   />
-          // </SectionCard>
-          <></>
-        )}
+          {/* RESOLUTION */}
+          {mappedIssue.status === 'Assigned' && mappedIssue.afterPhotos && (
+            // <SectionCard>
+            //   <View className="p-5">
+            //     <Text className="mb-1 text-[17px] font-extrabold text-slate-800 dark:text-slate-100">
+            //       Resolution Confirmation
+            //     </Text>
+            //     <Text className="mb-4 text-[13px] text-slate-500 dark:text-slate-400">
+            //       Review work completion and confirm resolution.
+            //     </Text>
+            //     <TouchableOpacity
+            //       onPress={handleMarkResolved}
+            //       activeOpacity={0.85}
+            //       style={styles.actionBtn}>
+            //       <LinearGradient
+            //         colors={['#10B981', '#059669']}
+            //         start={{ x: 0, y: 0 }}
+            //         end={{ x: 1, y: 0 }}
+            //         style={styles.actionBtnGradient}>
+            //         <CheckCircle color="#FFFFFF" size={19} strokeWidth={2.5} />
+            //         <Text className="text-[15px] font-bold text-white">Mark as Resolved</Text>
+            //       </LinearGradient>
+            //     </TouchableOpacity>
+            //     <TouchableOpacity
+            //       onPress={handleReopen}
+            //       activeOpacity={0.85}
+            //       className="mt-3 flex-row items-center justify-center gap-2 rounded-2xl border-2 border-amber-400 bg-amber-50 py-3.5 dark:border-amber-500 dark:bg-amber-900/20">
+            //       <RotateCcw color="#D97706" size={17} strokeWidth={2.5} />
+            //       <Text className="text-[14px] font-bold text-amber-600 dark:text-amber-400">
+            //         Reopen Issue
+            //       </Text>
+            //     </TouchableOpacity>
+            //   </View>
+            // </SectionCard>
+            <></>
+          )}
 
-        {/* RESOLVED */}
-        {/* @ts-ignore */}
-        {mappedIssue.status === 'Resolved' && (
-          // <SectionCard>
-          //   <View className="p-5">
-          //     <View className="mb-4 flex-row items-center gap-3">
-          //       <View className="h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 dark:bg-emerald-900/30">
-          //         <CheckCircle color="#10B981" size={22} strokeWidth={2.5} />
-          //       </View>
-          //       <View className="flex-1">
-          //         <Text className="mb-0.5 text-[16px] font-extrabold text-emerald-700 dark:text-emerald-400">
-          //           Issue Resolved
-          //         </Text>
-          //         <Text className="text-[13px] text-slate-500 dark:text-slate-400">
-          //           This issue has been successfully resolved
-          //         </Text>
-          //       </View>
-          //     </View>
-          //     <TouchableOpacity
-          //       onPress={handleReopen}
-          //       activeOpacity={0.85}
-          //       className="flex-row items-center justify-center gap-2 rounded-2xl border-2 border-amber-400 bg-amber-50 py-3.5 dark:border-amber-500 dark:bg-amber-900/20">
-          //       <RotateCcw color="#D97706" size={17} strokeWidth={2.5} />
-          //       <Text className="text-[14px] font-bold text-amber-600 dark:text-amber-400">
-          //         Reopen if Needed
-          //       </Text>
-          //     </TouchableOpacity>
-          //   </View>
-          // </SectionCard>
-          <></>
-        )}
-      </ScrollView>
+          {/* PENDING UO VERIFICATION */}
+          {mappedIssue.status === 'Pending UO Verification' && (
+            // <SectionCard>
+            //   <UOVerificationPanel
+            //     issue={mappedIssue}
+            //     onApprove={handleUOApprove}
+            //     onRework={handleUORework}
+            //   />
+            // </SectionCard>
+            <></>
+          )}
 
-      {/* <AssignOfficerModal
+          {/* RESOLVED */}
+          {/* @ts-ignore */}
+          {mappedIssue.status === 'Resolved' && (
+            // <SectionCard>
+            //   <View className="p-5">
+            //     <View className="mb-4 flex-row items-center gap-3">
+            //       <View className="h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 dark:bg-emerald-900/30">
+            //         <CheckCircle color="#10B981" size={22} strokeWidth={2.5} />
+            //       </View>
+            //       <View className="flex-1">
+            //         <Text className="mb-0.5 text-[16px] font-extrabold text-emerald-700 dark:text-emerald-400">
+            //           Issue Resolved
+            //         </Text>
+            //         <Text className="text-[13px] text-slate-500 dark:text-slate-400">
+            //           This issue has been successfully resolved
+            //         </Text>
+            //       </View>
+            //     </View>
+            //     <TouchableOpacity
+            //       onPress={handleReopen}
+            //       activeOpacity={0.85}
+            //       className="flex-row items-center justify-center gap-2 rounded-2xl border-2 border-amber-400 bg-amber-50 py-3.5 dark:border-amber-500 dark:bg-amber-900/20">
+            //       <RotateCcw color="#D97706" size={17} strokeWidth={2.5} />
+            //       <Text className="text-[14px] font-bold text-amber-600 dark:text-amber-400">
+            //         Reopen if Needed
+            //       </Text>
+            //     </TouchableOpacity>
+            //   </View>
+            // </SectionCard>
+            <></>
+          )}
+        </ScrollView>
+
+        {/* <AssignOfficerModal
         visible={showAssignModal}
         onClose={() => {
           setShowAssignModal(false);
@@ -2056,12 +2551,12 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
         mode={assignModalMode}
         currentOfficerName={mappedIssue.assignedOfficer}
       /> */}
-      <RejectionModal
-        visible={showRejectionModal}
-        onClose={() => setShowRejectionModal(false)}
-        onReject={handleReject}
-      />
-      {/* <ReassignmentModal
+        <RejectionModal
+          visible={showRejectionModal}
+          onClose={() => setShowRejectionModal(false)}
+          onReject={handleReject}
+        />
+        {/* <ReassignmentModal
         visible={showReassignModal}
         onClose={() => setShowReassignModal(false)}
         onConfirm={handleReassign}
@@ -2069,276 +2564,283 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
         currentOfficer={mappedIssue.assignedOfficer || ''}
       /> */}
 
-      {/* Attachment picker bottom sheet */}
-      <Modal
-        visible={showAttachMenu}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowAttachMenu(false)}
-        onDismiss={handleAttachMenuDismissed}>
-        <TouchableOpacity
-          style={styles.attachMenuOverlay}
-          activeOpacity={1}
-          onPress={() => setShowAttachMenu(false)}>
+        {/* Attachment picker bottom sheet */}
+        <Modal
+          visible={showAttachMenu}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowAttachMenu(false)}
+          onDismiss={handleAttachMenuDismissed}>
           <TouchableOpacity
+            style={styles.attachMenuOverlay}
             activeOpacity={1}
-            onPress={(e) => e.stopPropagation()}
-            style={[
-              styles.attachMenuSheet,
-              isDark ? styles.attachMenuSheetDark : styles.attachMenuSheetLight,
-            ]}>
-            {/* Drag handle */}
-            <View
-              style={[styles.attachMenuHandle, { backgroundColor: isDark ? '#334155' : '#CBD5E1' }]}
-            />
-
-            {/* Gradient banner header */}
-            <LinearGradient
-              colors={isDark ? ['#1E3A5F', '#0F2236'] : ['#EFF6FF', '#E0F2FE']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.attachMenuBanner}>
+            onPress={() => setShowAttachMenu(false)}>
+            <TouchableOpacity
+              activeOpacity={1}
+              onPress={(e) => e.stopPropagation()}
+              style={[
+                styles.attachMenuSheet,
+                isDark ? styles.attachMenuSheetDark : styles.attachMenuSheetLight,
+              ]}>
+              {/* Drag handle */}
               <View
                 style={[
-                  styles.attachMenuBannerIconRing,
-                  { borderColor: isDark ? '#3B82F620' : '#BFDBFE' },
-                ]}>
-                <View
-                  style={[
-                    styles.attachMenuBannerIcon,
-                    { backgroundColor: isDark ? '#1D4ED8' : '#2563EB' },
-                  ]}>
-                  <Paperclip color="#FFFFFF" size={20} strokeWidth={2.5} />
-                </View>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text
-                  style={[styles.attachMenuBannerTitle, { color: isDark ? '#F1F5F9' : '#0F172A' }]}>
-                  Add Attachment
-                </Text>
-                <Text
-                  style={[styles.attachMenuBannerSub, { color: isDark ? '#93C5FD' : '#3B82F6' }]}>
-                  Choose how to attach your file
-                </Text>
-              </View>
-            </LinearGradient>
-
-            {/* Option cards */}
-            <View style={styles.attachMenuOptionsGrid}>
-              {/* Camera */}
-              <TouchableOpacity
-                onPress={handlePickFromCamera}
-                activeOpacity={0.72}
-                style={[
-                  styles.attachMenuCard,
-                  {
-                    backgroundColor: isDark ? '#0F1E38' : '#EFF6FF',
-                    borderColor: isDark ? '#2563EB' : '#93C5FD',
-                  },
-                ]}>
-                <View
-                  style={[
-                    styles.attachMenuCardGlow,
-                    { backgroundColor: isDark ? '#2563EB18' : '#DBEAFE' },
-                  ]}
-                />
-                <View style={[styles.attachMenuCardIcon, { backgroundColor: '#2563EB' }]}>
-                  <Camera color="#FFFFFF" size={24} strokeWidth={2.5} />
-                </View>
-                <Text
-                  style={[styles.attachMenuCardTitle, { color: isDark ? '#93C5FD' : '#1E40AF' }]}>
-                  Camera
-                </Text>
-                <View
-                  style={[
-                    styles.attachMenuCardBadge,
-                    { backgroundColor: isDark ? '#1D4ED830' : '#DBEAFE' },
-                  ]}>
-                  <Text
-                    style={[
-                      styles.attachMenuCardBadgeText,
-                      { color: isDark ? '#60A5FA' : '#2563EB' },
-                    ]}>
-                    Live shot
-                  </Text>
-                </View>
-              </TouchableOpacity>
-
-              {/* Gallery */}
-              <TouchableOpacity
-                onPress={handlePickFromGallery}
-                activeOpacity={0.72}
-                style={[
-                  styles.attachMenuCard,
-                  {
-                    backgroundColor: isDark ? '#0B1F14' : '#F0FDF4',
-                    borderColor: isDark ? '#16A34A' : '#86EFAC',
-                  },
-                ]}>
-                <View
-                  style={[
-                    styles.attachMenuCardGlow,
-                    { backgroundColor: isDark ? '#16A34A18' : '#DCFCE7' },
-                  ]}
-                />
-                <View style={[styles.attachMenuCardIcon, { backgroundColor: '#16A34A' }]}>
-                  <ImageIcon color="#FFFFFF" size={24} strokeWidth={2.5} />
-                </View>
-                <Text
-                  style={[styles.attachMenuCardTitle, { color: isDark ? '#86EFAC' : '#14532D' }]}>
-                  Gallery
-                </Text>
-                <View
-                  style={[
-                    styles.attachMenuCardBadge,
-                    { backgroundColor: isDark ? '#15803D30' : '#DCFCE7' },
-                  ]}>
-                  <Text
-                    style={[
-                      styles.attachMenuCardBadgeText,
-                      { color: isDark ? '#4ADE80' : '#16A34A' },
-                    ]}>
-                    Photo / Video
-                  </Text>
-                </View>
-              </TouchableOpacity>
-
-              {/* PDF */}
-              <TouchableOpacity
-                onPress={handlePickDocument}
-                activeOpacity={0.72}
-                style={[
-                  styles.attachMenuCard,
-                  {
-                    backgroundColor: isDark ? '#1F0F07' : '#FFF7ED',
-                    borderColor: isDark ? '#EA580C' : '#FDBA74',
-                  },
-                ]}>
-                <View
-                  style={[
-                    styles.attachMenuCardGlow,
-                    { backgroundColor: isDark ? '#EA580C18' : '#FFEDD5' },
-                  ]}
-                />
-                <View style={[styles.attachMenuCardIcon, { backgroundColor: '#EA580C' }]}>
-                  <FileText color="#FFFFFF" size={24} strokeWidth={2.5} />
-                </View>
-                <Text
-                  style={[styles.attachMenuCardTitle, { color: isDark ? '#FDBA74' : '#7C2D12' }]}>
-                  PDF
-                </Text>
-                <View
-                  style={[
-                    styles.attachMenuCardBadge,
-                    { backgroundColor: isDark ? '#C2410C30' : '#FFEDD5' },
-                  ]}>
-                  <Text
-                    style={[
-                      styles.attachMenuCardBadgeText,
-                      { color: isDark ? '#FB923C' : '#EA580C' },
-                    ]}>
-                    Document
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            </View>
-
-            {/* Divider */}
-            <View
-              style={[
-                styles.attachMenuDivider,
-                { backgroundColor: isDark ? '#1E293B' : '#F1F5F9' },
-              ]}
-            />
-
-            {/* Cancel button */}
-            <TouchableOpacity
-              onPress={() => setShowAttachMenu(false)}
-              activeOpacity={0.75}
-              style={[
-                styles.attachMenuCancel,
-                {
-                  backgroundColor: isDark ? '#1E293B' : '#F8FAFC',
-                  borderColor: isDark ? '#334155' : '#E2E8F0',
-                },
-              ]}>
-              <X color={isDark ? '#64748B' : '#94A3B8'} size={15} strokeWidth={2.5} />
-              <Text
-                style={{
-                  color: isDark ? '#94A3B8' : '#64748B',
-                  fontSize: 14,
-                  fontWeight: '700',
-                  letterSpacing: 0.2,
-                }}>
-                Cancel
-              </Text>
-            </TouchableOpacity>
-          </TouchableOpacity>
-        </TouchableOpacity>
-      </Modal>
-
-      {/* ATTACHMENT PREVIEW MODAL */}
-      <Modal
-        visible={!!previewAttachment}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setPreviewAttachment(null)}>
-        <TouchableOpacity
-          style={{
-            flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.95)',
-            justifyContent: 'center',
-            alignItems: 'center',
-          }}
-          activeOpacity={1}
-          onPress={() => setPreviewAttachment(null)}>
-          <View className="absolute right-6 top-14 z-50">
-            <View className="h-14 w-14 items-center justify-center rounded-full border-[1.5px] border-white/20 bg-slate-800/80 backdrop-blur-md">
-              <X color="#ffffff" size={32} strokeWidth={2.5} />
-            </View>
-          </View>
-
-          <TouchableOpacity
-            activeOpacity={1}
-            style={{ width: '100%', alignItems: 'center', justifyContent: 'center' }}
-            onPress={() => {}}>
-            {previewAttachment?.type === 'image' && (
-              <Image
-                source={{ uri: previewAttachment.url }}
-                style={{ width: SCREEN_WIDTH, height: '80%' }}
-                resizeMode="contain"
+                  styles.attachMenuHandle,
+                  { backgroundColor: isDark ? '#334155' : '#CBD5E1' },
+                ]}
               />
-            )}
 
-            {(previewAttachment?.type === 'video' || previewAttachment?.type === 'pdf') && (
-              <View className="items-center px-10">
+              {/* Gradient banner header */}
+              <LinearGradient
+                colors={isDark ? ['#1E3A5F', '#0F2236'] : ['#EFF6FF', '#E0F2FE']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.attachMenuBanner}>
                 <View
-                  className={`h-24 w-24 items-center justify-center rounded-3xl ${previewAttachment.type === 'video' ? 'bg-cyan-500/20' : 'bg-red-500/20'} mb-6`}>
-                  {previewAttachment.type === 'video' ? (
-                    <Video color="#22D3EE" size={40} strokeWidth={2} />
-                  ) : (
-                    <FileText color="#EF4444" size={40} strokeWidth={2} />
-                  )}
+                  style={[
+                    styles.attachMenuBannerIconRing,
+                    { borderColor: isDark ? '#3B82F620' : '#BFDBFE' },
+                  ]}>
+                  <View
+                    style={[
+                      styles.attachMenuBannerIcon,
+                      { backgroundColor: isDark ? '#1D4ED8' : '#2563EB' },
+                    ]}>
+                    <Paperclip color="#FFFFFF" size={20} strokeWidth={2.5} />
+                  </View>
                 </View>
-                <Text className="mb-2 text-center text-[20px] font-black tracking-tight text-white">
-                  {previewAttachment.type === 'video' ? 'Video Evidence' : 'Document Evidence'}
-                </Text>
-                <Text className="mb-8 text-center text-[13px] font-medium text-slate-400">
-                  Due to native platform requirements, please open this file in your system's
-                  default viewer.
-                </Text>
-                <TouchableOpacity
-                  onPress={() => Linking.openURL(previewAttachment.url)}
-                  className="w-full flex-row items-center justify-center gap-2 rounded-2xl bg-white px-6 py-4">
-                  <Text className="text-[15px] font-black text-slate-900">
-                    Open External Viewer
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={[
+                      styles.attachMenuBannerTitle,
+                      { color: isDark ? '#F1F5F9' : '#0F172A' },
+                    ]}>
+                    Add Attachment
                   </Text>
+                  <Text
+                    style={[styles.attachMenuBannerSub, { color: isDark ? '#93C5FD' : '#3B82F6' }]}>
+                    Choose how to attach your file
+                  </Text>
+                </View>
+              </LinearGradient>
+
+              {/* Option cards */}
+              <View style={styles.attachMenuOptionsGrid}>
+                {/* Camera */}
+                <TouchableOpacity
+                  onPress={handlePickFromCamera}
+                  activeOpacity={0.72}
+                  style={[
+                    styles.attachMenuCard,
+                    {
+                      backgroundColor: isDark ? '#0F1E38' : '#EFF6FF',
+                      borderColor: isDark ? '#2563EB' : '#93C5FD',
+                    },
+                  ]}>
+                  <View
+                    style={[
+                      styles.attachMenuCardGlow,
+                      { backgroundColor: isDark ? '#2563EB18' : '#DBEAFE' },
+                    ]}
+                  />
+                  <View style={[styles.attachMenuCardIcon, { backgroundColor: '#2563EB' }]}>
+                    <Camera color="#FFFFFF" size={24} strokeWidth={2.5} />
+                  </View>
+                  <Text
+                    style={[styles.attachMenuCardTitle, { color: isDark ? '#93C5FD' : '#1E40AF' }]}>
+                    Camera
+                  </Text>
+                  <View
+                    style={[
+                      styles.attachMenuCardBadge,
+                      { backgroundColor: isDark ? '#1D4ED830' : '#DBEAFE' },
+                    ]}>
+                    <Text
+                      style={[
+                        styles.attachMenuCardBadgeText,
+                        { color: isDark ? '#60A5FA' : '#2563EB' },
+                      ]}>
+                      Live shot
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+
+                {/* Gallery */}
+                <TouchableOpacity
+                  onPress={handlePickFromGallery}
+                  activeOpacity={0.72}
+                  style={[
+                    styles.attachMenuCard,
+                    {
+                      backgroundColor: isDark ? '#0B1F14' : '#F0FDF4',
+                      borderColor: isDark ? '#16A34A' : '#86EFAC',
+                    },
+                  ]}>
+                  <View
+                    style={[
+                      styles.attachMenuCardGlow,
+                      { backgroundColor: isDark ? '#16A34A18' : '#DCFCE7' },
+                    ]}
+                  />
+                  <View style={[styles.attachMenuCardIcon, { backgroundColor: '#16A34A' }]}>
+                    <ImageIcon color="#FFFFFF" size={24} strokeWidth={2.5} />
+                  </View>
+                  <Text
+                    style={[styles.attachMenuCardTitle, { color: isDark ? '#86EFAC' : '#14532D' }]}>
+                    Gallery
+                  </Text>
+                  <View
+                    style={[
+                      styles.attachMenuCardBadge,
+                      { backgroundColor: isDark ? '#15803D30' : '#DCFCE7' },
+                    ]}>
+                    <Text
+                      style={[
+                        styles.attachMenuCardBadgeText,
+                        { color: isDark ? '#4ADE80' : '#16A34A' },
+                      ]}>
+                      Photo / Video
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+
+                {/* PDF */}
+                <TouchableOpacity
+                  onPress={handlePickDocument}
+                  activeOpacity={0.72}
+                  style={[
+                    styles.attachMenuCard,
+                    {
+                      backgroundColor: isDark ? '#1F0F07' : '#FFF7ED',
+                      borderColor: isDark ? '#EA580C' : '#FDBA74',
+                    },
+                  ]}>
+                  <View
+                    style={[
+                      styles.attachMenuCardGlow,
+                      { backgroundColor: isDark ? '#EA580C18' : '#FFEDD5' },
+                    ]}
+                  />
+                  <View style={[styles.attachMenuCardIcon, { backgroundColor: '#EA580C' }]}>
+                    <FileText color="#FFFFFF" size={24} strokeWidth={2.5} />
+                  </View>
+                  <Text
+                    style={[styles.attachMenuCardTitle, { color: isDark ? '#FDBA74' : '#7C2D12' }]}>
+                    PDF
+                  </Text>
+                  <View
+                    style={[
+                      styles.attachMenuCardBadge,
+                      { backgroundColor: isDark ? '#C2410C30' : '#FFEDD5' },
+                    ]}>
+                    <Text
+                      style={[
+                        styles.attachMenuCardBadgeText,
+                        { color: isDark ? '#FB923C' : '#EA580C' },
+                      ]}>
+                      Document
+                    </Text>
+                  </View>
                 </TouchableOpacity>
               </View>
-            )}
+
+              {/* Divider */}
+              <View
+                style={[
+                  styles.attachMenuDivider,
+                  { backgroundColor: isDark ? '#1E293B' : '#F1F5F9' },
+                ]}
+              />
+
+              {/* Cancel button */}
+              <TouchableOpacity
+                onPress={() => setShowAttachMenu(false)}
+                activeOpacity={0.75}
+                style={[
+                  styles.attachMenuCancel,
+                  {
+                    backgroundColor: isDark ? '#1E293B' : '#F8FAFC',
+                    borderColor: isDark ? '#334155' : '#E2E8F0',
+                  },
+                ]}>
+                <X color={isDark ? '#64748B' : '#94A3B8'} size={15} strokeWidth={2.5} />
+                <Text
+                  style={{
+                    color: isDark ? '#94A3B8' : '#64748B',
+                    fontSize: 14,
+                    fontWeight: '700',
+                    letterSpacing: 0.2,
+                  }}>
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+            </TouchableOpacity>
           </TouchableOpacity>
-        </TouchableOpacity>
-      </Modal>
+        </Modal>
+
+        {/* ATTACHMENT PREVIEW MODAL */}
+        <Modal
+          visible={!!previewAttachment}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setPreviewAttachment(null)}>
+          <TouchableOpacity
+            style={{
+              flex: 1,
+              backgroundColor: 'rgba(0,0,0,0.95)',
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}
+            activeOpacity={1}
+            onPress={() => setPreviewAttachment(null)}>
+            <View className="absolute right-6 top-14 z-50">
+              <View className="h-14 w-14 items-center justify-center rounded-full border-[1.5px] border-white/20 bg-slate-800/80 backdrop-blur-md">
+                <X color="#ffffff" size={32} strokeWidth={2.5} />
+              </View>
+            </View>
+
+            <TouchableOpacity
+              activeOpacity={1}
+              style={{ width: '100%', alignItems: 'center', justifyContent: 'center' }}
+              onPress={() => {}}>
+              {previewAttachment?.type === 'image' && (
+                <Image
+                  source={{ uri: previewAttachment.url }}
+                  style={{ width: SCREEN_WIDTH, height: '80%' }}
+                  resizeMode="contain"
+                />
+              )}
+
+              {(previewAttachment?.type === 'video' || previewAttachment?.type === 'pdf') && (
+                <View className="items-center px-10">
+                  <View
+                    className={`h-24 w-24 items-center justify-center rounded-3xl ${previewAttachment.type === 'video' ? 'bg-cyan-500/20' : 'bg-red-500/20'} mb-6`}>
+                    {previewAttachment.type === 'video' ? (
+                      <Video color="#22D3EE" size={40} strokeWidth={2} />
+                    ) : (
+                      <FileText color="#EF4444" size={40} strokeWidth={2} />
+                    )}
+                  </View>
+                  <Text className="mb-2 text-center text-[20px] font-black tracking-tight text-white">
+                    {previewAttachment.type === 'video' ? 'Video Evidence' : 'Document Evidence'}
+                  </Text>
+                  <Text className="mb-8 text-center text-[13px] font-medium text-slate-400">
+                    Due to native platform requirements, please open this file in your system's
+                    default viewer.
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => Linking.openURL(previewAttachment.url)}
+                    className="w-full flex-row items-center justify-center gap-2 rounded-2xl bg-white px-6 py-4">
+                    <Text className="text-[15px] font-black text-slate-900">
+                      Open External Viewer
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </Modal>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

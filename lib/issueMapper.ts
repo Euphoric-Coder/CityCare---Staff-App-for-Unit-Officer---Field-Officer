@@ -1,6 +1,5 @@
 export function mapIssueToUI(issue: any, userMap: Record<string, any>) {
-  const citizen = userMap[issue.reportedBy];
-
+  
   if (!issue) return null;
 
   return {
@@ -22,13 +21,13 @@ export function mapIssueToUI(issue: any, userMap: Record<string, any>) {
     state: issue.state,
     postal: issue.postal,
     location: `${issue.address}, ${issue.city}, ${issue.state}, ${issue.postal}`,
-    
+
     ward: issue.city,
 
     reportedBy: issue.reportedBy,
-    citizenName: citizen?.fullName || 'Unknown',
-    citizenEmail: citizen?.email || '',
-    citizenPhone: citizen?.phone || '',
+    citizenName: issue.citizenDetails?.fullName || 'Unknown',
+    citizenEmail: issue.citizenDetails?.email || '',
+    citizenPhone: issue.citizenDetails?.phone || '',
 
     dateReported: new Date(issue.createdAt).toISOString(),
 

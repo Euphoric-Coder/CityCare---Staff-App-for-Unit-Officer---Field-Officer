@@ -203,7 +203,7 @@ export interface VerificationChecklist {
   isWithinJurisdiction: boolean;
 }
 
-export type UserRole = 'UnitOfficer' | 'FieldOfficer' | 'Citizen' | 'Admin';
+export type UserRole = 'unit_officer' | 'field_officer' | 'citizen' | 'admin' | 'city_admin';
 
 export type UpdateScope = 'citizen' | 'field_and_citizen' | 'admin_only';
 
@@ -214,7 +214,7 @@ export interface IssueUpdate {
   comment: string;
   role: UserRole;
   attachments: string[];
-  updatedBy: string;
+  updatedBy: string | undefined;
   scope: UpdateScope;
   createdAt: string;
 }
@@ -241,6 +241,7 @@ export interface Conversation {
 }
 
 export interface Issue {
+  // ---- Core ----
   id: string;
   issueCode: string;
 
@@ -249,82 +250,101 @@ export interface Issue {
 
   category: IssueCategory;
   subCategories: IssueSubCategory[];
-  tags: string[];
+
+  otherCategoryName?: string | null;
 
   priority: IssuePriority;
   status: IssueStatus;
 
-  location: string;
-  ward: string;
+  tags: string[];
 
-  citizenName: string;
-  citizenEmail: string;
-  citizenPhone: string;
-
-  dateReported: string; // ISO string (used in UI)
-  createdAt: number; // raw timestamp (for sorting, keys)
-
-  assignedOfficer?: string;
-  assignedOfficerId?: string;
-
-  beforePhotos: string[];
-  afterPhotos?: string[];
-  videoEvidence: string[];
-
-  issueUpdates?: IssueUpdate[];
-
-  slaDeadline?: string;
+  // ---- Location ----
+  address: string;
+  city: string;
+  state: string;
+  postal: string;
+  location: string; // combined string for UI
 
   coordinates: {
     latitude: number;
     longitude: number;
   };
 
-  images: string[];
+  googleMapUrl: string;
 
-  // ---- Optional advanced workflow fields ----
-  verificationChecklist?: VerificationChecklist;
+  // ---- Reporter ----
+  reportedBy: string;
 
-  rejectionReason?: RejectionReason;
-  rejectionComment?: string;
+  citizenName?: string;
+  citizenEmail?: string | null;
+  isAnonymous: boolean;
 
-  reassignmentReason?: ReassignmentReason;
-  reassignmentComment?: string;
+  // ---- Media ----
+  images: string[]; // from photos
+  videoEvidence?: string | null;
 
-  reworkReason?: ReworkReason;
-  reworkComment?: string;
+  beforePhotos?: string[];
+  afterPhotos?: string[];
 
-  escalationReason?: EscalationReason;
-  escalationComment?: string;
+  // ---- Workflow ----
+  assignedUnitOfficer?: string | null;
+  assignedFieldOfficer?: string | null;
 
-  submissionComment?: string;
-  submissionLocation?: {
-    latitude: number;
-    longitude: number;
+  assignedOfficer?: string; // UI helper (resolved name)
+
+  // ---- SLA ----
+  slaCategory: string;
+  slaDeadline?: string | null;
+  slaBreached: boolean;
+
+  // ---- Status Timestamps ----
+  createdAt: number;
+  dateReported: string; // ISO string for UI
+
+  resolvedAt?: number | null;
+  closedAt?: number | null;
+
+  // ---- Withdrawal ----
+  withdrawnAt?: number;
+  withdrawalReason?: string;
+  withdrawalCategory?: string;
+
+  // ---- Verification ----
+  verificationChecklist?: {
+    locationValid: boolean;
+    hasSufficientEvidence: boolean;
+    notDuplicate: boolean;
+    isWithinJurisdiction: boolean;
+    notes?: string;
+    verifiedBy: string;
+    verifiedAt: number;
   };
-  submissionTimestamp?: string;
 
-  foResolutionDescription?: string;
-
-  foBeforeLocation?: {
-    latitude: number;
-    longitude: number;
-    timestamp: string;
+  // ---- Rejection ----
+  rejection?: {
+    reason: string;
+    comment?: string;
+    rejectedBy: string;
+    rejectedAt: number;
   };
 
-  foAfterLocation?: {
-    latitude: number;
-    longitude: number;
-    timestamp: string;
-  };
+  // ---- Duplicate Detection ----
+  possibleDuplicateIds: string[];
 
-  slaOverdueRejectionReason?: SLAOverdueRejectionReason;
-  slaOverdueRejectionComment?: string;
+  // ---- Escalation ----
+  escalatedToAdmin: boolean;
 
-  slaExtensionReason?: SLAExtensionReason;
-  slaExtensionComment?: string;
+  // ---- Reopen ----
+  reopenCount: number;
+  reopenReason?: string | null;
+  isReopened: boolean;
 
-  slaAdminEscalationComment?: string;
+  // ---- Citizen Feedback ----
+  citizenRating?: number | null;
+  citizenFeedback?: string | null;
+
+  // ---- Issue Updates ----
+  issueUpdates?: IssueUpdate[];
 }
 
 export interface FieldOfficer {

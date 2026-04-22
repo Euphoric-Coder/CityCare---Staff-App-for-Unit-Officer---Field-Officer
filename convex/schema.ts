@@ -1,5 +1,5 @@
-import { defineSchema, defineTable } from "convex/server";
-import { v } from "convex/values";
+import { defineSchema, defineTable } from 'convex/server';
+import { v } from 'convex/values';
 
 export default defineSchema({
   users: defineTable({
@@ -8,23 +8,24 @@ export default defineSchema({
     password: v.string(),
 
     role: v.union(
-      v.literal("citizen"),
-      v.literal("unit_officer"),
-      v.literal("field_officer"),
-      v.literal("admin"),
-      v.literal("city_admin"),
+      v.literal('citizen'),
+      v.literal('unit_officer'),
+      v.literal('field_officer'),
+      v.literal('admin'),
+      v.literal('city_admin')
     ),
 
     createdAt: v.string(),
   })
-    .index("by_email", ["email"])
-    .index("by_role", ["role"]),
+    .index('by_email', ['email'])
+    .index('by_role', ['role']),
 
   citizens: defineTable({
-    userId: v.id("users"),
+    userId: v.id('users'),
 
     fullName: v.string(),
     email: v.string(),
+    phone: v.optional(v.string()),
 
     city: v.string(),
     state: v.string(),
@@ -38,11 +39,11 @@ export default defineSchema({
 
     points: v.number(),
   })
-    .index("by_user", ["userId"])
-    .index("by_city", ["city"]),
+    .index('by_user', ['userId'])
+    .index('by_city', ['city']),
 
   unitOfficers: defineTable({
-    userId: v.id("users"),
+    userId: v.id('users'),
 
     fullName: v.string(),
     email: v.string(),
@@ -66,17 +67,17 @@ export default defineSchema({
 
     lastLogin: v.optional(v.string()),
 
-    assignedFieldOfficers: v.array(v.id("fieldOfficers")),
+    assignedFieldOfficers: v.array(v.id('fieldOfficers')),
 
-    activeIssueIds: v.array(v.id("issues")),
-    resolvedIssueIds: v.array(v.id("issues")),
+    activeIssueIds: v.array(v.id('issues')),
+    resolvedIssueIds: v.array(v.id('issues')),
   })
-    .index("by_user", ["userId"])
-    .index("by_department", ["department"])
-    .index("by_city", ["city"]),
+    .index('by_user', ['userId'])
+    .index('by_department', ['department'])
+    .index('by_city', ['city']),
 
   fieldOfficers: defineTable({
-    userId: v.id("users"),
+    userId: v.id('users'),
 
     fullName: v.string(),
     email: v.string(),
@@ -90,13 +91,13 @@ export default defineSchema({
 
     specialisations: v.array(v.string()),
 
-    reportingUnitOfficerId: v.optional(v.id("unitOfficers")),
+    reportingUnitOfficerId: v.optional(v.id('unitOfficers')),
 
     currentActiveIssues: v.number(),
     maxIssueCapacity: v.number(),
 
-    assignedIssueIds: v.array(v.id("issues")),
-    completedIssueIds: v.array(v.id("issues")),
+    assignedIssueIds: v.array(v.id('issues')),
+    completedIssueIds: v.array(v.id('issues')),
 
     totalResolvedIssues: v.number(),
 
@@ -110,9 +111,9 @@ export default defineSchema({
 
     lastLogin: v.optional(v.string()),
   })
-    .index("by_user", ["userId"])
-    .index("by_department", ["department"])
-    .index("by_unit_officer", ["reportingUnitOfficerId"]),
+    .index('by_user', ['userId'])
+    .index('by_department', ['department'])
+    .index('by_unit_officer', ['reportingUnitOfficerId']),
 
   issues: defineTable({
     // Core
@@ -143,21 +144,21 @@ export default defineSchema({
     googleMapUrl: v.string(),
 
     // Reporter
-    reportedBy: v.id("users"),
+    reportedBy: v.id('users'),
 
     isAnonymous: v.boolean(),
 
     additionalEmail: v.union(v.string(), v.null()),
 
     // Media
-    photos: v.array(v.id("_storage")),
+    photos: v.array(v.id('_storage')),
 
     // Single videos
-    videos: v.union(v.id("_storage"), v.null()),
+    videos: v.union(v.id('_storage'), v.null()),
 
     // Field Officer Reports
-    beforePhotos: v.optional(v.array(v.id("_storage"))),
-    afterPhotos: v.optional(v.array(v.id("_storage"))),
+    beforePhotos: v.optional(v.array(v.id('_storage'))),
+    afterPhotos: v.optional(v.array(v.id('_storage'))),
 
     // Workflow
     status: v.string(),
@@ -168,8 +169,8 @@ export default defineSchema({
     withdrawalCategory: v.optional(v.string()),
 
     // Assignments
-    assignedUnitOfficer: v.union(v.id("users"), v.null()),
-    assignedFieldOfficer: v.union(v.id("users"), v.null()),
+    assignedUnitOfficer: v.union(v.id('users'), v.null()),
+    assignedFieldOfficer: v.union(v.id('users'), v.null()),
 
     // Issue Verification
     verificationChecklist: v.optional(
@@ -179,9 +180,9 @@ export default defineSchema({
         notDuplicate: v.boolean(),
         isWithinJurisdiction: v.boolean(),
         notes: v.optional(v.string()),
-        verifiedBy: v.id("users"),
+        verifiedBy: v.id('users'),
         verifiedAt: v.number(),
-      }),
+      })
     ),
 
     // Issue Rejection
@@ -189,12 +190,12 @@ export default defineSchema({
       v.object({
         reason: v.string(),
         comment: v.optional(v.string()),
-        rejectedBy: v.id("users"),
+        rejectedBy: v.id('users'),
         rejectedAt: v.number(),
-      }),
+      })
     ),
 
-    possibleDuplicateIds: v.array(v.id("issues")),
+    possibleDuplicateIds: v.array(v.id('issues')),
 
     escalatedToAdmin: v.boolean(),
 
@@ -214,14 +215,14 @@ export default defineSchema({
 
     createdAt: v.number(),
   })
-    .index("by_reporter", ["reportedBy"])
-    .index("by_status", ["status"])
-    .index("by_city", ["city"])
-    .index("by_category", ["category"]),
+    .index('by_reporter', ['reportedBy'])
+    .index('by_status', ['status'])
+    .index('by_city', ['city'])
+    .index('by_category', ['category']),
 
   issueUpdates: defineTable({
     // Reference
-    issueId: v.id("issues"),
+    issueId: v.id('issues'),
 
     // Workflow status after update
     status: v.string(),
@@ -230,41 +231,41 @@ export default defineSchema({
     comment: v.union(v.string(), v.null()),
 
     // Who performed the update
-    updatedBy: v.optional(v.id("users")),
+    updatedBy: v.optional(v.id('users')),
 
     role: v.union(
-      v.literal("citizen"),
-      v.literal("unit_officer"),
-      v.literal("field_officer"),
-      v.literal("admin"),
+      v.literal('citizen'),
+      v.literal('unit_officer'),
+      v.literal('field_officer'),
+      v.literal('admin')
     ),
 
     // Attachments (photos/videos/documents)
-    attachments: v.optional(v.array(v.id("_storage"))),
+    attachments: v.optional(v.array(v.id('_storage'))),
 
     // Visibility scope
     scope: v.union(
-      v.literal("field_and_citizen"), // visible to citizen and officers
-      v.literal("citizen"), // citizens only
-      v.literal("admin_only"), // admin only
+      v.literal('field_and_citizen'), // visible to citizen and officers
+      v.literal('citizen'), // citizens only
+      v.literal('admin_only') // admin only
     ),
 
     // Timestamp
     createdAt: v.number(),
   })
-    .index("by_issue", ["issueId"])
-    .index("by_issue_status", ["issueId", "status"])
-    .index("by_updated_by", ["updatedBy"])
-    .index("by_role", ["role"]),
+    .index('by_issue', ['issueId'])
+    .index('by_issue_status', ['issueId', 'status'])
+    .index('by_updated_by', ['updatedBy'])
+    .index('by_role', ['role']),
 
   notifications: defineTable({
     userId: v.string(),
-    issueId: v.optional(v.id("issues")),
+    issueId: v.optional(v.id('issues')),
     message: v.string(),
     type: v.optional(v.string()),
     read: v.boolean(),
     createdAt: v.number(),
   })
-    .index("by_user", ["userId"])
-    .index("by_user_unread", ["userId", "read"]),
+    .index('by_user', ['userId'])
+    .index('by_user_unread', ['userId', 'read']),
 });

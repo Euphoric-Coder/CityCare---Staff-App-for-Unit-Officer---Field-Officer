@@ -189,7 +189,7 @@ export default defineSchema({
     rejection: v.optional(
       v.object({
         reason: v.string(),
-        comment: v.optional(v.string()),
+        comment: v.string(),
         rejectedBy: v.id('users'),
         rejectedAt: v.number(),
       })

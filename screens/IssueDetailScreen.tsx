@@ -415,8 +415,11 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
   // @ts-ignore
   const createIssueUpdate = useMutation(api.issueUpdates.createIssueUpdate);
 
-  // @ts-ignore
+  // Verify Issue Mutation
   const verifyIssue = useMutation(api.unitOfficers.verifyIssue);
+
+  // Reject Issue Mutation
+  const rejectIssue = useMutation(api.unitOfficers.rejectIssue);
 
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [assignModalMode, setAssignModalMode] = useState<'assign' | 'reassign'>('assign');
@@ -627,31 +630,45 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
     Alert.alert('Re-verified', 'Issue has been re-verified and is ready for re-assignment.');
   };
 
-  const handleReject = (reason: RejectionReason, reasonComment: string) => {
-    const newUpdate: IssueUpdate = {
-      id: `upd-${Date.now()}`,
-      issueId: mappedIssue!.id,
-      status: 'rejected',
-      comment: `Rejected: ${reason}. ${reasonComment}`,
-      role: 'UnitOfficer',
-      attachments: [],
-      updatedBy: 'uo-1',
-      scope: 'citizen',
-      createdAt: new Date().toISOString(),
-    };
-    setShowRejectionModal(false);
+  const handleReject = async (reason: RejectionReason, reasonComment: string) => {
+    if (!issue || !user) {
+      throw new Error('Missing issue or user');
+    }
 
-    console.log('Issue Update:', newUpdate);
-    console.log('Rejection Reason', {
-      status: 'Rejected',
-      rejectionReason: reason,
-      rejectionComment: reasonComment,
-    });
+    try {
+      await rejectIssue({
+        issueId: issue._id,
+        issueCode: issue.issueCode,
+        reason: reason,
+        comment: reasonComment,
+        UOName: user.name,
+        rejectedBy: user.id as Id<'users'>,
+        issueName: issue.title,
+        reporterId: issue.reportedBy as Id<'users'>,
+      });
 
-    // Delay alert to next frame for iOS
-    setTimeout(() => {
-      Alert.alert('Rejected', 'Issue has been rejected.');
-    }, 300);
+      console.log('Rejection of Issue:', {
+        issueId: issue._id,
+        issueCode: issue.issueCode,
+        reason: reason,
+        comment: reasonComment,
+        UOName: user.name,
+        rejectedBy: user.id as Id<'users'>,
+        issueName: issue.title,
+        reporterId: issue.reportedBy as Id<'users'>,
+      });
+
+      // Delay alert to next frame for iOS
+      setTimeout(() => {
+        Alert.alert('Rejected', 'Issue has been rejected.');
+      }, 300);
+      
+    } catch (error) {
+      console.error('Error rejecting issue:', error);
+      Alert.alert('Error', 'Failed to reject issue.');
+    } finally {
+      setShowRejectionModal(false);
+    }
   };
 
   const handleAssign = (officerId: string) => {

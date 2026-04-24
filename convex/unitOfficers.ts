@@ -193,3 +193,79 @@ export const verifyIssue = mutation({
     });
   },
 });
+
+export const rejectIssue = mutation({
+  args: {
+    issueId: v.id('issues'),
+    issueCode: v.string(),
+    reason: v.string(),
+    comment: v.string(),
+    UOName: v.string(),
+    rejectedBy: v.id('users'),
+    issueName: v.string(),
+    reporterId: v.id('users'),
+  },
+
+  handler: async (ctx, args) => {
+    const issue = await ctx.db.get(args.issueId);
+
+    // Fallback for missing issue
+    if (!issue) {
+      throw new Error('Issue not found');
+    }
+
+    // Fallback for already rejected issue (if any)
+    if (issue.status === 'rejected') {
+      throw new Error('Issue already rejected');
+    }
+
+    const now = Date.now();
+
+    // Update issue status to "rejected" and add rejection details
+    await ctx.db.patch(args.issueId, {
+      status: 'rejected',
+      rejection: {
+        reason: args.reason,
+        comment: args.comment ?? undefined,
+        rejectedBy: args.rejectedBy,
+        rejectedAt: now,
+      },
+      // Clear any existing assignments
+      assignedFieldOfficer: null,
+    });
+
+    // Add the Issue Timeline Update
+    await ctx.db.insert('issueUpdates', {
+      issueId: args.issueId,
+      status: 'rejected',
+      comment: `The Issue "${args.issueName}" with Issue Code "${args.issueCode}" has been rejected by the Unit Officer ${args.UOName}.\nReason: ${args.reason}\nComment: ${args.comment}`,
+      updatedBy: args.rejectedBy,
+      role: 'unit_officer',
+      attachments: [],
+      scope: 'citizen',
+      createdAt: now,
+    });
+
+    // Add Notification to Citizen
+    await ctx.db.insert('notifications', {
+      userId: args.reporterId, // citizen
+      issueId: args.issueId,
+      message: `Your issue "${args.issueName}" with Issue Code "${args.issueCode}" has been rejected by the Unit Officer ${args.UOName}.`,
+      type: 'rejected',
+      read: false,
+      createdAt: now,
+    });
+
+    // Add Notification to Unit Officer
+    await ctx.db.insert('notifications', {
+      userId: args.rejectedBy,
+      issueId: args.issueId,
+      message: `You have successfully rejected the issue "${args.issueName}" with Issue Code "${args.issueCode}".`,
+      type: 'rejected',
+      read: false,
+      createdAt: now,
+    });
+
+    return { success: true };
+  },
+});

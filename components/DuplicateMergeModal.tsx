@@ -398,7 +398,7 @@ export default function DuplicateMergeModal({
 
   return (
     <Modal visible transparent animationType="none" onRequestClose={close}>
-      <View className="flex-1 justify-end">
+      <View style={{ flex: 1 }} className="flex-1">
         <Animated.View
           style={[StyleSheet.absoluteFillObject, { opacity: backdropAnim }]}
           className="bg-black/70"
@@ -406,10 +406,17 @@ export default function DuplicateMergeModal({
           <TouchableOpacity className="flex-1" onPress={close} activeOpacity={1} />
         </Animated.View>
 
-        <Animated.View style={{ transform: [{ translateY: slideAnim }] }}>
+        <Animated.View
+          style={{
+            flex: 1,
+            transform: [{ translateY: slideAnim }],
+          }}>
           <View
             className="overflow-hidden rounded-t-[32px] bg-white dark:bg-slate-900"
-            style={{ maxHeight: '94%' }}>
+            style={{
+              flex: 1,
+              marginTop: Math.max(insets.top + 10, 50),
+            }}>
             {/* Drag handle */}
             <View className="items-center pb-1 pt-3">
               <View className="h-1 w-10 rounded-full bg-slate-200 dark:bg-slate-700" />
@@ -508,8 +515,12 @@ export default function DuplicateMergeModal({
             </View>
 
             <ScrollView
+              style={{ flex: 1 }}
               showsVerticalScrollIndicator={false}
-              contentContainerStyle={{ padding: 20, paddingBottom: 12 }}
+              contentContainerStyle={{
+                padding: 20,
+                paddingBottom: step === 'compare' ? 20 : 120,
+              }}
               keyboardShouldPersistTaps="handled">
               {/* ── COMPARE STEP ── */}
               {step === 'compare' && (
@@ -785,7 +796,7 @@ export default function DuplicateMergeModal({
               <View
                 className="border-t border-slate-100 bg-white dark:border-slate-800 dark:bg-slate-900"
                 style={{
-                  paddingBottom: insets.bottom + 16,
+                  paddingBottom: Math.max(insets.bottom, 12),
                   paddingTop: 14,
                   paddingHorizontal: 20,
                 }}>

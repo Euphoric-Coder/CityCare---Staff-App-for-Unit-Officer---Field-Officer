@@ -162,9 +162,8 @@ export default function SignInScreen({ onSignIn }: SignInScreenProps) {
   const cardBgColor = isDark ? 'rgba(3, 31, 22, 0.85)' : 'rgba(255, 255, 255, 0.95)';
   const cardBorderColor = isDark ? 'rgba(52, 211, 153, 0.15)' : 'rgba(16, 185, 129, 0.4)';
 
-  const inputBgColor = isDark ? 'rgba(6, 78, 59, 0.4)' : 'rgba(255, 255, 255, 0.8)';
+  const inputBgColor = isDark ? 'rgba(6, 78, 59)' : 'rgba(255, 255, 255)';
   const inputBgColorFocusedAndroid = isDark ? '#022c22' : '#ffffff';
-
   const inputBorderFocused = isDark ? '#34d399' : '#059669';
   const inputBorderUnfocused = isDark ? 'rgba(52, 211, 153, 0.15)' : 'rgba(5, 150, 105, 0.15)';
 
@@ -345,7 +344,6 @@ export default function SignInScreen({ onSignIn }: SignInScreenProps) {
                           : inputBgColor,
                       borderColor:
                         focusedField === 'email' ? inputBorderFocused : inputBorderUnfocused,
-                      shadowColor: focusedField === 'email' ? inputBorderFocused : 'transparent',
                     },
                   ]}>
                   <Mail
@@ -383,7 +381,6 @@ export default function SignInScreen({ onSignIn }: SignInScreenProps) {
                           : inputBgColor,
                       borderColor:
                         focusedField === 'password' ? inputBorderFocused : inputBorderUnfocused,
-                      shadowColor: focusedField === 'password' ? inputBorderFocused : 'transparent',
                     },
                   ]}>
                   <Lock

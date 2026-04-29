@@ -10,7 +10,11 @@ import {
   KeyboardAvoidingView,
   Platform,
   useColorScheme,
+  Pressable,
 } from 'react-native';
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
+import Animated, { ZoomIn, LinearTransition } from 'react-native-reanimated';
 import {
   XCircle,
   TriangleAlert as AlertTriangle,
@@ -22,15 +26,30 @@ import {
   Ban,
   Circle as HelpCircle,
   CircleCheck as CheckCircle2,
+  Clock,
+  Flag,
+  Notebook,
 } from 'lucide-react-native';
-import { RejectionReason } from '../lib/types';
+import { Issue, RejectionReason } from '../lib/types';
 
 interface RejectionModalProps {
   visible: boolean;
+  issue: Issue;
   onClose: () => void;
   onReject: (reason: RejectionReason, comment: string) => void;
   issueTitle?: string;
 }
+
+export const CATEGORY_LABEL_MAP: Record<string, string> = {
+  road: 'Road & Infrastructure',
+  electricity: 'Electricity & Lighting',
+  water: 'Water Supply',
+  sanitation: 'Sanitation & Waste',
+  drainage: 'Drainage & Sewer',
+  solid_waste: 'Solid Waste Management',
+  public_health: 'Public Health',
+  other: 'Other',
+};
 
 const REJECTION_REASONS: {
   value: RejectionReason;
@@ -90,12 +109,9 @@ const REJECTION_REASONS: {
   },
 ];
 
-export default function RejectionModal({
-  visible,
-  onClose,
-  onReject,
-  issueTitle = 'this issue',
-}: RejectionModalProps) {
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+export default function RejectionModal({ visible, issue, onClose, onReject }: RejectionModalProps) {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 
@@ -104,15 +120,16 @@ export default function RejectionModal({
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [validationError, setValidationError] = useState('');
 
-  const canSubmit = !!selectedReason && !!comment.trim();
+  const wordCount = comment.trim() ? comment.trim().split(/\s+/).length : 0;
+  const canSubmit = !!selectedReason && wordCount >= 10;
 
   const handleReject = () => {
     if (!selectedReason) {
       setValidationError('Please select a rejection reason.');
       return;
     }
-    if (!comment.trim()) {
-      setValidationError('Please add a comment before rejecting.');
+    if (wordCount < 10) {
+      setValidationError('Please provide at least 10 words in your comment.');
       return;
     }
     setValidationError('');
@@ -189,40 +206,175 @@ export default function RejectionModal({
             keyboardShouldPersistTaps="handled">
             {/* Warning banner */}
             <View
-              className="mb-4 flex-row items-start gap-2.5 rounded-2xl p-3.5"
-              style={[
-                styles.warningBorder,
-                { backgroundColor: isDark ? '#1C0A0A' : '#FEF2F2', borderLeftColor: '#EF4444' },
-              ]}>
-              <AlertTriangle color="#EF4444" size={16} strokeWidth={2.5} />
-              <Text
-                className="flex-1 text-[13px] font-semibold leading-5"
-                style={{ color: isDark ? '#FCA5A5' : '#991B1B' }}>
-                This action is irreversible. The issue will be permanently rejected.
-              </Text>
+              style={{
+                marginBottom: 20,
+                shadowColor: '#EF4444',
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: isDark ? 0.3 : 0.15,
+                shadowRadius: 12,
+                elevation: 4,
+              }}>
+              <LinearGradient
+                colors={isDark ? ['#450A0A', '#2B0606'] : ['#FEF2F2', '#FEE2E2']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={{
+                  borderRadius: 20,
+                  borderWidth: 1,
+                  borderColor: isDark ? '#7F1D1D88' : '#FECACA',
+                  overflow: 'hidden',
+                }}>
+                <View className="flex-row items-center p-4">
+                  <View
+                    className="mr-3.5 h-10 w-10 shrink-0 items-center justify-center rounded-[14px]"
+                    style={{ backgroundColor: isDark ? '#7F1D1D66' : '#FECACA66' }}>
+                    <AlertTriangle color="#EF4444" size={20} strokeWidth={2.5} />
+                  </View>
+                  <View className="flex-1 justify-center" style={{ flexShrink: 1 }}>
+                    <Text
+                      className="text-[14px] font-extrabold tracking-tight"
+                      style={{ color: isDark ? '#FCA5A5' : '#991B1B', marginBottom: 2 }}
+                      numberOfLines={1}>
+                      Irreversible Action
+                    </Text>
+                    <Text
+                      className="text-[12.5px] font-medium leading-5"
+                      style={{
+                        color: isDark ? '#F87171' : '#B91C1C',
+                        flexShrink: 1,
+                        flexWrap: 'wrap',
+                      }}>
+                      This issue will be permanently rejected.
+                    </Text>
+                  </View>
+                </View>
+              </LinearGradient>
             </View>
 
-            {/* Issue chip */}
+            {/* Issue Preview Card */}
             <View
-              className="mb-5 rounded-2xl p-3.5"
               style={[
-                styles.chipBorder,
-                {
-                  backgroundColor: isDark ? '#1E293B' : '#F8FAFC',
-                  borderColor: isDark ? '#334155' : '#E2E8F0',
-                },
+                { marginBottom: 20, borderRadius: 32, borderWidth: 1, overflow: 'hidden' },
+                { borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' },
               ]}>
-              <Text
-                className="mb-1 text-[10px] font-extrabold uppercase tracking-widest"
-                style={{ color: isDark ? '#475569' : '#94A3B8' }}>
-                ISSUE
-              </Text>
-              <Text
-                className="text-[15px] font-bold leading-5"
-                style={{ color: isDark ? '#E2E8F0' : '#1E293B' }}
-                numberOfLines={2}>
-                {issueTitle}
-              </Text>
+              <BlurView
+                intensity={isDark ? 40 : 60}
+                tint={isDark ? 'dark' : 'light'}
+                style={StyleSheet.absoluteFill}
+              />
+              <LinearGradient
+                colors={
+                  isDark
+                    ? ['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.02)']
+                    : ['rgba(255,255,255,0.8)', 'rgba(255,255,255,0.4)']
+                }
+                style={StyleSheet.absoluteFill}
+              />
+
+              <View className="p-5">
+                <View className="mb-3 flex-row items-center justify-between">
+                  <Text
+                    className="text-[10px] font-black uppercase tracking-widest"
+                    style={{ color: isDark ? '#94A3B8' : '#64748B' }}>
+                    ISSUE {issue.issueCode ? `• ${issue.issueCode}` : ''}
+                  </Text>
+                  {issue.category && (
+                    <View className="overflow-hidden rounded-lg">
+                      <LinearGradient
+                        colors={
+                          isDark
+                            ? ['rgba(51,65,85,0.8)', 'rgba(30,41,59,0.8)']
+                            : ['#F1F5F9', '#E2E8F0']
+                        }
+                        style={StyleSheet.absoluteFill}
+                      />
+                      <View className="px-2.5 py-1">
+                        <Text
+                          className="text-[10px] font-bold uppercase tracking-wider"
+                          style={{ color: isDark ? '#E2E8F0' : '#475569' }}>
+                          {CATEGORY_LABEL_MAP[issue.category] || issue.category}
+                        </Text>
+                      </View>
+                    </View>
+                  )}
+                </View>
+
+                <Text
+                  className="text-[17px] font-black leading-6 tracking-tight"
+                  style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}
+                  numberOfLines={2}>
+                  {issue.title}
+                </Text>
+
+                <View className="mt-4 gap-3">
+                  <View className="flex-row items-center gap-2.5">
+                    <View
+                      className="h-6 w-6 items-center justify-center rounded-full"
+                      style={{
+                        backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+                      }}>
+                      <MapPin size={11} color={isDark ? '#CBD5E1' : '#64748B'} strokeWidth={2.5} />
+                    </View>
+                    <Text
+                      className="flex-1 text-[13px] font-semibold"
+                      style={{ color: isDark ? '#CBD5E1' : '#475569' }}>
+                      {issue.address
+                        ? `${issue.address}${issue.city ? `, ${issue.city}` : ''}`
+                        : 'Location not specified'}
+                    </Text>
+                  </View>
+
+                  <View className="flex-row items-center justify-between">
+                    {issue.createdAt && (
+                      <View className="flex-row items-center gap-2">
+                        <Clock size={12} color={isDark ? '#94A3B8' : '#64748B'} strokeWidth={2.5} />
+                        <Text
+                          className="text-[12.5px] font-bold tracking-tight"
+                          style={{ color: isDark ? '#94A3B8' : '#64748B' }}>
+                          {new Date(issue.createdAt).toLocaleDateString(undefined, {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                          })}
+                        </Text>
+                      </View>
+                    )}
+                    {issue.priority && (
+                      <View className="flex-row items-center gap-1.5">
+                        <Flag
+                          size={12}
+                          color={
+                            issue.priority.toLowerCase() === 'high' ||
+                            issue.priority.toLowerCase() === 'critical'
+                              ? '#EF4444'
+                              : issue.priority.toLowerCase() === 'medium'
+                                ? '#F59E0B'
+                                : isDark
+                                  ? '#94A3B8'
+                                  : '#64748B'
+                          }
+                          strokeWidth={3}
+                        />
+                        <Text
+                          className="text-[11.5px] font-black uppercase tracking-widest"
+                          style={{
+                            color:
+                              issue.priority.toLowerCase() === 'high' ||
+                              issue.priority.toLowerCase() === 'critical'
+                                ? '#EF4444'
+                                : issue.priority.toLowerCase() === 'medium'
+                                  ? '#F59E0B'
+                                  : isDark
+                                    ? '#94A3B8'
+                                    : '#64748B',
+                          }}>
+                          {issue.priority}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+              </View>
             </View>
 
             {/* Reason selection */}
@@ -234,121 +386,183 @@ export default function RejectionModal({
                   Rejection Reason <Text className="text-red-500">*</Text>
                 </Text>
                 {selectedReason && (
-                  <View
+                  <Animated.View
+                    entering={ZoomIn.duration(200)}
                     className="flex-row items-center gap-1 rounded-full px-2 py-1"
                     style={{ backgroundColor: isDark ? '#450A0A' : '#FEE2E2' }}>
                     <CheckCircle2 color="#EF4444" size={11} strokeWidth={2.5} />
                     <Text className="text-[11px] font-bold text-red-500">Selected</Text>
-                  </View>
+                  </Animated.View>
                 )}
               </View>
 
-              <View className="flex-row flex-wrap gap-2.5">
+              <View className="flex-row flex-wrap justify-between gap-y-3">
                 {REJECTION_REASONS.map((item) => {
                   const active = selectedReason === item.value;
                   return (
-                    <TouchableOpacity
+                    <Pressable
                       key={item.value}
                       onPress={() => {
                         setSelectedReason(item.value);
                         setValidationError('');
                       }}
-                      activeOpacity={0.75}
-                      style={[
-                        styles.reasonCard,
-                        {
-                          backgroundColor: active
-                            ? isDark
-                              ? item.bgDark
-                              : item.bgLight
-                            : isDark
-                              ? '#1E293B'
-                              : '#F8FAFC',
-                          borderColor: active ? item.color : isDark ? '#334155' : '#E2E8F0',
-                        },
-                      ]}>
-                      <View
-                        className="mb-2 h-9 w-9 items-center justify-center rounded-xl"
-                        style={{
-                          backgroundColor: active
-                            ? isDark
-                              ? '#00000033'
-                              : '#FFFFFF66'
-                            : isDark
-                              ? item.bgDark
-                              : item.bgLight,
-                        }}>
-                        <item.Icon
-                          color={active ? item.color : isDark ? '#475569' : '#94A3B8'}
-                          size={16}
-                          strokeWidth={2}
-                        />
-                      </View>
-                      <Text
-                        className="mb-0.5 text-[13px] font-bold"
-                        style={{ color: active ? item.color : isDark ? '#94A3B8' : '#475569' }}>
-                        {item.value}
-                      </Text>
-                      <Text
-                        className="text-[11px] font-medium"
-                        style={{
-                          color: active
-                            ? isDark
-                              ? item.color + 'BB'
-                              : item.color + '99'
-                            : isDark
-                              ? '#334155'
-                              : '#CBD5E1',
-                        }}>
-                        {item.description}
-                      </Text>
-                      {active && (
-                        <View style={[styles.activeDot, { backgroundColor: item.color }]} />
+                      style={{ width: '48%' }}>
+                      {({ pressed }) => (
+                        <Animated.View
+                          layout={LinearTransition.springify().damping(18)}
+                          style={[
+                            styles.reasonCard,
+                            {
+                              width: '100%',
+                              backgroundColor: active
+                                ? isDark
+                                  ? item.bgDark
+                                  : item.bgLight
+                                : isDark
+                                  ? 'rgba(30,41,59,0.5)'
+                                  : '#FFFFFF',
+                              borderColor: active
+                                ? item.color
+                                : isDark
+                                  ? 'rgba(255,255,255,0.1)'
+                                  : '#E2E8F0',
+                              transform: [{ scale: pressed ? 0.96 : 1 }],
+                            },
+                            active
+                              ? {
+                                  shadowColor: item.color,
+                                  shadowOffset: { width: 0, height: 6 },
+                                  shadowOpacity: 0.25,
+                                  shadowRadius: 10,
+                                  elevation: 6,
+                                }
+                              : {
+                                  shadowColor: isDark ? '#000000' : '#64748B',
+                                  shadowOffset: { width: 0, height: 2 },
+                                  shadowOpacity: isDark ? 0.3 : 0.08,
+                                  shadowRadius: 6,
+                                  elevation: 2,
+                                },
+                          ]}>
+                          {/* Inner Gradient Glow on Active */}
+                          {active && (
+                            <LinearGradient
+                              colors={[`${item.color}22`, 'transparent']}
+                              start={{ x: 0, y: 0 }}
+                              end={{ x: 1, y: 1 }}
+                              style={StyleSheet.absoluteFill}
+                            />
+                          )}
+
+                          <View
+                            className="mb-3 h-10 w-10 items-center justify-center rounded-[14px]"
+                            style={{
+                              backgroundColor: active
+                                ? `${item.color}25`
+                                : isDark
+                                  ? 'rgba(255,255,255,0.06)'
+                                  : '#F1F5F9',
+                            }}>
+                            <item.Icon
+                              color={active ? item.color : isDark ? '#94A3B8' : '#64748B'}
+                              size={18}
+                              strokeWidth={2.5}
+                            />
+                          </View>
+                          <Text
+                            className="mb-1 text-[13.5px] font-extrabold tracking-tight"
+                            style={{
+                              color: active
+                                ? isDark
+                                  ? '#FFFFFF'
+                                  : item.color
+                                : isDark
+                                  ? '#E2E8F0'
+                                  : '#334155',
+                            }}>
+                            {item.value}
+                          </Text>
+                          <Text
+                            className="text-[11.5px] font-medium leading-[16px]"
+                            style={{
+                              color: active
+                                ? isDark
+                                  ? 'rgba(255,255,255,0.85)'
+                                  : `${item.color}AA`
+                                : isDark
+                                  ? '#94A3B8'
+                                  : '#64748B',
+                            }}>
+                            {item.description}
+                          </Text>
+                          {active && (
+                            <Animated.View
+                              entering={ZoomIn.duration(200)}
+                              style={[styles.activeDot, { backgroundColor: item.color }]}
+                            />
+                          )}
+                        </Animated.View>
                       )}
-                    </TouchableOpacity>
+                    </Pressable>
                   );
                 })}
               </View>
             </View>
 
-            {/* Comment */}
-            <View className="mb-2">
-              <Text
-                className="mb-2.5 text-[14px] font-bold"
-                style={{ color: isDark ? '#E2E8F0' : '#1E293B' }}>
-                Comment <Text className="text-red-500">*</Text>
-              </Text>
-              <TextInput
-                style={[
-                  styles.textInput,
-                  {
-                    backgroundColor: isDark ? '#1E293B' : '#F8FAFC',
-                    borderColor: comment.trim()
-                      ? isDark
-                        ? '#EF444455'
-                        : '#FECACA'
-                      : isDark
-                        ? '#334155'
-                        : '#E2E8F0',
-                    color: isDark ? '#F1F5F9' : '#0F172A',
-                  },
-                ]}
-                placeholder="Explain the reason so the citizen understands..."
-                placeholderTextColor={isDark ? '#475569' : '#94A3B8'}
-                value={comment}
-                onChangeText={(t) => {
-                  setComment(t);
-                  setValidationError('');
-                }}
-                multiline
-                numberOfLines={4}
-                textAlignVertical="top"
-              />
-              <Text
-                className="mt-1.5 text-right text-[11px] font-semibold"
-                style={{ color: isDark ? '#334155' : '#CBD5E1' }}>
-                {comment.trim().length} characters
-              </Text>
+            {/* Comment Section */}
+            <View
+              className={`mb-2 overflow-hidden rounded-[24px] border bg-white shadow-sm dark:bg-slate-900 ${
+                comment && wordCount < 10
+                  ? 'border-red-300 dark:border-red-900/60'
+                  : 'border-slate-200 dark:border-slate-800'
+              }`}>
+              <View className="flex-row items-center justify-between border-b border-slate-100 bg-slate-50/80 px-4 py-3.5 dark:border-slate-800/80 dark:bg-slate-800/40">
+                <View className="flex-row items-center gap-2.5">
+                  <View className="h-8 w-8 items-center justify-center rounded-xl bg-red-100 dark:bg-red-900/40">
+                    <Notebook color={isDark ? '#F87171' : '#EF4444'} size={15} strokeWidth={2.5} />
+                  </View>
+                  <Text className="text-[14px] font-black tracking-tight text-slate-800 dark:text-slate-100">
+                    Comment <Text className="text-red-500">*</Text>
+                  </Text>
+                </View>
+
+                <View
+                  className={`rounded-lg px-2.5 py-1.5 ${
+                    wordCount >= 10
+                      ? 'bg-emerald-100 dark:bg-emerald-900/40'
+                      : 'bg-red-100 dark:bg-red-900/40'
+                  }`}>
+                  <Text
+                    className={`text-[10px] font-black ${
+                      wordCount >= 10
+                        ? 'text-emerald-700 dark:text-emerald-400'
+                        : 'text-red-700 dark:text-red-400'
+                    }`}>
+                    {wordCount} WORDS {wordCount < 10 && '(MIN 10)'}
+                  </Text>
+                </View>
+              </View>
+
+              <View className="px-1 py-1">
+                <TextInput
+                  className="min-h-[110px] bg-transparent px-4 py-3"
+                  placeholder="Explain the reason so the citizen understands..."
+                  value={comment}
+                  onChangeText={(t) => {
+                    setComment(t);
+                    setValidationError('');
+                  }}
+                  multiline
+                  placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
+                  style={{
+                    fontSize: 15,
+                    lineHeight: 24,
+                    textAlignVertical: 'top',
+                    color: isDark ? '#F1F5F9' : '#1F2937',
+                    fontWeight: '500',
+                  }}
+                />
+              </View>
             </View>
 
             {/* Inline validation error */}
@@ -520,9 +734,9 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
   },
   reasonCard: {
-    width: '47%',
-    padding: 14,
-    borderRadius: 16,
+    width: '48%',
+    padding: 16,
+    borderRadius: 22,
     borderWidth: 1.5,
     position: 'relative',
     overflow: 'hidden',

@@ -1,5 +1,4 @@
 export function mapIssueToUI(issue: any, userMap: Record<string, any>) {
-  
   if (!issue) return null;
 
   return {
@@ -43,7 +42,7 @@ export function mapIssueToUI(issue: any, userMap: Record<string, any>) {
 
     slaDeadline: issue.slaDeadline,
 
-    assignedOfficer: userMap[issue.assignedFieldOfficer]?.fullName || null,
+    assignedOfficer: issue.fieldOfficerDetails || null,
 
     verificationChecklist: issue.verificationChecklist ?? null,
     rejection: issue.rejection ?? null,

@@ -210,6 +210,7 @@ export default defineSchema({
     citizenFeedback: v.union(v.string(), v.null()),
 
     reopenCount: v.number(),
+    reopenCategory: v.optional(v.string()),
     reopenReason: v.union(v.string(), v.null()),
     isReopened: v.boolean(),
 

@@ -106,7 +106,6 @@ const STATUS_LABEL_MAP: Record<StatusKey | 'all', string> = {
 };
 
 export const CATEGORY_OPTIONS: (string | 'all')[] = [
-  // 'all',
   'road',
   'electricity',
   'water',

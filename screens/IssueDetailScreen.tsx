@@ -421,6 +421,13 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
   // Reject Issue Mutation
   const rejectIssue = useMutation(api.unitOfficers.rejectIssue);
 
+  // Fetches Field Officers assigned to Unit Officer
+  // @ts-ignore
+  const assignedFO = useQuery(api.unitOfficers.getAssignedFieldOfficers, { userId: user?.id });
+
+  // Assigns Issue to Field Officer
+  const assignIssueToFieldOfficer = useMutation(api.unitOfficers.assignIssueToFieldOfficer);
+
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [assignModalMode, setAssignModalMode] = useState<'assign' | 'reassign'>('assign');
   const [pendingReassignMeta, setPendingReassignMeta] = useState<{
@@ -596,6 +603,7 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
         slaDeadline: new Date(slaDate).getTime(),
         notes: notes,
         UOName: user.name,
+        status: issue.status,
         verifiedBy: user.id as Id<'users'>,
         issueName: issue.title,
         reporterId: issue.reportedBy as Id<'users'>,
@@ -606,28 +614,6 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
       console.error(err);
       Alert.alert('Error', 'Failed to verify issue.');
     }
-  };
-
-  const handleReverify = (checklist: VerificationChecklist, slaDate: string) => {
-    const newUpdate: IssueUpdate = {
-      id: `upd-${Date.now()}`,
-      issueId: mappedIssue!.id,
-      status: 'verified',
-      comment:
-        'Re-opened issue re-verified after citizen review. Assigned back for further action.',
-      role: 'UnitOfficer',
-      attachments: [],
-      updatedBy: 'uo-1',
-      scope: 'field_and_citizen',
-      createdAt: new Date().toISOString(),
-    };
-    console.log('Issue Update:', newUpdate);
-    console.log('Verification Checklist', {
-      status: 'Verified',
-      verificationChecklist: checklist,
-      slaDeadline: slaDate,
-    });
-    Alert.alert('Re-verified', 'Issue has been re-verified and is ready for re-assignment.');
   };
 
   const handleReject = async (reason: RejectionReason, reasonComment: string) => {
@@ -642,17 +628,7 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
         reason: reason,
         comment: reasonComment,
         UOName: user.name,
-        rejectedBy: user.id as Id<'users'>,
-        issueName: issue.title,
-        reporterId: issue.reportedBy as Id<'users'>,
-      });
-
-      console.log('Rejection of Issue:', {
-        issueId: issue._id,
-        issueCode: issue.issueCode,
-        reason: reason,
-        comment: reasonComment,
-        UOName: user.name,
+        status: issue.status,
         rejectedBy: user.id as Id<'users'>,
         issueName: issue.title,
         reporterId: issue.reportedBy as Id<'users'>,
@@ -662,7 +638,6 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
       setTimeout(() => {
         Alert.alert('Rejected', 'Issue has been rejected.');
       }, 300);
-      
     } catch (error) {
       console.error('Error rejecting issue:', error);
       Alert.alert('Error', 'Failed to reject issue.');
@@ -671,42 +646,55 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
     }
   };
 
-  const handleAssign = (officerId: string) => {
-    const officer = mockFieldOfficers.find((o) => o.id === officerId);
-    if (!officer || !mappedIssue) return;
+  const handleAssign = async (officerId: string) => {
+    if (!assignedFO) return;
+
+    const officer = assignedFO.find((o) => o?._id === officerId);
+    if (!officer || !mappedIssue || !user) return;
 
     const isReassign = assignModalMode === 'reassign';
-    const previousOfficer = 'Rekha Devi';
-    // const previousOfficer = mappedIssue.assignedOfficer;
+    const previousOfficer = mappedIssue.assignedOfficer;
 
-    const timelineEntry: IssueUpdate = {
-      id: `upd-${Date.now()}`,
-      issueId: mappedIssue.id,
-      status: 'assigned',
-      comment: isReassign
-        ? `Issue reassigned from ${previousOfficer ?? 'previous officer'} to ${officer.name}.${pendingReassignMeta?.reason ? ` Reason: ${pendingReassignMeta.reason}.` : ''}${pendingReassignMeta?.comment ? ` ${pendingReassignMeta.comment}` : ''}`
-        : `Issue assigned to field officer ${officer.name} (Rating: ${officer.rating.toFixed(1)}, Success Rate: ${officer.successRate}%).`,
-      role: 'UnitOfficer',
-      attachments: [],
-      updatedBy: 'Unit Officer',
-      scope: 'field_and_citizen',
-      createdAt: new Date().toISOString(),
-    };
+    try {
+      await assignIssueToFieldOfficer({
+        issueId: mappedIssue.id,
+        fieldOfficerId: officer._id as Id<'fieldOfficers'>,
+        assignedBy: user.id as Id<'users'>,
 
-    console.log('Issue Update:', timelineEntry);
+        issueTitle: mappedIssue.title,
+        issueCode: mappedIssue.issueCode,
 
-    console.log('Assignment', {
-      status: 'Assigned',
-      assignedOfficer: 'Rekha Devi',
-      assignedOfficerId: 'fo-8',
-      ...(isReassign && pendingReassignMeta
-        ? {
-            reassignmentReason: pendingReassignMeta.reason as any,
-            reassignmentComment: pendingReassignMeta.comment,
-          }
-        : {}),
-    });
+        isReassign,
+        previousFieldOfficerName: previousOfficer?.fullName ?? undefined,
+        reassignmentReason: pendingReassignMeta?.reason,
+        reassignmentComment: pendingReassignMeta?.comment,
+      });
 
+      console.log('FO Assignment and Reassignment Details', {
+        issueId: mappedIssue.id,
+        fieldOfficerId: officer._id as Id<'fieldOfficers'>,
+        assignedBy: user.id as Id<'users'>,
+
+        issueTitle: mappedIssue.title,
+        issueCode: mappedIssue.issueCode,
+
+        isReassign,
+        previousFieldOfficerName: previousOfficer ?? undefined,
+        reassignmentReason: pendingReassignMeta?.reason,
+        reassignmentComment: pendingReassignMeta?.comment,
+      });
+
+      // Optional: UI feedback
+      Alert.alert(
+        isReassign ? 'Reassigned' : 'Assigned',
+        `Issue successfully ${isReassign ? 'reassigned' : 'assigned'} to ${officer.fullName}`
+      );
+    } catch (err) {
+      console.error(err);
+      Alert.alert('Error', 'Failed to assign issue');
+    }
+
+    // Reset UI
     setPendingReassignMeta(null);
     setAssignModalMode('assign');
     setShowAssignModal(false);
@@ -829,8 +817,6 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
         updateAttachments.map((file) => uploadFileToConvex(file))
       );
 
-      console.log('Uploaded Storage ID:', uploadedStorageIds);
-
       // Create Issue Update with storageIds
       await createIssueUpdate({
         issueId: issue?._id as Id<'issues'>,
@@ -923,9 +909,7 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
     );
   }
 
-  const assignedOfficerData = mappedIssue.assignedOfficerId
-    ? mockFieldOfficers.find((o) => o.id === mappedIssue.assignedOfficerId)
-    : null;
+  const assignedOfficerData = mappedIssue.assignedOfficer;
 
   const statusDotColor = STATUS_DOT_COLORS[mappedIssue.status] ?? '#94A3B8';
   const catColor = CATEGORY_COLORS[mappedIssue.category] ?? CATEGORY_COLORS['Pothole'];
@@ -1231,153 +1215,151 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
                 })()}
 
               {/* Assigned Officer card */}
-              {mappedIssue && (
-                // Change the above to this:
-                // {mappedIssue.assignedOfficer && (
-                // <View
-                //   className="mt-3 overflow-hidden rounded-2xl border border-teal-200 dark:border-teal-700/50"
-                //   style={styles.officerCard}>
-                //   <LinearGradient
-                //     colors={isDark ? ['#0d3330', '#0f172a'] : ['#f0fdfa', '#e6fffa']}
-                //     start={{ x: 0, y: 0 }}
-                //     end={{ x: 1, y: 1 }}
-                //     style={styles.officerGradient}>
-                //     {/* Top row */}
-                //     <View className="flex-row items-start gap-3">
-                //       {/* Avatar */}
-                //       <View style={styles.officerAvatar}>
-                //         {assignedOfficerData?.avatar ? (
-                //           <Image
-                //             source={{ uri: assignedOfficerData.avatar }}
-                //             style={styles.officerAvatarImg}
-                //           />
-                //         ) : (
-                //           <View
-                //             className="h-full w-full items-center justify-center"
-                //             style={{ backgroundColor: isDark ? '#134E4A' : '#CCFBF1' }}>
-                //             <UserCheck
-                //               color={isDark ? '#5EEAD4' : '#0F766E'}
-                //               size={22}
-                //               strokeWidth={2.5}
-                //             />
-                //           </View>
-                //         )}
-                //       </View>
+              {mappedIssue.assignedOfficer && (
+                <View
+                  className="mt-3 overflow-hidden rounded-2xl border border-teal-200 dark:border-teal-700/50"
+                  style={styles.officerCard}>
+                  <LinearGradient
+                    colors={isDark ? ['#0d3330', '#0f172a'] : ['#f0fdfa', '#e6fffa']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.officerGradient}>
+                    {/* Top row */}
+                    <View className="flex-row items-start gap-3">
+                      {/* Avatar */}
+                      <View style={styles.officerAvatar}>
+                        {assignedOfficerData?.avatar ? (
+                          <Image
+                            source={{ uri: assignedOfficerData.avatar }}
+                            style={styles.officerAvatarImg}
+                          />
+                        ) : (
+                          <View
+                            className="h-full w-full items-center justify-center"
+                            style={{ backgroundColor: isDark ? '#134E4A' : '#CCFBF1' }}>
+                            <UserCheck
+                              color={isDark ? '#5EEAD4' : '#0F766E'}
+                              size={22}
+                              strokeWidth={2.5}
+                            />
+                          </View>
+                        )}
+                      </View>
 
-                //       <View className="flex-1">
-                //         {/* <Text className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-teal-600 dark:text-teal-400">
-                //           Assigned Officer
-                //         </Text>
-                //         <Text className="mb-1 text-[16px] font-extrabold text-teal-800 dark:text-teal-200">
-                //           {mappedIssue.assignedOfficer}
-                //         </Text> */}
+                      <View className="flex-1">
+                        <Text className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-teal-600 dark:text-teal-400">
+                          Assigned Officer
+                        </Text>
+                        <Text className="mb-1 text-[16px] font-extrabold text-teal-800 dark:text-teal-200">
+                          {assignedOfficerData?.fullName}
+                        </Text>
 
-                //         {/* Stats row */}
-                //         {/* {assignedOfficerData && (
-                //           <View className="flex-row items-center gap-3">
-                //             <View className="flex-row items-center gap-1">
-                //               <Star color="#F59E0B" size={12} fill="#F59E0B" strokeWidth={2} />
-                //               <Text className="text-[12px] font-bold text-amber-500">
-                //                 {assignedOfficerData.rating.toFixed(1)}
-                //               </Text>
-                //             </View>
-                //             <View className="flex-row items-center gap-1">
-                //               <TrendingUp
-                //                 color={isDark ? '#10B981' : '#059669'}
-                //                 size={12}
-                //                 strokeWidth={2.5}
-                //               />
-                //               <Text className="text-[12px] font-semibold text-emerald-600 dark:text-emerald-400">
-                //                 {assignedOfficerData.successRate}%
-                //               </Text>
-                //             </View>
-                //             <View className="flex-row items-center gap-1">
-                //               <Briefcase
-                //                 color={isDark ? '#6B7280' : '#9CA3AF'}
-                //                 size={11}
-                //                 strokeWidth={2}
-                //               />
-                //               <Text className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-                //                 {assignedOfficerData.activeIssues} active
-                //               </Text>
-                //             </View>
-                //           </View>
-                //         )} */}
-                //       </View>
+                        {/* Stats row */}
+                        {assignedOfficerData && (
+                          <View className="flex-row items-center gap-3">
+                            <View className="flex-row items-center gap-1">
+                              <Star color="#F59E0B" size={12} fill="#F59E0B" strokeWidth={2} />
+                              <Text className="text-[12px] font-bold text-amber-500">
+                                {assignedOfficerData.rating.toFixed(1)}
+                              </Text>
+                            </View>
+                            <View className="flex-row items-center gap-1">
+                              <TrendingUp
+                                color={isDark ? '#10B981' : '#059669'}
+                                size={12}
+                                strokeWidth={2.5}
+                              />
+                              <Text className="text-[12px] font-semibold text-emerald-600 dark:text-emerald-400">
+                                {assignedOfficerData?.efficiencyScore}%
+                              </Text>
+                            </View>
+                            <View className="flex-row items-center gap-1">
+                              <Briefcase
+                                color={isDark ? '#6B7280' : '#9CA3AF'}
+                                size={11}
+                                strokeWidth={2}
+                              />
+                              <Text className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                                {assignedOfficerData?.currentActiveIssues} active
+                              </Text>
+                            </View>
+                          </View>
+                        )}
+                      </View>
 
-                //       {(mappedIssue.status === 'Assigned' || mappedIssue.status === 'In Progress') && (
-                //         <TouchableOpacity
-                //           onPress={() => setShowReassignModal(true)}
-                //           activeOpacity={0.75}
-                //           className="h-10 w-10 items-center justify-center rounded-xl border border-amber-200 bg-amber-100 dark:border-amber-700/50 dark:bg-amber-900/40">
-                //           <RefreshCw color="#D97706" size={17} strokeWidth={2.5} />
-                //         </TouchableOpacity>
-                //       )}
-                //     </View>
+                      {(mappedIssue.status === 'assigned' ||
+                        mappedIssue.status === 'in_progress') && (
+                        <TouchableOpacity
+                          onPress={() => setShowReassignModal(true)}
+                          activeOpacity={0.75}
+                          className="h-10 w-10 items-center justify-center rounded-xl border border-amber-200 bg-amber-100 dark:border-amber-700/50 dark:bg-amber-900/40">
+                          <RefreshCw color="#D97706" size={17} strokeWidth={2.5} />
+                        </TouchableOpacity>
+                      )}
+                    </View>
 
-                //     {/* Specialisations */}
-                //     {assignedOfficerData?.specializations &&
-                //       assignedOfficerData.specializations.length > 0 && (
-                //         <View className="mt-3 flex-row flex-wrap gap-1.5">
-                //           {assignedOfficerData.specializations.map((spec, i) => (
-                //             <View
-                //               key={i}
-                //               className="rounded-full px-2.5 py-1"
-                //               style={{
-                //                 backgroundColor: isDark ? '#0C2A3F' : '#EFF6FF',
-                //                 borderWidth: 1,
-                //                 borderColor: isDark ? '#1E3A5F' : '#BFDBFE',
-                //               }}>
-                //               <Text className="text-[11px] font-bold text-blue-600 dark:text-blue-300">
-                //                 {spec}
-                //               </Text>
-                //             </View>
-                //           ))}
-                //         </View>
-                //       )}
+                    {/* Specialisations */}
+                    {assignedOfficerData?.specialisations &&
+                      assignedOfficerData.specialisations.length > 0 && (
+                        <View className="mt-3 flex-row flex-wrap gap-1.5">
+                          {assignedOfficerData.specialisations.map((spec, i) => (
+                            <View
+                              key={i}
+                              className="rounded-full px-2.5 py-1"
+                              style={{
+                                backgroundColor: isDark ? '#0C2A3F' : '#EFF6FF',
+                                borderWidth: 1,
+                                borderColor: isDark ? '#1E3A5F' : '#BFDBFE',
+                              }}>
+                              <Text className="text-[11px] font-bold text-blue-600 dark:text-blue-300">
+                                {spec}
+                              </Text>
+                            </View>
+                          ))}
+                        </View>
+                      )}
 
-                //     {/* Workload bar */}
-                //     {assignedOfficerData && (
-                //       <View className="mt-3">
-                //         <View className="mb-1.5 flex-row items-center justify-between">
-                //           <Text className="text-[11px] font-semibold text-teal-700 dark:text-teal-400">
-                //             Current Workload
-                //           </Text>
-                //           <Text
-                //             className="text-[12px] font-extrabold"
-                //             style={{
-                //               color:
-                //                 assignedOfficerData.workloadPercentage >= 85
-                //                   ? '#EF4444'
-                //                   : assignedOfficerData.workloadPercentage >= 55
-                //                     ? '#F59E0B'
-                //                     : '#10B981',
-                //             }}>
-                //             {assignedOfficerData.workloadPercentage}%
-                //           </Text>
-                //         </View>
-                //         <View
-                //           className="h-1.5 overflow-hidden rounded-full"
-                //           style={{ backgroundColor: isDark ? '#1E293B' : '#CCFBF1' }}>
-                //           <View
-                //             style={{
-                //               width: `${Math.min(assignedOfficerData.workloadPercentage, 100)}%`,
-                //               height: '100%',
-                //               backgroundColor:
-                //                 assignedOfficerData.workloadPercentage >= 85
-                //                   ? '#EF4444'
-                //                   : assignedOfficerData.workloadPercentage >= 55
-                //                     ? '#F59E0B'
-                //                     : '#10B981',
-                //               borderRadius: 99,
-                //             }}
-                //           />
-                //         </View>
-                //       </View>
-                //     )}
-                //   </LinearGradient>
-                // </View>
-                <></>
+                    {/* Workload bar */}
+                    {assignedOfficerData && (
+                      <View className="mt-3">
+                        <View className="mb-1.5 flex-row items-center justify-between">
+                          <Text className="text-[11px] font-semibold text-teal-700 dark:text-teal-400">
+                            Current Workload
+                          </Text>
+                          <Text
+                            className="text-[12px] font-extrabold"
+                            style={{
+                              color:
+                                assignedOfficerData.workloadPercentage >= 85
+                                  ? '#EF4444'
+                                  : assignedOfficerData.workloadPercentage >= 55
+                                    ? '#F59E0B'
+                                    : '#10B981',
+                            }}>
+                            {assignedOfficerData.workloadPercentage.toFixed(2)}%
+                          </Text>
+                        </View>
+                        <View
+                          className="h-1.5 overflow-hidden rounded-full"
+                          style={{ backgroundColor: isDark ? '#1E293B' : '#CCFBF1' }}>
+                          <View
+                            style={{
+                              width: `${Math.min(assignedOfficerData.workloadPercentage, 100)}%`,
+                              height: '100%',
+                              backgroundColor:
+                                assignedOfficerData.workloadPercentage >= 85
+                                  ? '#EF4444'
+                                  : assignedOfficerData.workloadPercentage >= 55
+                                    ? '#F59E0B'
+                                    : '#10B981',
+                              borderRadius: 99,
+                            }}
+                          />
+                        </View>
+                      </View>
+                    )}
+                  </LinearGradient>
+                </View>
               )}
             </View>
           </SectionCard>
@@ -1946,7 +1928,7 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
               icon={<Send color={isDark ? '#94A3B8' : '#64748B'} size={16} strokeWidth={2.5} />}
             />
             <View className="gap-4 px-5 py-4">
-              {/* Premium Scope Selector */}
+              {/* Scope Selector */}
               <View>
                 <Text className="mb-2.5 ml-1 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
                   Visibility Scope
@@ -2212,7 +2194,7 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
           </SectionCard>
         )} */}
 
-          {/* VERIFICATION (Pending) */}
+          {/* Issue Verification & Rejection (Pending) */}
           {mappedIssue.status === 'pending' && (
             <SectionCard>
               <View className="flex-row border-b border-slate-100 dark:border-slate-700">
@@ -2292,166 +2274,171 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
             </SectionCard>
           )}
 
-          {/* RE-VERIFICATION (Reopened) */}
-          {mappedIssue.status === 'Reopened' && (
-            // <SectionCard>
-            //   {/* Reopened context banner */}
-            //   <View className="mx-5 mb-4 mt-5 overflow-hidden rounded-2xl">
-            //     <LinearGradient
-            //       colors={isDark ? ['#4a1938', '#2d1040'] : ['#fdf2f8', '#fce7f3']}
-            //       start={{ x: 0, y: 0 }}
-            //       end={{ x: 1, y: 1 }}
-            //       style={{
-            //         flexDirection: 'row',
-            //         alignItems: 'flex-start',
-            //         gap: 12,
-            //         padding: 14,
-            //         borderRadius: 16,
-            //         borderWidth: 1,
-            //         borderColor: isDark ? '#7c3a60' : '#f9a8d4',
-            //       }}>
-            //       <View
-            //         style={{
-            //           width: 36,
-            //           height: 36,
-            //           borderRadius: 10,
-            //           backgroundColor: isDark ? '#7c1d4a' : '#fce7f3',
-            //           alignItems: 'center',
-            //           justifyContent: 'center',
-            //         }}>
-            //         <RotateCcw color="#EC4899" size={17} strokeWidth={2.5} />
-            //       </View>
-            //       <View style={{ flex: 1 }}>
-            //         <Text
-            //           style={{
-            //             fontSize: 12,
-            //             fontWeight: '800',
-            //             color: '#EC4899',
-            //             letterSpacing: 0.8,
-            //             marginBottom: 3,
-            //           }}>
-            //           ISSUE RE-OPENED BY CITIZEN
-            //         </Text>
-            //         <Text
-            //           style={{
-            //             fontSize: 13,
-            //             color: isDark ? '#f9a8d4' : '#be185d',
-            //             lineHeight: 18,
-            //             fontWeight: '500',
-            //           }}>
-            //           The citizen has re-opened this issue. Review the original concern and re-verify
-            //           to reassign for resolution.
-            //         </Text>
-            //       </View>
-            //     </LinearGradient>
-            //   </View>
+          {/* Issue Re-Verification & Re-Rejection (Reopened) */}
+          {mappedIssue.status === 'reopened' && (
+            <SectionCard>
+              {/* Reopened context banner */}
+              <View className="mx-5 mb-4 mt-5 overflow-hidden rounded-2xl">
+                <LinearGradient
+                  colors={isDark ? ['#4a1938', '#2d1040'] : ['#fdf2f8', '#fce7f3']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'flex-start',
+                    gap: 12,
+                    padding: 14,
+                    borderRadius: 16,
+                    borderWidth: 1,
+                    borderColor: isDark ? '#7c3a60' : '#f9a8d4',
+                  }}>
+                  <View
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 10,
+                      backgroundColor: isDark ? '#7c1d4a' : '#fce7f3',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}>
+                    <RotateCcw color="#EC4899" size={17} strokeWidth={2.5} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        fontWeight: '800',
+                        color: '#EC4899',
+                        letterSpacing: 0.8,
+                        marginBottom: 3,
+                      }}>
+                      ISSUE RE-OPENED BY CITIZEN
+                    </Text>
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        color: isDark ? '#f9a8d4' : '#be185d',
+                        lineHeight: 18,
+                        fontWeight: '500',
+                      }}>
+                      The citizen has re-opened this issue. Review the original concern and
+                      re-verify to reassign for resolution.
+                    </Text>
+                  </View>
+                </LinearGradient>
+              </View>
 
-            //   {/* Re-verification tabs — same UI as Pending */}
-            //   <View className="flex-row border-b border-slate-100 dark:border-slate-700">
-            //     <TouchableOpacity
-            //       onPress={() => setVerificationTab('verify')}
-            //       activeOpacity={0.75}
-            //       className={`flex-1 flex-row items-center justify-center gap-2 border-b-[3px] py-4 ${
-            //         verificationTab === 'verify' ? 'border-emerald-500' : 'border-transparent'
-            //       }`}>
-            //       <CheckCircle
-            //         color={verificationTab === 'verify' ? '#10B981' : isDark ? '#475569' : '#9CA3AF'}
-            //         size={18}
-            //         strokeWidth={2.5}
-            //       />
-            //       <Text
-            //         className={`text-[14px] font-bold ${
-            //           verificationTab === 'verify'
-            //             ? 'text-emerald-600 dark:text-emerald-400'
-            //             : 'text-slate-400 dark:text-slate-500'
-            //         }`}>
-            //         Re-Verify
-            //       </Text>
-            //     </TouchableOpacity>
-            //     <TouchableOpacity
-            //       onPress={() => setVerificationTab('reject')}
-            //       activeOpacity={0.75}
-            //       className={`flex-1 flex-row items-center justify-center gap-2 border-b-[3px] py-4 ${
-            //         verificationTab === 'reject' ? 'border-red-500' : 'border-transparent'
-            //       }`}>
-            //       <XCircle
-            //         color={verificationTab === 'reject' ? '#EF4444' : isDark ? '#475569' : '#9CA3AF'}
-            //         size={18}
-            //         strokeWidth={2.5}
-            //       />
-            //       <Text
-            //         className={`text-[14px] font-bold ${
-            //           verificationTab === 'reject'
-            //             ? 'text-red-500 dark:text-red-400'
-            //             : 'text-slate-400 dark:text-slate-500'
-            //         }`}>
-            //         Reject
-            //       </Text>
-            //     </TouchableOpacity>
-            //   </View>
+              {/* Re-verification tabs — same UI as Pending */}
+              <View className="flex-row border-b border-slate-100 dark:border-slate-700">
+                <TouchableOpacity
+                  onPress={() => setVerificationTab('verify')}
+                  activeOpacity={0.75}
+                  className={`flex-1 flex-row items-center justify-center gap-2 border-b-[3px] py-4 ${
+                    verificationTab === 'verify' ? 'border-emerald-500' : 'border-transparent'
+                  }`}>
+                  <CheckCircle
+                    color={
+                      verificationTab === 'verify' ? '#10B981' : isDark ? '#475569' : '#9CA3AF'
+                    }
+                    size={18}
+                    strokeWidth={2.5}
+                  />
+                  <Text
+                    className={`text-[14px] font-bold ${
+                      verificationTab === 'verify'
+                        ? 'text-emerald-600 dark:text-emerald-400'
+                        : 'text-slate-400 dark:text-slate-500'
+                    }`}>
+                    Re-Verify
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setVerificationTab('reject')}
+                  activeOpacity={0.75}
+                  className={`flex-1 flex-row items-center justify-center gap-2 border-b-[3px] py-4 ${
+                    verificationTab === 'reject' ? 'border-red-500' : 'border-transparent'
+                  }`}>
+                  <XCircle
+                    color={
+                      verificationTab === 'reject' ? '#EF4444' : isDark ? '#475569' : '#9CA3AF'
+                    }
+                    size={18}
+                    strokeWidth={2.5}
+                  />
+                  <Text
+                    className={`text-[14px] font-bold ${
+                      verificationTab === 'reject'
+                        ? 'text-red-500 dark:text-red-400'
+                        : 'text-slate-400 dark:text-slate-500'
+                    }`}>
+                    Reject
+                  </Text>
+                </TouchableOpacity>
+              </View>
 
-            //   {verificationTab === 'verify' ? (
-            //     <VerificationFlow
-            //       onVerify={handleReverify}
-            //       onReject={() => setVerificationTab('reject')}
-            //     />
-            //   ) : (
-            //     <View className="bg-red-50 p-5 dark:bg-red-900/10">
-            //       <View className="mb-2 flex-row items-center gap-2">
-            //         <AlertTriangle color="#DC2626" size={18} strokeWidth={2.5} />
-            //         <Text className="text-[17px] font-extrabold text-slate-800 dark:text-slate-100">
-            //           Reject Re-opened Issue
-            //         </Text>
-            //       </View>
-            //       <Text className="mb-5 text-[13px] leading-5 text-slate-500 dark:text-slate-400">
-            //         Reject the citizen's re-open request if the concern is invalid or already
-            //         resolved. The citizen will be notified.
-            //       </Text>
-            //       <TouchableOpacity
-            //         onPress={() => setShowRejectionModal(true)}
-            //         activeOpacity={0.85}
-            //         className="flex-row items-center justify-center gap-2 rounded-2xl bg-red-500 py-4 dark:bg-red-600">
-            //         <XCircle color="#FFFFFF" size={19} strokeWidth={2.5} />
-            //         <Text className="text-[15px] font-bold text-white">Select Rejection Reason</Text>
-            //       </TouchableOpacity>
-            //     </View>
-            //   )}
-            // </SectionCard>
-            <></>
+              {verificationTab === 'verify' ? (
+                <VerificationFlow
+                  onVerify={handleVerify}
+                  onReject={() => setVerificationTab('reject')}
+                />
+              ) : (
+                <View className="bg-red-50 p-5 dark:bg-red-900/10">
+                  <View className="mb-2 flex-row items-center gap-2">
+                    <AlertTriangle color="#DC2626" size={18} strokeWidth={2.5} />
+                    <Text className="text-[17px] font-extrabold text-slate-800 dark:text-slate-100">
+                      Reject Re-opened Issue
+                    </Text>
+                  </View>
+                  <Text className="mb-5 text-[13px] leading-5 text-slate-500 dark:text-slate-400">
+                    Reject the citizen's re-open request if the concern is invalid or already
+                    resolved. The citizen will be notified.
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => setShowRejectionModal(true)}
+                    activeOpacity={0.85}
+                    className="flex-row items-center justify-center gap-2 rounded-2xl bg-red-500 py-4 dark:bg-red-600">
+                    <XCircle color="#FFFFFF" size={19} strokeWidth={2.5} />
+                    <Text className="text-[15px] font-bold text-white">
+                      Select Rejection Reason
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </SectionCard>
           )}
 
           {/* ASSIGN OFFICER (Verified) */}
           {mappedIssue.status === 'verified' && (
-            // <SectionCard>
-            //   <View className="p-5">
-            //     <View className="mb-1 flex-row items-center gap-2">
-            //       <UserCheck color="#0D9488" size={18} strokeWidth={2.5} />
-            //       <Text className="text-[17px] font-extrabold text-slate-800 dark:text-slate-100">
-            //         Assign Field Officer
-            //       </Text>
-            //     </View>
-            //     <Text className="mb-5 text-[13px] text-slate-500 dark:text-slate-400">
-            //       Issue is verified. Assign a field officer to begin work.
-            //     </Text>
-            //     <TouchableOpacity
-            //       onPress={() => setShowAssignModal(true)}
-            //       activeOpacity={0.85}
-            //       style={styles.actionBtn}>
-            //       <LinearGradient
-            //         colors={['#0D9488', '#0891B2']}
-            //         start={{ x: 0, y: 0 }}
-            //         end={{ x: 1, y: 0 }}
-            //         style={styles.actionBtnGradient}>
-            //         <UserCheck color="#FFFFFF" size={19} strokeWidth={2.5} />
-            //         <Text className="text-[15px] font-bold text-white">Assign to Officer</Text>
-            //         <ChevronRight color="rgba(255,255,255,0.7)" size={18} strokeWidth={2.5} />
-            //       </LinearGradient>
-            //     </TouchableOpacity>
-            //   </View>
-            // </SectionCard>
-            <>
-              <Text>Assigned Officer </Text>
-            </>
+            <SectionCard>
+              <View className="p-5">
+                <View className="mb-1 flex-row items-center gap-2">
+                  <UserCheck color="#0D9488" size={18} strokeWidth={2.5} />
+                  <Text className="text-[17px] font-extrabold text-slate-800 dark:text-slate-100">
+                    Assign Field Officer
+                  </Text>
+                </View>
+                <Text className="mb-5 text-[13px] text-slate-500 dark:text-slate-400">
+                  Issue is verified. Assign a field officer to begin work.
+                </Text>
+                <TouchableOpacity
+                  onPress={() => setShowAssignModal(true)}
+                  activeOpacity={0.85}
+                  style={styles.actionBtn}>
+                  <LinearGradient
+                    colors={['#0D9488', '#0891B2']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.actionBtnGradient}>
+                    <UserCheck color="#FFFFFF" size={19} strokeWidth={2.5} />
+                    <Text className="text-[15px] font-bold text-white">Assign to Officer</Text>
+                    <ChevronRight color="rgba(255,255,255,0.7)" size={18} strokeWidth={2.5} />
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            </SectionCard>
+            // <>
+            //   <Text>Assigned Officer </Text>
+            // </>
           )}
 
           {/* IN PROGRESS */}
@@ -2475,7 +2462,7 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
           )}
 
           {/* RESOLUTION */}
-          {mappedIssue.status === 'Assigned' && mappedIssue.afterPhotos && (
+          {mappedIssue.status === 'assigned' && mappedIssue.afterPhotos && (
             // <SectionCard>
             //   <View className="p-5">
             //     <Text className="mb-1 text-[17px] font-extrabold text-slate-800 dark:text-slate-100">
@@ -2556,30 +2543,37 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
           )}
         </ScrollView>
 
-        {/* <AssignOfficerModal
-        visible={showAssignModal}
-        onClose={() => {
-          setShowAssignModal(false);
-          setPendingReassignMeta(null);
-          setAssignModalMode('assign');
-        }}
-        officers={mockFieldOfficers}
-        onAssign={handleAssign}
-        mode={assignModalMode}
-        currentOfficerName={mappedIssue.assignedOfficer}
-      /> */}
+        {assignedFO && (
+          <AssignOfficerModal
+            visible={showAssignModal}
+            onClose={() => {
+              setShowAssignModal(false);
+              setPendingReassignMeta(null);
+              setAssignModalMode('assign');
+            }}
+            officers={assignedFO}
+            onAssign={handleAssign}
+            mode={assignModalMode}
+            currentOfficerName={mappedIssue.assignedOfficer?.fullName || ''}
+            currentOfficerId={mappedIssue.assignedOfficer?._id}
+          />
+        )}
+
         <RejectionModal
           visible={showRejectionModal}
+          // @ts-ignore
+          issue={issue}
           onClose={() => setShowRejectionModal(false)}
           onReject={handleReject}
         />
-        {/* <ReassignmentModal
-        visible={showReassignModal}
-        onClose={() => setShowReassignModal(false)}
-        onConfirm={handleReassign}
-        issueTitle={mappedIssue.title}
-        currentOfficer={mappedIssue.assignedOfficer || ''}
-      /> */}
+
+        <ReassignmentModal
+          visible={showReassignModal}
+          onClose={() => setShowReassignModal(false)}
+          onConfirm={handleReassign}
+          issueTitle={mappedIssue.title}
+          currentOfficer={mappedIssue.assignedOfficer?.fullName || ''}
+        />
 
         {/* Attachment picker bottom sheet */}
         <Modal

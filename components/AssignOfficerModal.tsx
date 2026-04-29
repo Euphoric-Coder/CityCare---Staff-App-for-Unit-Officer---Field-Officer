@@ -10,6 +10,7 @@ import {
   useColorScheme,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native';
 import {
   X,
@@ -44,7 +45,8 @@ function getInitials(name: string) {
     .slice(0, 2);
 }
 
-function WorkloadBar({ pct, isDark }: { pct: number; isDark: boolean }) {
+function WorkloadBar({ active, max, isDark }: { active: number; max: number; isDark: boolean }) {
+  const pct = (active / max) * 100;
   const color = pct >= 85 ? '#EF4444' : pct >= 55 ? '#F59E0B' : '#10B981';
   return (
     <View className="mt-2.5">
@@ -79,6 +81,7 @@ export default function AssignOfficerModal({
   onAssign,
   mode = 'assign',
   currentOfficerName,
+  currentOfficerId,
 }: AssignOfficerModalProps) {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
@@ -90,13 +93,20 @@ export default function AssignOfficerModal({
   const sorted = [...officers].sort((a, b) => {
     if (sortBy === 'rating') return b.rating - a.rating;
     if (sortBy === 'workload') return a.workloadPercentage - b.workloadPercentage;
-    return b.successRate - a.successRate;
+    return b.efficiencyScore - a.efficiencyScore;
   });
 
-  const selectedOfficer = officers.find((o) => o.id === selectedId);
+  const selectedOfficer = officers.find((o) => o._id === selectedId);
 
   const handleConfirm = () => {
     if (!selectedId) return;
+    if (currentOfficerId === selectedId) {
+      // Same officer selected
+      Alert.alert('Already Assigned', `This issue is already assigned to ${currentOfficerName}`);
+      setSelectedId(null);
+      setShowConfirm(false);
+      return;
+    }
     onAssign(selectedId);
     setSelectedId(null);
     setShowConfirm(false);
@@ -167,12 +177,12 @@ export default function AssignOfficerModal({
                           className="h-9 w-9 items-center justify-center rounded-full"
                           style={{ backgroundColor: isDark ? '#134E4A' : '#CCFBF1' }}>
                           <Text className="text-[13px] font-extrabold text-teal-600 dark:text-teal-300">
-                            {getInitials(selectedOfficer.name)}
+                            {getInitials(selectedOfficer.fullName)}
                           </Text>
                         </View>
                       )}
                       <Text className="text-[16px] font-extrabold text-slate-700 dark:text-slate-200">
-                        {selectedOfficer.name}
+                        {selectedOfficer.fullName}
                       </Text>
                     </View>
 
@@ -186,7 +196,7 @@ export default function AssignOfficerModal({
                       <View className="flex-row items-center gap-1">
                         <TrendingUp color="#059669" size={13} strokeWidth={2.5} />
                         <Text className="text-[13px] font-semibold text-emerald-600 dark:text-emerald-400">
-                          {selectedOfficer.successRate}%
+                          {selectedOfficer.efficiencyScore}%
                         </Text>
                       </View>
                       <View className="flex-row items-center gap-1">
@@ -196,7 +206,7 @@ export default function AssignOfficerModal({
                           strokeWidth={2}
                         />
                         <Text className="text-[12px] font-semibold text-slate-500 dark:text-slate-400">
-                          {selectedOfficer.activeIssues} active
+                          {selectedOfficer.currentActiveIssues} active
                         </Text>
                       </View>
                     </View>
@@ -343,31 +353,41 @@ export default function AssignOfficerModal({
             contentContainerStyle={{ padding: 16, paddingBottom: 8 }}
             keyboardShouldPersistTaps="handled">
             {sorted.map((officer) => {
-              const isSelected = selectedId === officer.id;
+              const isSelected = selectedId === officer._id;
+              const isAssigned = officer._id === currentOfficerId;
               const isOverloaded = officer.workloadPercentage >= 100;
 
               return (
                 <TouchableOpacity
-                  key={officer.id}
-                  onPress={() => !isOverloaded && setSelectedId(officer.id)}
-                  activeOpacity={isOverloaded ? 1 : 0.75}
+                  key={officer._id}
+                  onPress={() => !isOverloaded && !isAssigned && setSelectedId(officer._id)}
+                  activeOpacity={isOverloaded || isAssigned ? 1 : 0.75}
                   style={[
                     styles.card,
                     {
-                      backgroundColor: isSelected
+                      backgroundColor: isAssigned
                         ? isDark
-                          ? '#0D3330'
-                          : '#F0FDFA'
-                        : isDark
-                          ? '#1E293B'
-                          : '#FFFFFF',
-                      borderColor: isSelected
+                          ? '#0F172A' // deep slate (not greenish)
+                          : '#EFF6FF' // soft blue
+                        : isSelected
+                          ? isDark
+                            ? '#0D3330'
+                            : '#F0FDFA'
+                          : isDark
+                            ? '#1E293B'
+                            : '#FFFFFF',
+
+                      borderColor: isAssigned
                         ? isDark
-                          ? '#0F766E'
-                          : '#5EEAD4'
-                        : isDark
-                          ? '#334155'
-                          : '#E2E8F0',
+                          ? '#3B82F6' // blue highlight
+                          : '#60A5FA'
+                        : isSelected
+                          ? isDark
+                            ? '#0F766E'
+                            : '#5EEAD4'
+                          : isDark
+                            ? '#334155'
+                            : '#E2E8F0',
                       opacity: isOverloaded ? 0.45 : 1,
                     },
                   ]}>
@@ -382,7 +402,7 @@ export default function AssignOfficerModal({
                           className="h-full w-full items-center justify-center"
                           style={{ backgroundColor: isDark ? '#134E4A' : '#CCFBF1' }}>
                           <Text className="text-[16px] font-extrabold text-teal-600 dark:text-teal-300">
-                            {getInitials(officer.name)}
+                            {getInitials(officer.fullName)}
                           </Text>
                         </View>
                       )}
@@ -396,9 +416,16 @@ export default function AssignOfficerModal({
                         <Text
                           className="mr-2 flex-1 text-[15px] font-extrabold text-slate-800 dark:text-slate-100"
                           numberOfLines={1}>
-                          {officer.name}
+                          {officer.fullName}
                         </Text>
-                        {isOverloaded ? (
+                        {isAssigned ? (
+                          <View
+                            className="flex-row items-center gap-1 rounded-full px-2 py-0.5"
+                            style={{ backgroundColor: isDark ? '#083344' : '#CFFAFE' }}>
+                            <UserCheck color="#06B6D4" size={10} strokeWidth={2.5} />
+                            <Text className="text-[11px] font-bold text-cyan-500">Assigned</Text>
+                          </View>
+                        ) : isOverloaded ? (
                           <View
                             className="flex-row items-center gap-1 rounded-full px-2 py-0.5"
                             style={{ backgroundColor: isDark ? '#450A0A' : '#FEE2E2' }}>
@@ -429,7 +456,7 @@ export default function AssignOfficerModal({
                             strokeWidth={2.5}
                           />
                           <Text className="text-[12px] font-semibold text-emerald-600 dark:text-emerald-400">
-                            {officer.successRate}%
+                            {officer.efficiencyScore}%
                           </Text>
                         </View>
                         <View className="flex-row items-center gap-1">
@@ -439,7 +466,7 @@ export default function AssignOfficerModal({
                             strokeWidth={2}
                           />
                           <Text className="text-[12px] font-semibold text-slate-500 dark:text-slate-400">
-                            {officer.activeIssues} active
+                            {officer.currentActiveIssues} active
                           </Text>
                         </View>
                       </View>
@@ -447,9 +474,9 @@ export default function AssignOfficerModal({
                   </View>
 
                   {/* Specialisations */}
-                  {officer.specializations && officer.specializations.length > 0 && (
+                  {officer.specialisations && officer.specialisations.length > 0 && (
                     <View className="mt-3 flex-row flex-wrap gap-1.5">
-                      {officer.specializations.map((spec, i) => (
+                      {officer.specialisations.map((spec, i) => (
                         <View
                           key={i}
                           className="rounded-full px-2.5 py-1"
@@ -467,7 +494,11 @@ export default function AssignOfficerModal({
                   )}
 
                   {/* Workload bar */}
-                  <WorkloadBar pct={officer.workloadPercentage} isDark={isDark} />
+                  <WorkloadBar
+                    active={officer.currentActiveIssues}
+                    max={officer.maxIssueCapacity}
+                    isDark={isDark}
+                  />
                 </TouchableOpacity>
               );
             })}

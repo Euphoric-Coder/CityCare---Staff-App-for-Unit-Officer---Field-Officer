@@ -13,23 +13,20 @@ import {
   Image,
   useColorScheme,
   Dimensions,
+  Easing,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
-  Shield,
   Mail,
   Lock,
-  CheckCircle,
-  Building2,
   ArrowRight,
-  LogIn,
   Briefcase,
   HardHat,
   Eye,
   EyeOff,
-  Sparkles,
+  AlertCircle,
   CheckCircle2,
 } from 'lucide-react-native';
 import { User } from '../lib/auth';
@@ -55,42 +52,62 @@ export default function SignInScreen({ onSignIn }: SignInScreenProps) {
   const [error, setError] = useState('');
   const [focusedField, setFocusedField] = useState<string | null>(null);
 
+  // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(60)).current;
-  const cardAnim = useRef(new Animated.Value(0)).current;
-  const headerAnim = useRef(new Animated.Value(0)).current;
-  const blob1Anim = useRef(new Animated.Value(0)).current;
-  const blob2Anim = useRef(new Animated.Value(0)).current;
-  const shimmerAnim = useRef(new Animated.Value(0)).current;
-  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const slideAnim = useRef(new Animated.Value(40)).current;
+  const scaleAnim = useRef(new Animated.Value(0.95)).current;
+
+  // Background Orbs Animations
+  const orb1Anim = useRef(new Animated.Value(0)).current;
+  const orb2Anim = useRef(new Animated.Value(0)).current;
+  const orb3Anim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.sequence([
-      Animated.parallel([
-        Animated.timing(blob1Anim, { toValue: 1, duration: 900, useNativeDriver: true }),
-        Animated.timing(blob2Anim, { toValue: 1, duration: 1100, useNativeDriver: true }),
-      ]),
-      Animated.parallel([
-        Animated.timing(headerAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
-        Animated.spring(slideAnim, { toValue: 0, tension: 45, friction: 8, useNativeDriver: true }),
-        Animated.timing(fadeAnim, { toValue: 1, duration: 700, useNativeDriver: true }),
-      ]),
-      Animated.timing(cardAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
+    // Initial entry animation
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+        easing: Easing.out(Easing.cubic),
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 800,
+        useNativeDriver: true,
+        easing: Easing.out(Easing.cubic),
+      }),
+      Animated.timing(scaleAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+        easing: Easing.out(Easing.cubic),
+      }),
     ]).start();
 
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(shimmerAnim, { toValue: 1, duration: 2200, useNativeDriver: true }),
-        Animated.timing(shimmerAnim, { toValue: 0, duration: 2200, useNativeDriver: true }),
-      ])
-    ).start();
+    // Continuous Orb Animations
+    const loopOrb = (anim: Animated.Value, duration: number) => {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(anim, {
+            toValue: 1,
+            duration: duration,
+            useNativeDriver: true,
+            easing: Easing.inOut(Easing.sin),
+          }),
+          Animated.timing(anim, {
+            toValue: 0,
+            duration: duration,
+            useNativeDriver: true,
+            easing: Easing.inOut(Easing.sin),
+          }),
+        ])
+      ).start();
+    };
 
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1.08, duration: 1400, useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 1, duration: 1400, useNativeDriver: true }),
-      ])
-    ).start();
+    loopOrb(orb1Anim, 8000);
+    setTimeout(() => loopOrb(orb2Anim, 10000), 1000);
+    setTimeout(() => loopOrb(orb3Anim, 12000), 2000);
   }, []);
 
   const handleSignIn = async () => {
@@ -123,7 +140,6 @@ export default function SignInScreen({ onSignIn }: SignInScreenProps) {
         role: selectedRole,
       });
 
-      // Handle custom responses
       if (!response.success) {
         setError(response.error);
         return;
@@ -140,362 +156,306 @@ export default function SignInScreen({ onSignIn }: SignInScreenProps) {
     }
   };
 
-  const bgGradient: [string, string, string, string] = isDark
-    ? ['#011c12', '#022c22', '#041f1a', '#011c12']
-    : ['#f0fdf4', '#dcfce7', '#f0fdf4', '#ecfdf5'];
+  // Theming & Colors - Breathtaking Green Aesthetic
+  const bgColors = isDark ? ['#011c12', '#022c22'] : ['#f0fdf4', '#ecfdf5'];
 
-  const iconColor = isDark ? '#34d399' : '#059669';
-  const iconColorSecondary = isDark ? '#6ee7b7' : '#047857';
-  const placeholderColor = isDark ? '#4b5563' : '#9ca3af';
+  const cardBgColor = isDark ? 'rgba(3, 31, 22, 0.85)' : 'rgba(255, 255, 255, 0.95)';
+  const cardBorderColor = isDark ? 'rgba(52, 211, 153, 0.15)' : 'rgba(16, 185, 129, 0.4)';
 
-  const blob1Translate = blob1Anim.interpolate({ inputRange: [0, 1], outputRange: [-80, 0] });
-  const blob2Translate = blob2Anim.interpolate({ inputRange: [0, 1], outputRange: [80, 0] });
-  const headerOpacity = headerAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 1] });
-  const headerSlide = headerAnim.interpolate({ inputRange: [0, 1], outputRange: [-24, 0] });
-  const cardOpacity = cardAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 1] });
-  const cardTranslate = cardAnim.interpolate({ inputRange: [0, 1], outputRange: [30, 0] });
+  const inputBgColor = isDark ? 'rgba(6, 78, 59, 0.4)' : 'rgba(255, 255, 255, 0.8)';
+  const inputBgColorFocusedAndroid = isDark ? '#022c22' : '#ffffff';
+
+  const inputBorderFocused = isDark ? '#34d399' : '#059669';
+  const inputBorderUnfocused = isDark ? 'rgba(52, 211, 153, 0.15)' : 'rgba(5, 150, 105, 0.15)';
+
+  const textColorPrimary = isDark ? '#f0fdf4' : '#064e3b';
+  const textColorSecondary = isDark ? '#6ee7b7' : '#047857';
+  const iconColor = isDark ? '#6ee7b7' : '#059669';
+
+  const placeholderColor = isDark ? 'rgba(110, 231, 183, 0.5)' : 'rgba(4, 120, 87, 0.5)';
 
   return (
-    <SafeAreaView className="flex-1 bg-green-950 dark:bg-[#011c12]">
+    <SafeAreaView style={{ flex: 1, backgroundColor: bgColors[0] }}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
 
       <LinearGradient
-        colors={bgGradient}
+        // @ts-ignore
+        colors={bgColors as [string, ...string[]]}
         style={StyleSheet.absoluteFillObject}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
       />
 
+      {/* Decorative Orbs - Emerald tones */}
       <Animated.View
-        pointerEvents="none"
         style={[
-          styles.blob1,
+          styles.orb,
+          styles.orb1,
           {
-            opacity: blob1Anim,
-            transform: [{ translateY: blob1Translate }],
-            backgroundColor: isDark ? 'rgba(6,78,59,0.45)' : 'rgba(187,247,208,0.7)',
-          },
-        ]}
-      />
-      <Animated.View
-        pointerEvents="none"
-        style={[
-          styles.blob2,
-          {
-            opacity: blob2Anim,
-            transform: [{ translateY: blob2Translate }],
-            backgroundColor: isDark ? 'rgba(4,47,46,0.5)' : 'rgba(167,243,208,0.55)',
-          },
-        ]}
-      />
-      <Animated.View
-        pointerEvents="none"
-        style={[
-          styles.blob3,
-          {
-            opacity: shimmerAnim,
-            backgroundColor: isDark ? 'rgba(16,185,129,0.06)' : 'rgba(16,185,129,0.05)',
+            opacity: orb1Anim.interpolate({ inputRange: [0, 1], outputRange: [0.3, 0.5] }),
+            transform: [
+              { translateY: orb1Anim.interpolate({ inputRange: [0, 1], outputRange: [0, 80] }) },
+              { scale: orb1Anim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.25] }) },
+            ],
+            backgroundColor: isDark ? '#10b981' : '#34d399',
           },
         ]}
       />
 
+      <Animated.View
+        style={[
+          styles.orb,
+          styles.orb2,
+          {
+            opacity: orb2Anim.interpolate({ inputRange: [0, 1], outputRange: [0.2, 0.4] }),
+            transform: [
+              { translateX: orb2Anim.interpolate({ inputRange: [0, 1], outputRange: [0, -60] }) },
+              { scale: orb2Anim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.15] }) },
+            ],
+            backgroundColor: isDark ? '#059669' : '#6ee7b7',
+          },
+        ]}
+      />
+
+      <Animated.View
+        style={[
+          styles.orb,
+          styles.orb3,
+          {
+            opacity: orb3Anim.interpolate({ inputRange: [0, 1], outputRange: [0.15, 0.35] }),
+            transform: [
+              { translateY: orb3Anim.interpolate({ inputRange: [0, 1], outputRange: [0, -100] }) },
+              { translateX: orb3Anim.interpolate({ inputRange: [0, 1], outputRange: [0, 40] }) },
+            ],
+            backgroundColor: isDark ? '#047857' : '#10b981',
+          },
+        ]}
+      />
+
+      {/* Main Content */}
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        className="flex-1">
+        style={{ flex: 1 }}>
         <ScrollView
-          contentContainerStyle={{ flexGrow: 1, paddingBottom: 32 }}
+          contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}>
           <Animated.View
             style={{
-              opacity: headerOpacity,
-              transform: [{ translateY: headerSlide }],
-              paddingHorizontal: 28,
-              paddingTop: 28,
-              paddingBottom: 4,
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }, { scale: scaleAnim }],
+              width: '100%',
               alignItems: 'center',
             }}>
-            <View style={styles.logoRow}>
-              <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+            {/* Header Section */}
+            <View style={styles.headerContainer}>
+              <View style={styles.logoContainer}>
                 <LinearGradient
-                  colors={
-                    isDark ? ['#065f46', '#047857', '#059669'] : ['#059669', '#047857', '#065f46']
-                  }
-                  style={styles.logoGradient}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}>
+                  colors={isDark ? ['#065f46', '#022c22'] : ['#a7f3d0', '#ecfdf5']}
+                  style={styles.logoBackground}>
                   <Image
                     source={require('../assets/logo.png')}
-                    style={{
-                      height: 60,
-                      width: 60,
-                    }}
+                    style={styles.logo}
                     resizeMode="contain"
                   />
-                  <View
-                    style={[
-                      styles.logoSparkle,
-                      {
-                        backgroundColor: isDark
-                          ? 'rgba(255,255,255,0.12)'
-                          : 'rgba(255,255,255,0.2)',
-                      },
-                    ]}
-                  />
                 </LinearGradient>
-              </Animated.View>
+                <View
+                  style={[
+                    styles.glowRing,
+                    {
+                      borderColor: isDark ? 'rgba(52, 211, 153, 0.2)' : 'rgba(16, 185, 129, 0.25)',
+                    },
+                  ]}
+                />
+              </View>
 
-              <View style={styles.logoBadge}>
+              <Text style={[styles.titleText, { color: textColorPrimary }]}>
+                City<Text style={{ color: isDark ? '#34d399' : '#059669' }}>Care</Text>
+              </Text>
+              <Text style={[styles.subtitleText, { color: textColorSecondary }]}>
+                Smart Civic Issue Management
+              </Text>
+            </View>
+
+            {/* Main Form Card */}
+            <View
+              style={[
+                styles.card,
+                {
+                  backgroundColor: cardBgColor,
+                  borderColor: cardBorderColor,
+                  shadowColor: isDark ? '#000' : '#064e3b',
+                },
+              ]}>
+              {/* Error Message */}
+              {error ? (
+                <Animated.View style={styles.errorContainer}>
+                  <AlertCircle color="#ef4444" size={18} strokeWidth={2.5} />
+                  <Text style={styles.errorText}>{error}</Text>
+                </Animated.View>
+              ) : null}
+
+              {/* Role Selection Box Cards */}
+              <View style={styles.sectionContainer}>
+                <Text style={[styles.sectionLabel, { color: textColorSecondary }]}>
+                  Select Role
+                </Text>
+                <View style={styles.roleCardsContainer}>
+                  <RoleCard
+                    role="Unit Officer"
+                    selectedRole={selectedRole}
+                    onSelect={setSelectedRole}
+                    isDark={isDark}
+                    icon={
+                      <Briefcase
+                        color={selectedRole === 'Unit Officer' ? '#fff' : iconColor}
+                        size={26}
+                        strokeWidth={2}
+                      />
+                    }
+                    description="Manage & oversee"
+                  />
+                  <RoleCard
+                    role="Field Officer"
+                    selectedRole={selectedRole}
+                    onSelect={setSelectedRole}
+                    isDark={isDark}
+                    icon={
+                      <HardHat
+                        color={selectedRole === 'Field Officer' ? '#fff' : iconColor}
+                        size={26}
+                        strokeWidth={2}
+                      />
+                    }
+                    description="Execute & resolve"
+                  />
+                </View>
+              </View>
+
+              {/* Email Input */}
+              <View style={styles.sectionContainer}>
+                <Text style={[styles.sectionLabel, { color: textColorSecondary }]}>
+                  Email Address
+                </Text>
+                <View
+                  style={[
+                    styles.inputContainer,
+                    {
+                      backgroundColor:
+                        Platform.OS === 'android' && focusedField === 'email'
+                          ? inputBgColorFocusedAndroid
+                          : inputBgColor,
+                      borderColor:
+                        focusedField === 'email' ? inputBorderFocused : inputBorderUnfocused,
+                      shadowColor: focusedField === 'email' ? inputBorderFocused : 'transparent',
+                    },
+                  ]}>
+                  <Mail
+                    color={focusedField === 'email' ? inputBorderFocused : iconColor}
+                    size={20}
+                    strokeWidth={2}
+                    style={styles.inputIcon}
+                  />
+                  <TextInput
+                    style={[styles.input, { color: textColorPrimary }]}
+                    placeholder="officer@citycare.com"
+                    placeholderTextColor={placeholderColor}
+                    value={email}
+                    onChangeText={setEmail}
+                    onFocus={() => setFocusedField('email')}
+                    onBlur={() => setFocusedField(null)}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoComplete="email"
+                    editable={!loading}
+                  />
+                </View>
+              </View>
+
+              {/* Password Input */}
+              <View style={styles.sectionContainer}>
+                <Text style={[styles.sectionLabel, { color: textColorSecondary }]}>Password</Text>
+                <View
+                  style={[
+                    styles.inputContainer,
+                    {
+                      backgroundColor:
+                        Platform.OS === 'android' && focusedField === 'password'
+                          ? inputBgColorFocusedAndroid
+                          : inputBgColor,
+                      borderColor:
+                        focusedField === 'password' ? inputBorderFocused : inputBorderUnfocused,
+                      shadowColor: focusedField === 'password' ? inputBorderFocused : 'transparent',
+                    },
+                  ]}>
+                  <Lock
+                    color={focusedField === 'password' ? inputBorderFocused : iconColor}
+                    size={20}
+                    strokeWidth={2}
+                    style={styles.inputIcon}
+                  />
+                  <TextInput
+                    style={[styles.input, { color: textColorPrimary, flex: 1 }]}
+                    placeholder="Enter your password"
+                    placeholderTextColor={placeholderColor}
+                    value={password}
+                    onChangeText={setPassword}
+                    onFocus={() => setFocusedField('password')}
+                    onBlur={() => setFocusedField(null)}
+                    secureTextEntry={!showPassword}
+                    autoCapitalize="none"
+                    autoComplete="password"
+                    editable={!loading}
+                  />
+                  <TouchableOpacity
+                    onPress={() => setShowPassword(!showPassword)}
+                    style={styles.eyeButton}
+                    activeOpacity={0.7}>
+                    {showPassword ? (
+                      <Eye color={iconColor} size={20} strokeWidth={2} />
+                    ) : (
+                      <EyeOff color={iconColor} size={20} strokeWidth={2} />
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Sign In Button */}
+              <TouchableOpacity
+                disabled={loading}
+                activeOpacity={0.85}
+                onPress={handleSignIn}
+                style={styles.signInButtonContainer}>
                 <LinearGradient
                   colors={
-                    isDark
-                      ? ['rgba(52,211,153,0.2)', 'rgba(16,185,129,0.1)']
-                      : ['rgba(5,150,105,0.15)', 'rgba(4,120,87,0.08)']
+                    loading
+                      ? isDark
+                        ? ['#064e3b', '#022c22']
+                        : ['#a7f3d0', '#6ee7b7']
+                      : isDark
+                        ? ['#059669', '#10b981']
+                        : ['#10b981', '#059669']
                   }
-                  style={styles.badgeGradient}
+                  style={styles.signInGradient}
                   start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}>
-                  <View
-                    style={[styles.badgeDot, { backgroundColor: isDark ? '#34d399' : '#059669' }]}
-                  />
-                  <Text
-                    className="font-bold tracking-widest text-emerald-700 dark:text-emerald-300"
-                    style={{ fontSize: 9 }}>
-                    SECURE PORTAL
-                  </Text>
-                </LinearGradient>
-              </View>
-            </View>
-
-            <Text
-              className="mt-5 font-extrabold tracking-tight text-emerald-950 dark:text-white"
-              style={{ fontSize: 44, lineHeight: 50, letterSpacing: -1.5 }}>
-              City
-              <Text className="text-emerald-600 dark:text-emerald-400">Care</Text>
-            </Text>
-            <Text
-              className="mt-1.5 font-medium text-emerald-700/70 dark:text-emerald-400/60"
-              style={{ fontSize: 13, letterSpacing: 0.3 }}>
-              Smart Civic Issue Management
-            </Text>
-          </Animated.View>
-
-          <Animated.View
-            style={[
-              styles.card,
-              {
-                opacity: cardOpacity,
-                transform: [{ translateY: cardTranslate }],
-                backgroundColor: isDark ? 'rgba(3,31,22,0.85)' : 'rgba(255,255,255,0.92)',
-                borderColor: isDark ? 'rgba(52,211,153,0.12)' : 'rgba(5,150,105,0.13)',
-                shadowColor: isDark ? '#10b981' : '#059669',
-              },
-            ]}>
-            <LinearGradient
-              colors={
-                isDark
-                  ? ['rgba(6,78,59,0.18)', 'rgba(3,31,22,0)']
-                  : ['rgba(240,253,244,0.95)', 'rgba(255,255,255,0)']
-              }
-              style={styles.cardInnerGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0.6 }}
-            />
-
-            {error ? (
-              <View className="mb-5 flex-row items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 dark:border-red-800/60 dark:bg-red-950/50">
-                <View className="mt-0.5 h-5 w-5 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/60">
-                  <Text style={{ fontSize: 10, color: '#ef4444' }}>!</Text>
-                </View>
-                <Text className="flex-1 text-sm font-semibold leading-5 text-red-700 dark:text-red-400">
-                  {error}
-                </Text>
-              </View>
-            ) : null}
-
-            <Text className="mb-3 text-xs font-bold uppercase tracking-widest text-gray-600 dark:text-emerald-200/70">
-              Select Role
-            </Text>
-            <View className="mb-6 flex-row gap-3">
-              <RoleCard
-                role="Unit Officer"
-                selectedRole={selectedRole}
-                onSelect={setSelectedRole}
-                isDark={isDark}
-                icon={
-                  <Briefcase
-                    color={selectedRole === 'Unit Officer' ? '#fff' : iconColor}
-                    size={22}
-                    strokeWidth={2}
-                  />
-                }
-                description="Manage & oversee"
-              />
-              <RoleCard
-                role="Field Officer"
-                selectedRole={selectedRole}
-                onSelect={setSelectedRole}
-                isDark={isDark}
-                icon={
-                  <HardHat
-                    color={selectedRole === 'Field Officer' ? '#fff' : iconColor}
-                    size={22}
-                    strokeWidth={2}
-                  />
-                }
-                description="Execute & resolve"
-              />
-            </View>
-
-            <View className="mb-4">
-              <Text className="mb-2.5 text-xs font-bold uppercase tracking-widest text-gray-600 dark:text-emerald-200/70">
-                Email Address
-              </Text>
-              <View
-                style={[
-                  styles.inputWrap,
-                  {
-                    borderColor:
-                      focusedField === 'email'
-                        ? isDark
-                          ? '#34d399'
-                          : '#059669'
-                        : isDark
-                          ? 'rgba(52,211,153,0.15)'
-                          : 'rgba(5,150,105,0.18)',
-                    backgroundColor: isDark ? 'rgba(4,47,35,0.6)' : 'rgba(240,253,244,0.8)',
-                    shadowColor:
-                      focusedField === 'email' ? (isDark ? '#34d399' : '#059669') : 'transparent',
-                    shadowOpacity: focusedField === 'email' ? 0.18 : 0,
-                    shadowRadius: 8,
-                  },
-                ]}>
-                <View style={styles.inputIcon}>
-                  <Mail
-                    color={
-                      focusedField === 'email' ? (isDark ? '#34d399' : '#059669') : placeholderColor
-                    }
-                    size={18}
-                    strokeWidth={2}
-                  />
-                </View>
-                <TextInput
-                  style={[styles.input, { color: isDark ? '#f0fdf4' : '#052e16' }]}
-                  placeholder="officer@citycare.com"
-                  placeholderTextColor={placeholderColor}
-                  value={email}
-                  onChangeText={setEmail}
-                  onFocus={() => setFocusedField('email')}
-                  onBlur={() => setFocusedField(null)}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoComplete="email"
-                  editable={!loading}
-                />
-              </View>
-            </View>
-
-            <View className="mb-7">
-              <Text className="mb-2.5 text-xs font-bold uppercase tracking-widest text-gray-600 dark:text-emerald-200/70">
-                Password
-              </Text>
-              <View
-                style={[
-                  styles.inputWrap,
-                  {
-                    borderColor:
-                      focusedField === 'password'
-                        ? isDark
-                          ? '#34d399'
-                          : '#059669'
-                        : isDark
-                          ? 'rgba(52,211,153,0.15)'
-                          : 'rgba(5,150,105,0.18)',
-                    backgroundColor: isDark ? 'rgba(4,47,35,0.6)' : 'rgba(240,253,244,0.8)',
-                    shadowColor:
-                      focusedField === 'password'
-                        ? isDark
-                          ? '#34d399'
-                          : '#059669'
-                        : 'transparent',
-                    shadowOpacity: focusedField === 'password' ? 0.18 : 0,
-                    shadowRadius: 8,
-                  },
-                ]}>
-                <View style={styles.inputIcon}>
-                  <Lock
-                    color={
-                      focusedField === 'password'
-                        ? isDark
-                          ? '#34d399'
-                          : '#059669'
-                        : placeholderColor
-                    }
-                    size={18}
-                    strokeWidth={2}
-                  />
-                </View>
-                <TextInput
-                  style={[styles.input, { color: isDark ? '#f0fdf4' : '#052e16', flex: 1 }]}
-                  placeholder="Enter your password"
-                  placeholderTextColor={placeholderColor}
-                  value={password}
-                  onChangeText={setPassword}
-                  onFocus={() => setFocusedField('password')}
-                  onBlur={() => setFocusedField(null)}
-                  secureTextEntry={!showPassword}
-                  autoCapitalize="none"
-                  autoComplete="password"
-                  editable={!loading}
-                />
-                <TouchableOpacity
-                  onPress={() => setShowPassword((p) => !p)}
-                  style={styles.eyeBtn}
-                  activeOpacity={0.7}>
-                  {showPassword ? (
-                    <Eye color={placeholderColor} size={18} strokeWidth={2} />
+                  end={{ x: 1, y: 0 }}>
+                  {loading ? (
+                    <ActivityIndicator color="#ffffff" size="small" />
                   ) : (
-                    <EyeOff color={placeholderColor} size={18} strokeWidth={2} />
+                    <View style={styles.signInButtonContent}>
+                      <Text style={styles.signInButtonText}>Secure Access</Text>
+                      <ArrowRight color="#ffffff" size={20} strokeWidth={2.5} />
+                    </View>
                   )}
-                </TouchableOpacity>
-              </View>
+                </LinearGradient>
+              </TouchableOpacity>
             </View>
-
-            <TouchableOpacity
-              disabled={loading}
-              activeOpacity={0.88}
-              onPress={handleSignIn}
-              style={styles.signInBtn}>
-              <LinearGradient
-                colors={
-                  loading
-                    ? ['#6b7280', '#4b5563']
-                    : isDark
-                      ? ['#059669', '#047857', '#065f46']
-                      : ['#10b981', '#059669', '#047857']
-                }
-                style={styles.signInGradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}>
-                {loading ? (
-                  <ActivityIndicator color="#ffffff" size="small" />
-                ) : (
-                  <View className="flex-row items-center gap-2.5">
-                    <Text className="text-base font-bold tracking-wide text-white">
-                      Sign In Securely
-                    </Text>
-                    <ArrowRight color="#ffffff" size={18} strokeWidth={2.5} />
-                  </View>
-                )}
-                <View style={[styles.btnSheen, { backgroundColor: 'rgba(255,255,255,0.08)' }]} />
-              </LinearGradient>
-            </TouchableOpacity>
           </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
+
+// --- Helper Components ---
 
 interface RoleCardProps {
   role: UserRole;
@@ -512,8 +472,8 @@ function RoleCard({ role, selectedRole, onSelect, isDark, icon, description }: R
 
   const handlePress = () => {
     Animated.sequence([
-      Animated.timing(scale, { toValue: 0.94, duration: 80, useNativeDriver: true }),
-      Animated.spring(scale, { toValue: 1, tension: 80, friction: 5, useNativeDriver: true }),
+      Animated.timing(scale, { toValue: 0.95, duration: 100, useNativeDriver: true }),
+      Animated.spring(scale, { toValue: 1, tension: 70, friction: 6, useNativeDriver: true }),
     ]).start();
     onSelect(role);
   };
@@ -523,41 +483,32 @@ function RoleCard({ role, selectedRole, onSelect, isDark, icon, description }: R
       <Animated.View style={{ transform: [{ scale }] }}>
         <View
           style={[
-            styles.roleCard,
+            styles.roleBox,
             {
               borderColor: isSelected
                 ? isDark
                   ? '#34d399'
                   : '#059669'
                 : isDark
-                  ? 'rgba(52,211,153,0.12)'
+                  ? 'rgba(52,211,153,0.15)'
                   : 'rgba(5,150,105,0.15)',
               backgroundColor: isSelected
-                ? isDark
-                  ? 'rgba(6,78,59,0.6)'
-                  : 'rgba(240,253,244,1)'
+                ? Platform.OS === 'android'
+                  ? isDark
+                    ? '#064e3b'
+                    : '#ecfdf5'
+                  : isDark
+                    ? 'rgba(6,78,59,0.85)'
+                    : 'rgba(236,253,245,1)'
                 : isDark
-                  ? 'rgba(4,31,24,0.5)'
-                  : 'rgba(249,250,251,0.9)',
+                  ? 'rgba(4,47,36,0.6)'
+                  : 'rgba(255,255,255,0.7)',
               shadowColor: isSelected ? (isDark ? '#10b981' : '#059669') : 'transparent',
-              shadowOpacity: isSelected ? 0.22 : 0,
-              shadowRadius: 10,
-              elevation: isSelected ? 4 : 0,
+              shadowOpacity: isSelected ? 0.35 : 0,
+              shadowRadius: 16,
+              elevation: isSelected ? 8 : 0,
             },
           ]}>
-          {isSelected && (
-            <LinearGradient
-              colors={
-                isDark
-                  ? ['rgba(16,185,129,0.18)', 'rgba(6,78,59,0.08)']
-                  : ['rgba(5,150,105,0.12)', 'rgba(240,253,244,0)']
-              }
-              style={StyleSheet.absoluteFillObject}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            />
-          )}
-
           <View
             style={[
               styles.roleIconCircle,
@@ -565,7 +516,7 @@ function RoleCard({ role, selectedRole, onSelect, isDark, icon, description }: R
                 backgroundColor: isSelected
                   ? isDark
                     ? '#059669'
-                    : '#059669'
+                    : '#10b981'
                   : isDark
                     ? 'rgba(52,211,153,0.1)'
                     : 'rgba(5,150,105,0.08)',
@@ -576,38 +527,38 @@ function RoleCard({ role, selectedRole, onSelect, isDark, icon, description }: R
 
           <Text
             style={[
-              styles.roleLabel,
+              styles.roleBoxLabel,
               {
                 color: isSelected
                   ? isDark
                     ? '#6ee7b7'
-                    : '#065f46'
+                    : '#064e3b'
                   : isDark
-                    ? '#9ca3af'
-                    : '#374151',
+                    ? '#a7f3d0'
+                    : '#047857',
               },
             ]}>
             {role}
           </Text>
           <Text
             style={[
-              styles.roleDesc,
+              styles.roleBoxDesc,
               {
                 color: isSelected
                   ? isDark
-                    ? 'rgba(110,231,183,0.7)'
-                    : 'rgba(6,95,70,0.65)'
+                    ? 'rgba(110,231,183,0.9)'
+                    : 'rgba(6,78,59,0.7)'
                   : isDark
-                    ? 'rgba(107,114,128,0.8)'
-                    : 'rgba(107,114,128,0.9)',
+                    ? 'rgba(167,243,208,0.6)'
+                    : 'rgba(4,120,87,0.6)',
               },
             ]}>
             {description}
           </Text>
 
           {isSelected && (
-            <View style={[styles.roleCheck, { backgroundColor: isDark ? '#059669' : '#059669' }]}>
-              <CheckCircle2 color="#fff" size={11} strokeWidth={3} />
+            <View style={[styles.roleCheck, { backgroundColor: isDark ? '#10b981' : '#059669' }]}>
+              <CheckCircle2 color="#fff" size={14} strokeWidth={3} />
             </View>
           )}
         </View>
@@ -616,227 +567,214 @@ function RoleCard({ role, selectedRole, onSelect, isDark, icon, description }: R
   );
 }
 
-function DemoRow({
-  label,
-  email,
-  isDark,
-  icon,
-}: {
-  label: string;
-  email: string;
-  isDark: boolean;
-  icon: React.ReactNode;
-}) {
-  return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-        {icon}
-        <Text style={{ fontSize: 11, fontWeight: '700', color: isDark ? '#a7f3d0' : '#065f46' }}>
-          {label}
-        </Text>
-      </View>
-      <Text
-        style={{
-          fontSize: 11,
-          fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-          color: isDark ? '#6ee7b7' : '#047857',
-          fontWeight: '600',
-        }}>
-        {email}
-      </Text>
-    </View>
-  );
-}
+// --- Styles ---
 
 const styles = StyleSheet.create({
-  blob1: {
+  orb: {
     position: 'absolute',
-    width: width * 1.1,
-    height: width * 1.1,
-    borderRadius: width * 0.55,
+    borderRadius: 9999,
+  },
+  orb1: {
+    width: width * 1.3,
+    height: width * 1.3,
     top: -width * 0.45,
-    left: -width * 0.1,
+    left: -width * 0.3,
   },
-  blob2: {
-    position: 'absolute',
-    width: width * 0.85,
-    height: width * 0.85,
-    borderRadius: width * 0.425,
-    bottom: height * 0.04,
-    right: -width * 0.25,
+  orb2: {
+    width: width * 1.0,
+    height: width * 1.0,
+    bottom: -width * 0.25,
+    right: -width * 0.35,
   },
-  blob3: {
-    position: 'absolute',
-    width: width * 0.6,
-    height: width * 0.6,
-    borderRadius: width * 0.3,
+  orb3: {
+    width: width * 0.8,
+    height: width * 0.8,
     top: height * 0.35,
-    left: -width * 0.2,
+    left: width * 0.45,
   },
-  logoRow: {
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 22,
+    paddingVertical: 50,
+  },
+  headerContainer: {
     alignItems: 'center',
+    marginBottom: 36,
   },
-  logoGradient: {
-    width: 80,
-    height: 80,
-    borderRadius: 24,
+  logoContainer: {
+    position: 'relative',
+    marginBottom: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden',
-    shadowColor: '#059669',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 12,
   },
-  logoSparkle: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: '40%',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-  },
-  logoBadge: {
-    marginTop: 10,
-  },
-  badgeGradient: {
-    flexDirection: 'row',
+  logoBackground: {
+    width: 88,
+    height: 88,
+    borderRadius: 28,
     alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 20,
+    justifyContent: 'center',
+    shadowColor: '#059669',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.35,
+    shadowRadius: 24,
+    elevation: 8,
+    zIndex: 2,
     borderWidth: 1,
-    borderColor: 'rgba(5,150,105,0.2)',
+    borderColor: 'rgba(255,255,255,0.15)',
   },
-  badgeDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 3,
+  logo: {
+    width: 50,
+    height: 50,
+  },
+  glowRing: {
+    position: 'absolute',
+    top: -12,
+    left: -12,
+    right: -12,
+    bottom: -12,
+    borderRadius: 40,
+    borderWidth: 2,
+    zIndex: 1,
+  },
+  titleText: {
+    fontSize: 46,
+    fontWeight: '800',
+    letterSpacing: -1.5,
+  },
+  subtitleText: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginTop: 6,
+    letterSpacing: 0.2,
   },
   card: {
-    marginHorizontal: 18,
-    marginTop: 22,
-    borderRadius: 28,
-    padding: 24,
+    width: '100%',
+    borderRadius: 36,
+    padding: 26,
     borderWidth: 1,
-    overflow: 'hidden',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.12,
-    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 26 },
+    shadowOpacity: 0.16,
+    shadowRadius: 42,
     elevation: 12,
   },
-  cardInnerGradient: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: '50%',
-  },
-  inputWrap: {
+  errorContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 14,
-    borderWidth: 1.5,
-    overflow: 'hidden',
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
-  },
-  inputIcon: {
-    paddingLeft: 16,
-    paddingRight: 10,
-  },
-  input: {
-    flex: 1,
-    paddingVertical: 15,
-    paddingRight: 16,
-    fontSize: 15,
-    fontWeight: '500',
-  },
-  eyeBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-  },
-  signInBtn: {
-    borderRadius: 16,
-    overflow: 'hidden',
-    shadowColor: '#059669',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 14,
-    elevation: 8,
-  },
-  signInGradient: {
-    paddingVertical: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  btnSheen: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: '45%',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-  },
-  demoSection: {},
-  demoCard: {
-    borderRadius: 14,
-    padding: 14,
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
     borderWidth: 1,
-  },
-  roleCard: {
-    borderRadius: 16,
-    borderWidth: 1.5,
+    borderColor: 'rgba(239, 68, 68, 0.35)',
     padding: 16,
+    borderRadius: 18,
+    marginBottom: 24,
+    gap: 12,
+  },
+  errorText: {
+    color: '#ef4444',
+    fontSize: 14,
+    fontWeight: '700',
+    flex: 1,
+  },
+  sectionContainer: {
+    marginBottom: 26,
+  },
+  sectionLabel: {
+    fontSize: 12,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
+    marginBottom: 14,
+    marginLeft: 6,
+  },
+  roleCardsContainer: {
+    flexDirection: 'row',
+    gap: 14,
+  },
+  roleBox: {
+    borderRadius: 24,
+    borderWidth: 1.5,
+    paddingHorizontal: 16,
+    paddingVertical: 20,
     alignItems: 'center',
-    gap: 6,
-    overflow: 'hidden',
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
-    minHeight: 108,
     justifyContent: 'center',
+    gap: 10,
+    minHeight: 140,
+    position: 'relative',
   },
   roleIconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
+    width: 52,
+    height: 52,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 2,
+    marginBottom: 4,
   },
-  roleLabel: {
-    fontSize: 12,
-    fontWeight: '700',
+  roleBoxLabel: {
+    fontSize: 15,
+    fontWeight: '800',
     textAlign: 'center',
   },
-  roleDesc: {
-    fontSize: 10,
-    fontWeight: '500',
+  roleBoxDesc: {
+    fontSize: 11,
+    fontWeight: '600',
     textAlign: 'center',
   },
   roleCheck: {
     position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    top: 10,
+    right: 10,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  footerPill: {
+  inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 9,
-    borderRadius: 24,
-    borderWidth: 1,
-    marginTop: 16,
+    borderWidth: 1.5,
+    borderRadius: 22,
+    height: 64,
+    paddingHorizontal: 8,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 14,
+    elevation: 3,
+  },
+  inputIcon: {
+    paddingHorizontal: 14,
+  },
+  input: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  eyeButton: {
+    padding: 14,
+  },
+  signInButtonContainer: {
+    marginTop: 8,
+    shadowColor: '#059669',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.4,
+    shadowRadius: 24,
+    elevation: 8,
+  },
+  signInGradient: {
+    height: 66,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  signInButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  signInButtonText: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
 });

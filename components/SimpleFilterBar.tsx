@@ -12,35 +12,35 @@ const FILTER_META: Record<
   string,
   { dot: string; activeBg: string; activeDark: string; activeText: string; activeDarkText: string }
 > = {
-  All: {
+  all: {
     dot: '#3B82F6',
     activeBg: 'bg-blue-100',
     activeDark: 'dark:bg-blue-900/50',
     activeText: 'text-blue-700',
     activeDarkText: 'dark:text-blue-300',
   },
-  Assigned: {
+  assigned: {
     dot: '#0D9488',
     activeBg: 'bg-teal-100',
     activeDark: 'dark:bg-teal-900/50',
     activeText: 'text-teal-700',
     activeDarkText: 'dark:text-teal-300',
   },
-  'In Progress': {
+  in_progress: {
     dot: '#F59E0B',
     activeBg: 'bg-amber-100',
     activeDark: 'dark:bg-amber-900/50',
     activeText: 'text-amber-700',
     activeDarkText: 'dark:text-amber-300',
   },
-  'Pending UO Verification': {
+  pending_uo_verification: {
     dot: '#6366F1',
     activeBg: 'bg-violet-100',
     activeDark: 'dark:bg-violet-900/50',
     activeText: 'text-violet-700',
     activeDarkText: 'dark:text-violet-300',
   },
-  'Rework Required': {
+  rework_required: {
     dot: '#DC2626',
     activeBg: 'bg-red-100',
     activeDark: 'dark:bg-red-900/50',
@@ -61,7 +61,7 @@ export default function SimpleFilterBar({
       style={styles.container}>
       {filters.map((filter) => {
         const isSelected = selectedFilter === filter;
-        const meta = FILTER_META[filter] ?? FILTER_META.All;
+        const meta = FILTER_META[filter] ?? FILTER_META.all;
         const count = counts?.[filter];
 
         return (

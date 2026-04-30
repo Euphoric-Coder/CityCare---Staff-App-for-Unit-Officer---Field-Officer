@@ -1,5 +1,12 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  RefreshControl,
+  ActivityIndicator,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { FileText } from 'lucide-react-native';
@@ -7,50 +14,71 @@ import FieldOfficerDashboard from '../screens/FieldOfficerDashboard';
 import FieldIssueCard from './FieldIssueCard';
 import SimpleFilterBar from './SimpleFilterBar';
 import NotificationPanel from './NotificationPanel';
-import { mockIssues, mockFieldOfficerNotifications } from '../lib/mockData';
+import { mockFieldOfficerNotifications } from '../lib/mockData';
 import { Issue } from '../lib/types';
+import { useMutation, useQuery } from 'convex/react';
+import { api } from 'convex/_generated/api';
+import { useUser } from 'context/UserContext';
+import { mapIssueToUI } from 'lib/issueMapper';
+import { Id } from 'convex/_generated/dataModel';
 
-const FILTERS = ['All', 'Assigned', 'In Progress', 'Pending UO Verification', 'Rework Required'];
+const FILTERS = ['all', 'assigned', 'in_progress', 'pending_uo_verification', 'rework_required'];
 
 export default function FieldDashboardScreen() {
   const navigation = useNavigation();
+  const user = useUser();
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedFilter, setSelectedFilter] = useState('All');
+  const [selectedFilter, setSelectedFilter] = useState('all');
   const [showNotifications, setShowNotifications] = useState(false);
 
-  const foNotifications = mockFieldOfficerNotifications.filter((n) => n.userId === 'fo-1');
-
-  const fieldOfficerIssues = mockIssues.filter(
-    (issue) =>
-      issue.assignedOfficer &&
-      (issue.status === 'Assigned' ||
-        issue.status === 'In Progress' ||
-        issue.status === 'Pending UO Verification' ||
-        issue.status === 'Rework Required')
+  const rawIssues = useQuery(
+    api.fieldOfficers.getFieldOfficerIssues,
+    // @ts-ignore
+    user?.id ? { userId: user.id } : 'skip'
   );
 
+  // Fetch Field Officer Notifications
+  const notifications = useQuery(
+    api.notifications.getByUser,
+    user?.id ? { userId: user.id } : 'skip'
+  );
+
+  const markAll = useMutation(api.notifications.markAllAsRead);
+
+  async function handleMarkAllAsRead() {
+    await markAll({ userId: user?.id as Id<'users'> });
+  }
+
+  const fieldOfficerIssues = useMemo(() => {
+    if (!rawIssues) return [];
+
+    return rawIssues.map((issue) => mapIssueToUI(issue, {}));
+  }, [rawIssues]);
+
+  // console.log('rawIssues FO Issues: \n', JSON.stringify(rawIssues, null, 2));
+
   const filteredIssues =
-    selectedFilter === 'All'
+    selectedFilter === 'all'
       ? fieldOfficerIssues
-      : fieldOfficerIssues.filter((issue) => issue.status === selectedFilter);
+      : fieldOfficerIssues.filter((issue) => issue?.status === selectedFilter);
 
   const counts: Record<string, number> = {
-    All: fieldOfficerIssues.length,
-    Assigned: fieldOfficerIssues.filter((i) => i.status === 'Assigned').length,
-    'In Progress': fieldOfficerIssues.filter((i) => i.status === 'In Progress').length,
-    'Pending UO Verification': fieldOfficerIssues.filter(
-      (i) => i.status === 'Pending UO Verification'
+    all: fieldOfficerIssues.length,
+    assigned: fieldOfficerIssues.filter((i) => i?.status === 'assigned').length,
+    in_progress: fieldOfficerIssues.filter((i) => i?.status === 'in_progress').length,
+    pending_uo_verification: fieldOfficerIssues.filter(
+      (i) => i?.status === 'pending_uo_verification'
     ).length,
-    'Rework Required': fieldOfficerIssues.filter((i) => i.status === 'Rework Required').length,
+    rework_required: fieldOfficerIssues.filter((i) => i?.status === 'rework_required').length,
   };
 
-  const unreadNotifCount = foNotifications.filter((n) => !n.read).length;
+  const unreadNotifCount = notifications?.filter((n) => !n.read).length;
 
   const mockStats = {
-    assigned: counts.Assigned,
-    in_progress: counts['In Progress'],
-    pending_upload: counts['Pending UO Verification'],
-    rework_required: counts['Rework Required'],
+    assigned: counts.assigned,
+    in_progress: counts.in_progress,
+    pending_upload: counts.pending_uo_verification,
+    rework_required: counts.rework_required,
     resolved_today: 8,
     sla_alerts: unreadNotifCount,
   };
@@ -70,6 +98,17 @@ export default function FieldDashboardScreen() {
     // @ts-expect-error - navigation params
     navigation.navigate('FieldIssueDetail' as never, { issue } as never);
   };
+
+  if (!rawIssues && !notifications) {
+    return (
+      <View className="flex-1 items-center justify-center bg-slate-50 dark:bg-slate-900">
+        <ActivityIndicator size="large" color="#0D9488" />
+        <Text className="mt-3 text-sm font-medium text-slate-400">
+          Loading Field Officer Dashboard...
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-slate-50 dark:bg-slate-900" edges={['top']}>
@@ -114,7 +153,7 @@ export default function FieldDashboardScreen() {
           {filteredIssues.length > 0 ? (
             filteredIssues.map((issue) => (
               <FieldIssueCard
-                key={issue.id}
+                key={issue?.id}
                 issue={issue}
                 onPress={() => handleIssuePress(issue)}
               />
@@ -137,12 +176,15 @@ export default function FieldDashboardScreen() {
         </View>
       </ScrollView>
 
-      <NotificationPanel
-        visible={showNotifications}
-        onClose={() => setShowNotifications(false)}
-        notifications={foNotifications}
-        role="FieldOfficer"
-      />
+      {notifications && (
+        <NotificationPanel
+          visible={showNotifications}
+          onClose={() => setShowNotifications(false)}
+          notification={notifications}
+          handleMarkAllAsRead={handleMarkAllAsRead}
+          role="FieldOfficer"
+        />
+      )}
     </SafeAreaView>
   );
 }

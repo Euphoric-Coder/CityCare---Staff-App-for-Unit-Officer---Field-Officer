@@ -17,6 +17,9 @@ import {
   ChevronUp,
 } from 'lucide-react-native';
 import { AppNotification, NotificationType } from '../lib/types';
+import { useMutation } from 'convex/react';
+import { api } from 'convex/_generated/api';
+import { Id } from 'convex/_generated/dataModel';
 
 const TYPE_CONFIG: Record<
   NotificationType,
@@ -212,7 +215,7 @@ function NotificationItem({ notification, onMarkRead }: NotificationItemProps) {
           )}
           {isUnread && (
             <TouchableOpacity
-              onPress={() => onMarkRead(notification.id)}
+              onPress={() => onMarkRead(notification._id)}
               activeOpacity={0.7}
               className="ml-auto flex-row items-center gap-1.5 rounded-lg bg-teal-50 px-3 py-1.5 dark:bg-teal-900/20">
               <CheckCircle size={12} color="#0D9488" strokeWidth={2.5} />
@@ -230,30 +233,30 @@ function NotificationItem({ notification, onMarkRead }: NotificationItemProps) {
 interface NotificationPanelProps {
   visible: boolean;
   onClose: () => void;
-  notifications: AppNotification[];
+  notification: AppNotification[];
   role: 'UnitOfficer' | 'FieldOfficer';
+  handleMarkAllAsRead: () => void;
 }
 
 export default function NotificationPanel({
   visible,
   onClose,
-  notifications,
+  notification,
   role,
+  handleMarkAllAsRead,
 }: NotificationPanelProps) {
-  const [items, setItems] = useState<AppNotification[]>(notifications);
+  const [items, setItems] = useState<AppNotification[]>(notification);
 
   React.useEffect(() => {
-    setItems(notifications);
-  }, [notifications]);
+    setItems(notification);
+  }, [notification]);
+
+  const markAsRead = useMutation(api.notifications.markAsRead);
 
   const unreadCount = items.filter((n) => !n.read).length;
 
-  const handleMarkRead = (id: string) => {
-    setItems((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
-  };
-
-  const handleMarkAllRead = () => {
-    setItems((prev) => prev.map((n) => ({ ...n, read: true })));
+  const handleMarkRead = async (id: string) => {
+    await markAsRead({ id: id as Id<'notifications'> });
   };
 
   const accentColor = role === 'FieldOfficer' ? '#0D9488' : '#0891B2';
@@ -293,7 +296,7 @@ export default function NotificationPanel({
             <View className="flex-row items-center gap-2">
               {unreadCount > 0 && (
                 <TouchableOpacity
-                  onPress={handleMarkAllRead}
+                  onPress={() => handleMarkAllAsRead()}
                   activeOpacity={0.7}
                   className="flex-row items-center gap-1.5 rounded-xl bg-teal-50 px-3 py-2 dark:bg-teal-900/20">
                   <CheckCheck size={14} color="#0D9488" strokeWidth={2.5} />
@@ -320,7 +323,7 @@ export default function NotificationPanel({
                   <BellOff size={32} color="#CBD5E1" strokeWidth={1.5} />
                 </View>
                 <Text className="text-[15px] font-bold text-slate-500 dark:text-slate-400">
-                  No notifications
+                  No Notifications
                 </Text>
                 <Text className="px-8 text-center text-[12px] text-slate-400 dark:text-slate-500">
                   You're all caught up. Check back later.
@@ -329,7 +332,7 @@ export default function NotificationPanel({
             ) : (
               items.map((notification) => (
                 <NotificationItem
-                  key={notification.id}
+                  key={notification._id}
                   notification={notification}
                   onMarkRead={handleMarkRead}
                 />

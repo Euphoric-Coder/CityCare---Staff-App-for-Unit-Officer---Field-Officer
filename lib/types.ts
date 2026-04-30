@@ -460,9 +460,9 @@ export type NotificationType =
   | 'system';
 
 export interface AppNotification {
-  id: string;
+  _id: string;
+  _createdAt: number;
   userId: string;
-  userRole: 'UnitOfficer' | 'FieldOfficer' | 'Admin' | 'CityAdmin';
   type: NotificationType;
   title: string;
   message: string;

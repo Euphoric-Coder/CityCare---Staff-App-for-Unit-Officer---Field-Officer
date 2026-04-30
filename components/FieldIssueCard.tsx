@@ -1,5 +1,12 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useEffect, useState, useRef } from 'react';
+import {
+  View,
+  Text,
+  TouchableWithoutFeedback,
+  StyleSheet,
+  useColorScheme,
+  Animated,
+} from 'react-native';
 import {
   MapPin,
   Clock,
@@ -9,7 +16,9 @@ import {
   Tag,
   ChevronRight,
   Flame,
+  AlertCircle,
 } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Issue } from '../lib/types';
 
 interface FieldIssueCardProps {
@@ -34,28 +43,28 @@ const STATUS_META: Record<
   string,
   { bg: string; darkBg: string; text: string; darkText: string; dot: string }
 > = {
-  Assigned: {
+  assigned: {
     bg: 'bg-teal-100',
     darkBg: 'dark:bg-teal-900/40',
     text: 'text-teal-700',
     darkText: 'dark:text-teal-300',
     dot: '#0D9488',
   },
-  'In Progress': {
+  in_progress: {
     bg: 'bg-amber-100',
     darkBg: 'dark:bg-amber-900/40',
     text: 'text-amber-700',
     darkText: 'dark:text-amber-300',
     dot: '#F59E0B',
   },
-  'Pending UO Verification': {
+  pending_uo_verification: {
     bg: 'bg-blue-100',
     darkBg: 'dark:bg-blue-900/40',
     text: 'text-blue-700',
     darkText: 'dark:text-blue-300',
     dot: '#3B82F6',
   },
-  'Rework Required': {
+  rework_required: {
     bg: 'bg-red-100',
     darkBg: 'dark:bg-red-900/40',
     text: 'text-red-700',
@@ -68,28 +77,28 @@ const PRIORITY_META: Record<
   string,
   { bg: string; darkBg: string; text: string; darkText: string; dot: string }
 > = {
-  Critical: {
+  critical: {
     bg: 'bg-red-100',
     darkBg: 'dark:bg-red-900/40',
     text: 'text-red-700',
     darkText: 'dark:text-red-300',
     dot: '#DC2626',
   },
-  High: {
+  high: {
     bg: 'bg-orange-100',
     darkBg: 'dark:bg-orange-900/40',
     text: 'text-orange-700',
     darkText: 'dark:text-orange-300',
     dot: '#F97316',
   },
-  Medium: {
+  medium: {
     bg: 'bg-amber-100',
     darkBg: 'dark:bg-amber-900/40',
     text: 'text-amber-700',
     darkText: 'dark:text-amber-300',
     dot: '#F59E0B',
   },
-  Low: {
+  low: {
     bg: 'bg-green-100',
     darkBg: 'dark:bg-green-900/40',
     text: 'text-green-700',
@@ -134,7 +143,7 @@ const CATEGORY_META: Record<
   },
   'Road Repair': {
     bg: 'bg-slate-100',
-    darkBg: 'dark:bg-slate-700/40',
+    darkBg: 'dark:bg-slate-800/40',
     text: 'text-slate-600',
     darkText: 'dark:text-slate-400',
   },
@@ -152,10 +161,66 @@ const CATEGORY_META: Record<
   },
 };
 
+// Breathtaking aura gradients and shadows based on status
+const STATUS_AURA: Record<
+  string,
+  {
+    lightG: [string, string];
+    darkG: [string, string];
+    shadowLight: string;
+    shadowDark: string;
+    orbColor: string;
+    borderLight: string;
+    borderDark: string;
+  }
+> = {
+  assigned: {
+    lightG: ['#ffffff', '#ccfbf1'],
+    darkG: ['rgba(15, 23, 42, 0.95)', 'rgba(13, 148, 136, 0.35)'],
+    shadowLight: 'rgba(13, 148, 136, 0.5)',
+    shadowDark: 'rgba(13, 148, 136, 0.7)',
+    orbColor: 'rgba(13, 148, 136, 0.3)',
+    borderLight: 'rgba(20, 184, 166, 0.5)',
+    borderDark: 'rgba(20, 184, 166, 0.6)',
+  },
+  in_progress: {
+    lightG: ['#ffffff', '#fef3c7'],
+    darkG: ['rgba(15, 23, 42, 0.95)', 'rgba(245, 158, 11, 0.35)'],
+    shadowLight: 'rgba(245, 158, 11, 0.5)',
+    shadowDark: 'rgba(245, 158, 11, 0.7)',
+    orbColor: 'rgba(245, 158, 11, 0.3)',
+    borderLight: 'rgba(245, 158, 11, 0.5)',
+    borderDark: 'rgba(245, 158, 11, 0.6)',
+  },
+  pending_uo_verification: {
+    lightG: ['#ffffff', '#dbeafe'],
+    darkG: ['rgba(15, 23, 42, 0.95)', 'rgba(59, 130, 246, 0.35)'],
+    shadowLight: 'rgba(59, 130, 246, 0.5)',
+    shadowDark: 'rgba(59, 130, 246, 0.7)',
+    orbColor: 'rgba(59, 130, 246, 0.3)',
+    borderLight: 'rgba(59, 130, 246, 0.5)',
+    borderDark: 'rgba(59, 130, 246, 0.6)',
+  },
+  rework_required: {
+    lightG: ['#ffffff', '#fee2e2'],
+    darkG: ['rgba(15, 23, 42, 0.95)', 'rgba(220, 38, 38, 0.35)'],
+    shadowLight: 'rgba(220, 38, 38, 0.5)',
+    shadowDark: 'rgba(220, 38, 38, 0.7)',
+    orbColor: 'rgba(220, 38, 38, 0.3)',
+    borderLight: 'rgba(220, 38, 38, 0.5)',
+    borderDark: 'rgba(220, 38, 38, 0.6)',
+  },
+};
+
 export default function FieldIssueCard({ issue, onPress }: FieldIssueCardProps) {
   const [timeRemaining, setTimeRemaining] = useState('');
   const [isOverdue, setIsOverdue] = useState(false);
   const [isUrgent, setIsUrgent] = useState(false);
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const scaleAnim = useRef(new Animated.Value(1)).current;
 
   const officerLocation = { latitude: 25.3176, longitude: 82.9739 };
   const distance = issue.coordinates
@@ -197,156 +262,260 @@ export default function FieldIssueCard({ issue, onPress }: FieldIssueCardProps) 
     return () => clearInterval(iv);
   }, [issue.slaDeadline]);
 
+  useEffect(() => {
+    if (isOverdue || isUrgent) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, { toValue: 1.015, duration: 1200, useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 1, duration: 1200, useNativeDriver: true }),
+        ])
+      ).start();
+    }
+  }, [isOverdue, isUrgent, pulseAnim]);
+
+  const handlePressIn = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 0.96,
+      useNativeDriver: true,
+      speed: 20,
+      bounciness: 5,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+      speed: 20,
+      bounciness: 5,
+    }).start();
+  };
+
   const sm = STATUS_META[issue.status] ?? {
     bg: 'bg-slate-100',
-    darkBg: 'dark:bg-slate-700/50',
+    darkBg: 'dark:bg-slate-800/50',
     text: 'text-slate-600',
     darkText: 'dark:text-slate-400',
     dot: '#94A3B8',
   };
-  const pm = PRIORITY_META[issue.priority] ?? PRIORITY_META.Low;
+  const pm = PRIORITY_META[issue.priority] ?? PRIORITY_META.low;
   const cm = CATEGORY_META[issue.category] ?? {
     bg: 'bg-slate-50',
-    darkBg: 'dark:bg-slate-800',
+    darkBg: 'dark:bg-slate-800/40',
     text: 'text-slate-500',
     darkText: 'dark:text-slate-400',
   };
 
-  const borderClass = isOverdue
-    ? 'border-red-300 dark:border-red-700/60'
+  const aura = STATUS_AURA[issue.status] ?? STATUS_AURA['assigned'];
+
+  const bgColors = isDark ? aura.darkG : aura.lightG;
+
+  const borderColor = isOverdue
+    ? isDark
+      ? 'rgba(239, 68, 68, 0.9)'
+      : 'rgba(239, 68, 68, 0.7)'
     : isUrgent
-      ? 'border-amber-300 dark:border-amber-700/60'
-      : 'border-slate-100 dark:border-slate-700/60';
+      ? isDark
+        ? 'rgba(245, 158, 11, 0.9)'
+        : 'rgba(245, 158, 11, 0.7)'
+      : isDark
+        ? aura.borderDark
+        : aura.borderLight;
+
+  const shadowProps = {
+    shadowColor: isOverdue
+      ? '#EF4444'
+      : isUrgent
+        ? '#F59E0B'
+        : isDark
+          ? aura.shadowDark
+          : aura.shadowLight,
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: isDark ? 0.7 : 0.9,
+    shadowRadius: 24,
+    elevation: isDark ? 16 : 20, // Massive bump for Android shadow prominence
+  };
 
   return (
-    <TouchableOpacity
-      onPress={() => onPress(issue)}
-      activeOpacity={0.78}
-      className={`mb-3 overflow-hidden rounded-3xl border bg-white dark:bg-slate-800 ${borderClass}`}
-      style={styles.card}>
-      {/* Overdue / urgent banners */}
-      {isOverdue && (
-        <View className="flex-row items-center gap-1.5 bg-red-500 px-4 py-1.5 dark:bg-red-700">
-          <Flame color="#FFFFFF" size={11} strokeWidth={2.5} />
-          <Text className="text-[10px] font-extrabold tracking-wider text-white">SLA OVERDUE</Text>
-        </View>
-      )}
-      {!isOverdue && isUrgent && (
-        <View className="flex-row items-center gap-1.5 bg-amber-400 px-4 py-1.5 dark:bg-amber-700">
-          <AlertTriangle color="#FFFFFF" size={11} strokeWidth={2.5} />
-          <Text className="text-[10px] font-extrabold tracking-wider text-white">
-            SLA CRITICAL — UNDER 3 HRS
-          </Text>
-        </View>
-      )}
-
-      <View className="p-4">
-        {/* Category + Priority row */}
-        <View className="mb-3 flex-row items-center justify-between">
+    <TouchableWithoutFeedback
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      onPress={() => onPress(issue)}>
+      <Animated.View
+        style={[
+          { marginBottom: 20, transform: [{ scale: Animated.multiply(scaleAnim, pulseAnim) }] },
+          shadowProps,
+        ]}>
+        <LinearGradient
+          colors={bgColors as [string, string]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[styles.cardGradient, { borderColor, borderWidth: 1.5 }]}>
+          {/* Ambient Glowing Orb */}
           <View
-            className={`flex-row items-center gap-1.5 rounded-lg px-2.5 py-1 ${cm.bg} ${cm.darkBg}`}>
-            <Tag size={10} strokeWidth={2.5} color={undefined} />
-            <Text className={`text-[10px] font-extrabold tracking-wide ${cm.text} ${cm.darkText}`}>
-              {issue.category.toUpperCase()}
-            </Text>
-          </View>
-          <View
-            className={`flex-row items-center gap-1 rounded-lg px-2.5 py-1 ${pm.bg} ${pm.darkBg}`}>
-            <View className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: pm.dot }} />
-            <Text className={`text-[10px] font-extrabold ${pm.text} ${pm.darkText}`}>
-              {issue.priority.toUpperCase()}
-            </Text>
-          </View>
-        </View>
+            style={[
+              styles.ambientOrb,
+              { backgroundColor: aura.orbColor, opacity: isDark ? 0.3 : 0.6 },
+            ]}
+          />
 
-        {/* Title */}
-        <Text
-          className="mb-3 text-[16px] font-extrabold leading-[22px] text-slate-900 dark:text-slate-50"
-          numberOfLines={2}>
-          {issue.title}
-        </Text>
+          {/* Overdue / Urgent Banners */}
+          {isOverdue && (
+            <LinearGradient
+              colors={['#EF4444', '#991B1B']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              className="flex-row items-center gap-2 px-5 py-3">
+              <Flame color="#FFFFFF" size={14} strokeWidth={2.5} />
+              <Text className="text-[11px] font-black tracking-widest text-white">SLA OVERDUE</Text>
+            </LinearGradient>
+          )}
+          {!isOverdue && isUrgent && (
+            <LinearGradient
+              colors={['#F59E0B', '#B45309']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              className="flex-row items-center gap-2 px-5 py-3">
+              <AlertCircle color="#FFFFFF" size={14} strokeWidth={2.5} />
+              <Text className="text-[11px] font-black tracking-widest text-white">
+                SLA CRITICAL — UNDER 3 HRS
+              </Text>
+            </LinearGradient>
+          )}
 
-        {/* Location + Distance */}
-        <View className="mb-3 flex-row items-center justify-between">
-          <View className="mr-3 flex-1 flex-row items-center gap-1.5">
-            <MapPin color="#9CA3AF" size={13} strokeWidth={2} />
+          <View className="p-5">
+            {/* Header: Category & Priority */}
+            <View className="mb-5 flex-row items-center justify-between">
+              <View
+                className={`flex-row items-center gap-1.5 rounded-full px-3.5 py-1.5 ${cm.bg} ${cm.darkBg} border border-white/40 shadow-sm dark:border-white/5`}>
+                <Tag size={12} strokeWidth={2.5} color={isDark ? '#9CA3AF' : '#6B7280'} />
+                <Text
+                  className={`text-[11px] font-black tracking-widest ${cm.text} ${cm.darkText}`}>
+                  {issue.category.toUpperCase()}
+                </Text>
+              </View>
+              <View
+                className={`flex-row items-center gap-2 rounded-full px-3.5 py-1.5 ${pm.bg} ${pm.darkBg} border border-white/40 shadow-sm dark:border-white/5`}>
+                <View
+                  className="h-2.5 w-2.5 rounded-full"
+                  style={{
+                    backgroundColor: pm.dot,
+                    shadowColor: pm.dot,
+                    shadowOpacity: 0.8,
+                    shadowRadius: 4,
+                    shadowOffset: { width: 0, height: 0 },
+                  }}
+                />
+                <Text
+                  className={`text-[11px] font-black tracking-widest ${pm.text} ${pm.darkText}`}>
+                  {issue.priority.toUpperCase()}
+                </Text>
+              </View>
+            </View>
+
+            {/* Title */}
             <Text
-              className="flex-1 text-[12px] text-slate-500 dark:text-slate-400"
-              numberOfLines={1}>
-              {issue.location}
+              className="mb-6 text-[20px] font-black leading-[28px] tracking-tight text-slate-900 dark:text-white"
+              numberOfLines={2}>
+              {issue.title}
             </Text>
-          </View>
-          <View className="flex-row items-center gap-1 rounded-xl border border-teal-100 bg-teal-50 px-2.5 py-1 dark:border-teal-800/50 dark:bg-teal-900/30">
-            <Navigation color="#0D9488" size={11} strokeWidth={2.5} />
-            <Text className="text-[11px] font-extrabold text-teal-700 dark:text-teal-400">
-              {distance.toFixed(1)} km
-            </Text>
-          </View>
-        </View>
 
-        {/* Citizen */}
-        <View className="mb-4 flex-row items-center gap-1.5">
-          <View className="h-5 w-5 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-700">
-            <User color="#94A3B8" size={10} strokeWidth={2} />
-          </View>
-          <Text className="text-[12px] font-semibold text-slate-500 dark:text-slate-400">
-            {issue.citizenName}
-          </Text>
-        </View>
+            {/* Info Rows */}
+            <View className="mb-6 gap-3.5">
+              <View className="flex-row items-center gap-3">
+                <View className="h-8 w-8 items-center justify-center rounded-full border border-white/50 bg-white/60 shadow-sm dark:border-slate-700/50 dark:bg-slate-800/80">
+                  <MapPin color={isDark ? '#9CA3AF' : '#64748B'} size={14} strokeWidth={2.5} />
+                </View>
+                <Text
+                  className="flex-1 text-[14px] font-bold text-slate-700 dark:text-slate-200"
+                  numberOfLines={1}>
+                  {issue.location}
+                </Text>
+                {/* Distance Badge */}
+                <View className="flex-row items-center gap-1.5 rounded-full border border-teal-200/50 bg-teal-50 px-3 py-1.5 shadow-sm dark:border-teal-800/50 dark:bg-teal-900/60">
+                  <Navigation color="#0D9488" size={11} strokeWidth={3} />
+                  <Text className="text-[12px] font-black tracking-wide text-teal-700 dark:text-teal-400">
+                    {distance.toFixed(1)} km
+                  </Text>
+                </View>
+              </View>
 
-        {/* Footer */}
-        <View className="flex-row items-center justify-between border-t border-slate-100 pt-3 dark:border-slate-700/70">
-          {/* Status badge */}
-          <View
-            className={`flex-row items-center gap-1 rounded-xl px-2.5 py-1.5 ${sm.bg} ${sm.darkBg}`}>
-            <View className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: sm.dot }} />
-            <Text className={`text-[10px] font-extrabold ${sm.text} ${sm.darkText}`}>
-              {issue.status}
-            </Text>
-          </View>
+              <View className="flex-row items-center gap-3">
+                <View className="h-8 w-8 items-center justify-center rounded-full border border-white/50 bg-white/60 shadow-sm dark:border-slate-700/50 dark:bg-slate-800/80">
+                  <User color={isDark ? '#9CA3AF' : '#64748B'} size={14} strokeWidth={2.5} />
+                </View>
+                <Text className="text-[14px] font-bold text-slate-700 dark:text-slate-200">
+                  {issue.citizenName}
+                </Text>
+              </View>
+            </View>
 
-          {/* SLA timer */}
-          <View
-            className={`flex-row items-center gap-1.5 rounded-xl border px-3 py-1.5 ${
-              isOverdue
-                ? 'border-red-200 bg-red-50 dark:border-red-800/50 dark:bg-red-900/30'
-                : isUrgent
-                  ? 'border-amber-200 bg-amber-50 dark:border-amber-800/50 dark:bg-amber-900/30'
-                  : 'border-slate-200 bg-slate-50 dark:border-slate-600 dark:bg-slate-700/50'
-            }`}>
-            <Clock
-              color={isOverdue ? '#DC2626' : isUrgent ? '#F59E0B' : '#94A3B8'}
-              size={12}
-              strokeWidth={2.5}
-            />
-            <Text
-              className={`text-[11px] font-extrabold ${
-                isOverdue
-                  ? 'text-red-600 dark:text-red-400'
-                  : isUrgent
-                    ? 'text-amber-600 dark:text-amber-400'
-                    : 'text-slate-500 dark:text-slate-400'
-              }`}>
-              {timeRemaining}
-            </Text>
-          </View>
+            {/* Footer */}
+            <View className="flex-row items-center justify-between border-t border-slate-200/60 pt-5 dark:border-slate-700/60">
+              {/* Status Badge */}
+              <View
+                className={`flex-row items-center gap-2 rounded-xl px-4 py-2 ${sm.bg} ${sm.darkBg} border border-white/40 shadow-sm dark:border-white/5`}>
+                <View className="h-2 w-2 rounded-full" style={{ backgroundColor: sm.dot }} />
+                <Text
+                  className={`text-[12px] font-black uppercase tracking-widest ${sm.text} ${sm.darkText}`}>
+                  {issue.status.replace(/_/g, ' ')}
+                </Text>
+              </View>
 
-          {/* Arrow */}
-          <View className="h-8 w-8 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-700">
-            <ChevronRight color="#6B7280" size={14} strokeWidth={2.5} />
+              {/* SLA Timer & Arrow */}
+              <View className="flex-row items-center gap-3.5">
+                <View
+                  className={`flex-row items-center gap-2 rounded-xl border px-4 py-2 shadow-sm ${
+                    isOverdue
+                      ? 'border-red-300/50 bg-red-50 dark:border-red-800/50 dark:bg-red-900/40'
+                      : isUrgent
+                        ? 'border-amber-300/50 bg-amber-50 dark:border-amber-800/50 dark:bg-amber-900/40'
+                        : 'border-white/60 bg-white/50 dark:border-slate-700/50 dark:bg-slate-800/80'
+                  }`}>
+                  <Clock
+                    color={
+                      isOverdue ? '#DC2626' : isUrgent ? '#F59E0B' : isDark ? '#94A3B8' : '#64748B'
+                    }
+                    size={14}
+                    strokeWidth={2.5}
+                  />
+                  <Text
+                    className={`text-[13px] font-black tracking-wider ${
+                      isOverdue
+                        ? 'text-red-600 dark:text-red-400'
+                        : isUrgent
+                          ? 'text-amber-600 dark:text-amber-400'
+                          : 'text-slate-700 dark:text-slate-200'
+                    }`}>
+                    {timeRemaining}
+                  </Text>
+                </View>
+
+                {/* Glassmorphic Arrow Button */}
+                <View className="h-11 w-11 items-center justify-center rounded-full border border-white/50 bg-white/80 shadow-sm dark:border-slate-700/50 dark:bg-slate-800">
+                  <ChevronRight color={isDark ? '#F8FAFC' : '#0F172A'} size={20} strokeWidth={3} />
+                </View>
+              </View>
+            </View>
           </View>
-        </View>
-      </View>
-    </TouchableOpacity>
+        </LinearGradient>
+      </Animated.View>
+    </TouchableWithoutFeedback>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    shadowColor: '#64748B',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 4,
+  cardGradient: {
+    borderRadius: 28,
+    overflow: 'hidden',
+  },
+  ambientOrb: {
+    position: 'absolute',
+    top: -50,
+    right: -50,
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    transform: [{ scale: 1.5 }],
   },
 });

@@ -57,20 +57,17 @@ import {
   SLAKey,
   SLAMeta,
 } from '../lib/types';
-import {
-  mockDashboardStats as mockStats,
-  mockUnitOfficerNotifications,
-  mockDuplicateGroups,
-} from '../lib/mockData';
+import { mockDashboardStats as mockStats, mockDuplicateGroups } from '../lib/mockData';
 import { useNavigation } from '@react-navigation/native';
 import DuplicateDetectionBanner from '../components/DuplicateDetectionBanner';
 import { DuplicateGroup } from '../lib/types';
 import NotificationPanel from 'components/NotificationPanel';
 import { User } from '../lib/auth';
-import { useQuery } from 'convex/react';
+import { useMutation, useQuery } from 'convex/react';
 import { api } from 'convex/_generated/api';
 import { mapIssueToUI } from 'lib/issueMapper';
 import { useUser } from 'context/UserContext';
+import { Id } from 'convex/_generated/dataModel';
 
 interface UnitOfficerDashboardProps {
   user: User;
@@ -1106,12 +1103,22 @@ export default function UnitOfficerDashboard() {
     user?.id ? { userId: user.id } : 'skip'
   );
 
+  // Fetch Unit Officer Notifications
+  const notifications = useQuery(
+    api.notifications.getByUser,
+    user?.id ? { userId: user.id } : 'skip'
+  );
+
+  const markAll = useMutation(api.notifications.markAllAsRead);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [filterVisible, setFilterVisible] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [duplicateGroups, setDuplicateGroups] = useState<DuplicateGroup[]>(mockDuplicateGroups);
 
-  const unreadNotifCount = mockUnitOfficerNotifications.filter((n) => !n.read).length;
+  const unreadNotifCount = notifications?.filter((n) => !n.read).length;
+
+  console.log('Unread Notification Count: ', unreadNotifCount);
   const [filters, setFilters] = useState<FilterState>({
     status: 'all',
     sla: 'all',
@@ -1189,6 +1196,10 @@ export default function UnitOfficerDashboard() {
     []
   );
 
+  async function handleMarkAllAsRead() {
+    await markAll({ userId: user?.id as Id<'users'> });
+  }
+
   const stats = [
     {
       label: 'Total',
@@ -1220,7 +1231,7 @@ export default function UnitOfficerDashboard() {
   const activeSla = filters.sla !== 'all' ? SLA_META[filters.sla] : null;
   const activePri = filters.priority !== 'all' ? PRIORITY_META[filters.priority] : null;
 
-  if (!unitOfficer) {
+  if (!unitOfficer && !notifications) {
     return (
       <View className="flex-1 items-center justify-center bg-slate-50 dark:bg-slate-900">
         <ActivityIndicator size="large" color="#0D9488" />
@@ -1263,9 +1274,9 @@ export default function UnitOfficerDashboard() {
                 activeOpacity={0.75}
                 className="h-11 w-11 items-center justify-center rounded-[14px] bg-white/[0.16]">
                 <Bell color="#FFFFFF" size={20} strokeWidth={2} />
-                {unreadNotifCount > 0 && (
+                {unreadNotifCount !== undefined && unreadNotifCount > 0 && (
                   <View style={styles.bellDot}>
-                    {unreadNotifCount <= 9 && (
+                    {unreadNotifCount <= 99 && (
                       <Text
                         style={{
                           color: '#FFFFFF',
@@ -1274,6 +1285,17 @@ export default function UnitOfficerDashboard() {
                           lineHeight: 10,
                         }}>
                         {unreadNotifCount}
+                      </Text>
+                    )}
+                    {unreadNotifCount > 99 && (
+                      <Text
+                        style={{
+                          color: '#FFFFFF',
+                          fontSize: 8,
+                          fontWeight: '800',
+                          lineHeight: 10,
+                        }}>
+                        99+
                       </Text>
                     )}
                   </View>
@@ -1449,12 +1471,15 @@ export default function UnitOfficerDashboard() {
         department={unitOfficer?.department}
       />
 
-      <NotificationPanel
-        visible={showNotifications}
-        onClose={() => setShowNotifications(false)}
-        notifications={mockUnitOfficerNotifications}
-        role="UnitOfficer"
-      />
+      {notifications && (
+        <NotificationPanel
+          visible={showNotifications}
+          onClose={() => setShowNotifications(false)}
+          notification={notifications}
+          handleMarkAllAsRead={handleMarkAllAsRead}
+          role="UnitOfficer"
+        />
+      )}
     </SafeAreaView>
   );
 }

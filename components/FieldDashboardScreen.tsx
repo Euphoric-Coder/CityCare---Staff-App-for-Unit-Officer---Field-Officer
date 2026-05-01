@@ -141,11 +141,13 @@ export default function FieldDashboardScreen() {
         <View style={styles.listContent}>
           <View className="mb-3 flex-row items-center justify-between">
             <Text className="text-[17px] font-extrabold tracking-tight text-slate-900 dark:text-slate-100">
-              {selectedFilter === 'All' ? 'My Tasks' : selectedFilter}
+              {selectedFilter === 'all'
+                ? 'My Tasks'
+                : selectedFilter.replace('_', ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
             </Text>
             <View className="rounded-full bg-teal-100 px-2.5 py-1 dark:bg-teal-900/40">
               <Text className="text-xs font-bold text-teal-700 dark:text-teal-300">
-                {filteredIssues.length} {filteredIssues.length === 1 ? 'task' : 'tasks'}
+                {filteredIssues.length} {filteredIssues.length === 1 ? 'Task' : 'Tasks'}
               </Text>
             </View>
           </View>

@@ -235,7 +235,6 @@ export default defineSchema({
     updatedBy: v.optional(v.id('users')),
 
     role: v.union(
-      v.literal('citizen'),
       v.literal('unit_officer'),
       v.literal('field_officer'),
       v.literal('admin')

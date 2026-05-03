@@ -124,7 +124,7 @@ export const getIssueById = query({
       })
     );
 
-    // Resolve videos (if exists)
+    // Citizen Video Evidence (if exists)
     let videoUrl = null;
     if (issue.videos) {
       videoUrl = await ctx.storage.getUrl(issue.videos);
@@ -430,7 +430,7 @@ export const assignIssueToFieldOfficer = mutation({
     if (args.isReassign && issue.assignedFieldOfficer) {
       const prevFO = await ctx.db
         .query('fieldOfficers')
-        .withIndex('by_user', (q) => q.eq('userId', issue.assignedFieldOfficer))
+        .withIndex('by_user', (q) => q.eq('userId', issue.assignedFieldOfficer as Id<'users'>))
         .unique();
 
       if (prevFO) {

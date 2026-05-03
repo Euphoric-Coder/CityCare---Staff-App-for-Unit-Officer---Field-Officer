@@ -230,8 +230,7 @@ export default function WorkExecutionFlow({ issueId, onClose, onSubmit }: WorkEx
       }
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [4, 3],
+        allowsEditing: false,
         quality: 0.8,
       });
       if (!result.canceled && result.assets[0]) {
@@ -251,8 +250,7 @@ export default function WorkExecutionFlow({ issueId, onClose, onSubmit }: WorkEx
       }
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [4, 3],
+        allowsEditing: false,
         quality: 0.8,
       });
       if (!result.canceled && result.assets[0]) {

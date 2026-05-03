@@ -216,6 +216,8 @@ export default function FieldIssueCard({ issue, onPress }: FieldIssueCardProps) 
   const [timeRemaining, setTimeRemaining] = useState('');
   const [isOverdue, setIsOverdue] = useState(false);
   const [isUrgent, setIsUrgent] = useState(false);
+  const [isWarning, setIsWarning] = useState(false);
+  const [isSoon, setIsSoon] = useState(false);
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 
@@ -236,6 +238,10 @@ export default function FieldIssueCard({ issue, onPress }: FieldIssueCardProps) 
     const calculate = () => {
       if (!issue.slaDeadline) {
         setTimeRemaining('No deadline');
+        setIsOverdue(false);
+        setIsUrgent(false);
+        setIsWarning(false);
+        setIsSoon(false);
         return;
       }
       const now = Date.now();
@@ -245,13 +251,20 @@ export default function FieldIssueCard({ issue, onPress }: FieldIssueCardProps) 
       if (diff <= 0) {
         setTimeRemaining('OVERDUE');
         setIsOverdue(true);
-        setIsUrgent(true);
+        setIsUrgent(false);
+        setIsWarning(false);
+        setIsSoon(false);
         return;
       }
 
       const hours = Math.floor(diff / (1000 * 60 * 60));
       const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      
+      setIsOverdue(false);
       setIsUrgent(hours < 3);
+      setIsWarning(hours >= 3 && hours < 6);
+      setIsSoon(hours >= 6 && hours < 12);
+      
       setTimeRemaining(
         hours < 24 ? `${hours}h ${minutes}m` : `${Math.floor(hours / 24)}d ${hours % 24}h`
       );
@@ -263,7 +276,7 @@ export default function FieldIssueCard({ issue, onPress }: FieldIssueCardProps) 
   }, [issue.slaDeadline]);
 
   useEffect(() => {
-    if (isOverdue || isUrgent) {
+    if (isOverdue || isUrgent || isWarning) {
       Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, { toValue: 1.015, duration: 1200, useNativeDriver: true }),
@@ -271,7 +284,7 @@ export default function FieldIssueCard({ issue, onPress }: FieldIssueCardProps) 
         ])
       ).start();
     }
-  }, [isOverdue, isUrgent, pulseAnim]);
+  }, [isOverdue, isUrgent, isWarning, pulseAnim]);
 
   const handlePressIn = () => {
     Animated.spring(scaleAnim, {
@@ -359,29 +372,55 @@ export default function FieldIssueCard({ issue, onPress }: FieldIssueCardProps) 
             ]}
           />
 
-          {/* Overdue / Urgent Banners */}
-          {isOverdue && (
-            <LinearGradient
-              colors={['#EF4444', '#991B1B']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              className="flex-row items-center gap-2 px-5 py-3">
-              <Flame color="#FFFFFF" size={14} strokeWidth={2.5} />
-              <Text className="text-[11px] font-black tracking-widest text-white">SLA OVERDUE</Text>
-            </LinearGradient>
-          )}
-          {!isOverdue && isUrgent && (
-            <LinearGradient
-              colors={['#F59E0B', '#B45309']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              className="flex-row items-center gap-2 px-5 py-3">
-              <AlertCircle color="#FFFFFF" size={14} strokeWidth={2.5} />
-              <Text className="text-[11px] font-black tracking-widest text-white">
-                SLA CRITICAL — UNDER 3 HRS
-              </Text>
-            </LinearGradient>
-          )}
+          {/* Overdue / Urgent / Warning Banners */}
+          <View style={{ overflow: 'hidden', borderTopLeftRadius: 28, borderTopRightRadius: 28 }}>
+            {isOverdue && (
+              <LinearGradient
+                colors={['#EF4444', '#991B1B']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={{ width: '100%', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12, gap: 8 }}>
+                <Flame color="#FFFFFF" size={14} strokeWidth={2.5} />
+                <Text className="text-[11px] font-black tracking-widest text-white">SLA OVERDUE</Text>
+              </LinearGradient>
+            )}
+            {!isOverdue && isUrgent && (
+              <LinearGradient
+                colors={['#F59E0B', '#B45309']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={{ width: '100%', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12, gap: 8 }}>
+                <AlertCircle color="#FFFFFF" size={14} strokeWidth={2.5} />
+                <Text className="text-[11px] font-black tracking-widest text-white">
+                  SLA CRITICAL — UNDER 3 HRS
+                </Text>
+              </LinearGradient>
+            )}
+            {!isOverdue && !isUrgent && isWarning && (
+              <LinearGradient
+                colors={['#FACC15', '#A16207']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={{ width: '100%', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12, gap: 8 }}>
+                <AlertTriangle color="#FFFFFF" size={14} strokeWidth={2.5} />
+                <Text className="text-[11px] font-black tracking-widest text-white">
+                  SLA NEARING — UNDER 6 HRS
+                </Text>
+              </LinearGradient>
+            )}
+            {!isOverdue && !isUrgent && !isWarning && isSoon && (
+              <LinearGradient
+                colors={['#6366F1', '#3730A3']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={{ width: '100%', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12, gap: 8 }}>
+                <Clock color="#FFFFFF" size={14} strokeWidth={2.5} />
+                <Text className="text-[11px] font-black tracking-widest text-white">
+                  SLA DUE SOON — UNDER 12 HRS
+                </Text>
+              </LinearGradient>
+            )}
+          </View>
 
           <View className="p-5">
             {/* Header: Category & Priority */}

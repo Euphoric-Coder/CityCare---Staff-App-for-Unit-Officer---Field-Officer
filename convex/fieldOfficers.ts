@@ -39,8 +39,24 @@ export const getFieldOfficerIssues = query({
           .withIndex('by_user', (q) => q.eq('userId', issue.reportedBy))
           .unique();
 
+        // Main preview (first photo)
+        const photoUrl = await Promise.all(
+          (issue.photos || []).map(async (fileId) => {
+            const url = await ctx.storage.getUrl(fileId);
+            return url;
+          })
+        );
+
+        // Citizen Video Evidence (if exists)
+        let videoUrl = null;
+        if (issue.videos) {
+          videoUrl = await ctx.storage.getUrl(issue.videos);
+        }
+
         return {
           ...issue,
+          photoUrl,
+          videoUrl,
 
           citizenDetails: {
             fullName: citizen?.fullName ?? 'Unknown',

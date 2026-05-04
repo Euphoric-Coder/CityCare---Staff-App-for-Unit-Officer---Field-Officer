@@ -11,6 +11,7 @@ import {
   Modal,
   Platform,
   ActivityIndicator,
+  useColorScheme,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -27,10 +28,16 @@ import {
   Clock,
   ChevronRight,
   Navigation,
+  Sparkles,
+  ShieldCheck,
+  AlertCircle,
+  Layout,
+  Info,
 } from 'lucide-react-native';
 import * as ExpoCamera from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
+import { BlurView } from 'expo-blur';
 
 interface Coords {
   latitude: number;
@@ -39,6 +46,7 @@ interface Coords {
 
 interface WorkExecutionFlowProps {
   issueId: string;
+  status: string;
   onClose: () => void;
   onSubmit: (data: {
     beforeImage: string | null;
@@ -60,28 +68,29 @@ function SectionHeader({
   badge?: string;
   badgeColor?: 'red' | 'teal' | 'green';
 }) {
+  const isDark = useColorScheme() === 'dark';
   const badgeStyles: Record<string, string> = {
-    red: 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400',
-    teal: 'bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400',
-    green: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400',
+    red: 'bg-rose-500/10 text-rose-500 border-rose-500/20',
+    teal: 'bg-teal-500/10 text-teal-500 border-teal-500/20',
+    green: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20',
   };
   const badgeCls = badgeColor ? badgeStyles[badgeColor] : badgeStyles.teal;
 
   return (
-    <View className="mb-3 flex-row items-center justify-between">
-      <View className="flex-row items-center gap-2.5">
-        <View className="h-8 w-8 items-center justify-center rounded-xl bg-teal-50 dark:bg-teal-900/30">
+    <View style={styles.sectionHeader}>
+      <View style={styles.sectionHeaderTitle}>
+        <LinearGradient
+          colors={isDark ? ['#1E293B', '#0F172A'] : ['#F1F5F9', '#E2E8F0']}
+          style={styles.sectionIconBox}>
           {icon}
-        </View>
-        <Text className="text-[15px] font-extrabold tracking-tight text-slate-800 dark:text-slate-100">
+        </LinearGradient>
+        <Text style={[styles.sectionTitleText, { color: isDark ? '#F8FAFC' : '#0F172A' }]}>
           {title}
         </Text>
       </View>
       {badge && (
-        <View className={`rounded-lg px-2.5 py-1 ${badgeCls.split(' ').slice(0, 2).join(' ')}`}>
-          <Text className={`text-[11px] font-bold ${badgeCls.split(' ').slice(2).join(' ')}`}>
-            {badge}
-          </Text>
+        <View className={`rounded-full border px-3 py-1 ${badgeCls}`}>
+          <Text className="text-[10px] font-black uppercase tracking-tighter">{badge}</Text>
         </View>
       )}
     </View>
@@ -97,17 +106,14 @@ function LocationBlock({
   coords: Coords | null;
   isCapturing: boolean;
 }) {
+  const isDark = useColorScheme() === 'dark';
   if (isCapturing) {
     return (
-      <View className="flex-row items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-700/50 dark:bg-amber-900/20">
-        <View className="h-10 w-10 items-center justify-center rounded-xl bg-amber-100 dark:bg-amber-900/40">
-          <ActivityIndicator size="small" color="#F59E0B" />
-        </View>
-        <View className="flex-1">
-          <Text className="text-[13px] font-bold text-amber-700 dark:text-amber-400">{label}</Text>
-          <Text className="mt-0.5 text-[12px] font-medium text-amber-600 dark:text-amber-500">
-            Acquiring GPS signal...
-          </Text>
+      <View style={[styles.locationBox, styles.locationBoxCapturing]}>
+        <ActivityIndicator size="small" color="#F59E0B" />
+        <View style={{ flex: 1 }}>
+          <Text style={styles.locationLabel}>{label}</Text>
+          <Text style={styles.locationSubText}>Acquiring High-Precision GPS...</Text>
         </View>
       </View>
     );
@@ -115,55 +121,59 @@ function LocationBlock({
 
   if (coords) {
     return (
-      <View className="flex-row items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-700/50 dark:bg-emerald-900/20">
-        <View className="h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 dark:bg-emerald-900/40">
-          <CheckCircle2 color="#16A34A" size={20} strokeWidth={2.5} />
-        </View>
-        <View className="flex-1">
-          <Text className="text-[13px] font-bold text-emerald-700 dark:text-emerald-400">
-            {label} Captured
-          </Text>
-          <Text className="mt-0.5 font-mono text-[11px] text-emerald-600 dark:text-emerald-500">
-            {coords.latitude.toFixed(5)}, {coords.longitude.toFixed(5)}
+      <View style={[styles.locationBox, styles.locationBoxSuccess]}>
+        <ShieldCheck color="#10B981" size={18} strokeWidth={2.5} />
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.locationLabel, { color: '#065F46' }]}>{label} Verified</Text>
+          <Text style={[styles.locationSubText, { color: '#059669' }]}>
+            {coords.latitude.toFixed(6)}°, {coords.longitude.toFixed(6)}°
           </Text>
         </View>
-        <Navigation size={14} color="#16A34A" strokeWidth={2.5} />
+        <Navigation size={14} color="#10B981" strokeWidth={2.5} />
       </View>
     );
   }
 
   return (
-    <View className="flex-row items-center gap-3 rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 dark:border-slate-600 dark:bg-slate-800/60">
-      <View className="h-10 w-10 items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-700">
-        <MapPin color="#94A3B8" size={18} strokeWidth={2.5} />
-      </View>
-      <Text className="flex-1 text-[13px] font-semibold text-slate-400 dark:text-slate-500">
-        Auto-captured when photo is taken
+    <View style={styles.locationBoxPlaceholder}>
+      <MapPin color={isDark ? '#475569' : '#94A3B8'} size={18} strokeWidth={2.5} />
+      <Text style={[styles.locationPlaceholderText, { color: isDark ? '#64748B' : '#94A3B8' }]}>
+        Auto-captured upon photographic evidence
       </Text>
     </View>
   );
 }
 
 function ChecklistItem({ done, label }: { done: boolean; label: string }) {
+  const isDark = useColorScheme() === 'dark';
   return (
-    <View className="flex-row items-center gap-3 border-b border-slate-100 py-2.5 last:border-0 dark:border-slate-700/50">
-      <View
-        className={`h-5 w-5 items-center justify-center rounded-full ${
-          done ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-slate-700'
-        }`}>
-        {done && <CheckCircle size={13} color="#FFFFFF" strokeWidth={3} />}
-      </View>
+    <View style={styles.checklistItem}>
+      <LinearGradient
+        colors={
+          done ? ['#10B981', '#059669'] : isDark ? ['#334155', '#1E293B'] : ['#F1F5F9', '#E2E8F0']
+        }
+        style={styles.checklistDot}>
+        {done && <CheckCircle size={10} color="#FFFFFF" strokeWidth={4} />}
+      </LinearGradient>
       <Text
-        className={`text-[13px] font-semibold ${
-          done ? 'text-slate-800 dark:text-slate-200' : 'text-slate-400 dark:text-slate-500'
-        }`}>
+        style={[
+          styles.checklistText,
+          { color: done ? (isDark ? '#F8FAFC' : '#0F172A') : isDark ? '#475569' : '#94A3B8' },
+          done && { fontWeight: '800' },
+        ]}>
         {label}
       </Text>
     </View>
   );
 }
 
-export default function WorkExecutionFlow({ issueId, onClose, onSubmit }: WorkExecutionFlowProps) {
+export default function WorkExecutionFlow({
+  issueId,
+  status,
+  onClose,
+  onSubmit,
+}: WorkExecutionFlowProps) {
+  const isDark = useColorScheme() === 'dark';
   const insets = useSafeAreaInsets();
   const [beforeImage, setBeforeImage] = useState<string | null>(null);
   const [afterImage, setAfterImage] = useState<string | null>(null);
@@ -173,6 +183,9 @@ export default function WorkExecutionFlow({ issueId, onClose, onSubmit }: WorkEx
   const [capturingFor, setCapturingFor] = useState<'before' | 'after' | null>(null);
   const [showImagePicker, setShowImagePicker] = useState<'before' | 'after' | null>(null);
   const [hasLocationPermission, setHasLocationPermission] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+
+  const isRework = status === 'rework_required';
 
   useEffect(() => {
     requestLocationPermission();
@@ -261,8 +274,16 @@ export default function WorkExecutionFlow({ issueId, onClose, onSubmit }: WorkEx
     }
   };
 
+  const wordCount = notes.trim().split(/\s+/).filter((w) => w.length > 0).length;
+  const isNotesValid = wordCount >= 10;
+
   const isReady =
-    !!beforeImage && !!afterImage && !!beforeLocation && !!afterLocation && !!notes.trim();
+    !!beforeImage &&
+    !!afterImage &&
+    !!beforeLocation &&
+    !!afterLocation &&
+    !!notes.trim() &&
+    isNotesValid;
 
   const handleSubmit = () => {
     if (!beforeImage) {
@@ -285,51 +306,93 @@ export default function WorkExecutionFlow({ issueId, onClose, onSubmit }: WorkEx
       Alert.alert('Required', 'Please add work notes');
       return;
     }
+    if (!isNotesValid) {
+      Alert.alert(
+        'Insufficient Detail',
+        `Please provide at least 10 words in your work notes. Current count: ${wordCount} words.`
+      );
+      return;
+    }
+    setShowConfirmModal(true);
+  };
 
-    Alert.alert('Confirm Submission', 'Submit resolution for UO verification?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Submit',
-        onPress: () => onSubmit({ beforeImage, afterImage, beforeLocation, afterLocation, notes }),
-      },
-    ]);
+  const executeSubmit = () => {
+    setShowConfirmModal(false);
+    onSubmit({ beforeImage, afterImage, beforeLocation, afterLocation, notes });
   };
 
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
       {/* ── Header ── */}
       <View
-        className="border-b border-slate-100 bg-white dark:border-slate-800 dark:bg-slate-900"
-        style={{ paddingTop: insets.top }}>
-        <View className="flex-row items-center px-5 py-3">
+        style={[
+          styles.headerContainer,
+          { paddingTop: insets.top },
+          isDark ? styles.headerDark : styles.headerLight,
+        ]}>
+        <BlurView intensity={80} tint={isDark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
+        <View className="flex-row items-center px-6 py-4">
           <View className="flex-1">
-            <Text className="text-[18px] font-extrabold tracking-tight text-slate-900 dark:text-slate-100">
-              Upload Resolution
-            </Text>
-            <Text className="mt-0.5 text-[12px] font-medium text-slate-400 dark:text-slate-500">
-              Issue #{issueId.slice(0, 8)}
-            </Text>
+            <View className="flex-row items-center gap-2">
+              <Sparkles size={18} color={isRework ? '#F59E0B' : '#0D9488'} />
+              <Text style={[styles.headerTitle, { color: isDark ? '#F8FAFC' : '#0F172A' }]}>
+                {isRework ? 'Rectify & Re-submit' : 'Resolution Protocol'}
+              </Text>
+            </View>
+            <View className="flex-row items-center gap-1.5">
+              <Text style={styles.headerSubtitle}>ASSET ID: {issueId.slice(-8).toUpperCase()}</Text>
+              {isRework && (
+                <View className="rounded-md bg-amber-500/10 px-1.5 py-0.5">
+                  <Text className="text-[8px] font-black tracking-widest text-amber-500">REWORK MODE</Text>
+                </View>
+              )}
+            </View>
           </View>
           <TouchableOpacity
             onPress={onClose}
-            className="h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 dark:bg-slate-800"
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            style={[
+              styles.closeBtn,
+              { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)' },
+            ]}
             activeOpacity={0.7}>
-            <X color="#64748B" size={20} strokeWidth={2.5} />
+            <X color={isDark ? '#94A3B8' : '#64748B'} size={20} strokeWidth={2.5} />
           </TouchableOpacity>
         </View>
 
-        {/* Progress bar */}
-        <View className="flex-row gap-1.5 px-5 pb-4">
-          {['Before', 'After', 'Notes', 'Submit'].map((step, i) => {
-            const stepDone = [!!beforeImage, !!afterImage, !!notes.trim(), isReady][i];
+        {/* Premium Progress Stepper */}
+        <View style={styles.stepperContainer}>
+          {['EVIDENCE', 'VERIFICATION', 'REMARKS', 'FINALIZE'].map((step, i) => {
+            const stepDone = [
+              !!beforeImage && !!beforeLocation,
+              !!afterImage && !!afterLocation,
+              !!notes.trim(),
+              isReady,
+            ][i];
+            const isCurrent =
+              !stepDone &&
+              (i === 0 ||
+                [!!beforeImage && !!beforeLocation, !!afterImage && !!afterLocation, !!notes.trim()][
+                  i - 1
+                ]);
+
             return (
-              <View key={i} className="flex-1">
+              <View key={i} style={styles.stepItem}>
                 <View
-                  className={`h-1.5 rounded-full ${stepDone ? 'bg-teal-500' : 'bg-slate-200 dark:bg-slate-700'}`}
-                />
+                  style={[
+                    styles.stepTrack,
+                    isCurrent && { backgroundColor: isDark ? '#1E293B' : '#E2E8F0' },
+                  ]}>
+                  <View style={[styles.stepFill, { width: stepDone ? '100%' : '0%' }]} />
+                </View>
                 <Text
-                  className={`mt-1 text-center text-[9px] font-bold ${stepDone ? 'text-teal-600 dark:text-teal-400' : 'text-slate-300 dark:text-slate-600'}`}>
+                  style={[
+                    styles.stepText,
+                    { color: stepDone ? '#0D9488' : isDark ? '#475569' : '#94A3B8' },
+                    (isCurrent || (i === 3 && isReady)) && {
+                      color: isDark ? '#F8FAFC' : '#0F172A',
+                      fontWeight: '900',
+                    },
+                  ]}>
                   {step}
                 </Text>
               </View>
@@ -457,29 +520,53 @@ export default function WorkExecutionFlow({ issueId, onClose, onSubmit }: WorkEx
         {/* ── Work Notes ── */}
         <View className="rounded-3xl bg-white p-5 dark:bg-slate-900" style={styles.card}>
           <SectionHeader
-            icon={<FileText size={16} color="#0EA5A4" strokeWidth={2.5} />}
-            title="Work Notes"
+            icon={<FileText size={16} color={isRework ? '#F59E0B' : '#0EA5A4'} strokeWidth={2.5} />}
+            title={isRework ? 'Rectification Notes' : 'Work Notes'}
             badge="Required"
             badgeColor="red"
           />
-          <View className="flex-row gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700/50 dark:bg-slate-800/60">
-            <FileText color="#94A3B8" size={18} strokeWidth={2} style={{ marginTop: 2 }} />
+          <View
+            style={[
+              styles.notesContainer,
+              isDark ? styles.notesDark : styles.notesLight,
+              notes.trim().length > 0 &&
+                !isNotesValid && { borderColor: '#EF4444', backgroundColor: 'rgba(239,68,68,0.02)' },
+              isNotesValid && { borderColor: '#10B981', backgroundColor: 'rgba(16,185,129,0.02)' },
+            ]}>
             <TextInput
-              className="flex-1 text-[14px] font-medium text-slate-800 dark:text-slate-200"
-              placeholder="Describe the work completed, materials used, issues encountered..."
-              placeholderTextColor="#94A3B8"
+              style={[styles.notesInput, { color: isDark ? '#F8FAFC' : '#0F172A' }]}
+              placeholder={
+                isRework
+                  ? "Explain how you've addressed the feedback and the specific corrections made..."
+                  : 'Detailed report of work performed, inventory utilized, and site conditions...'
+              }
+              placeholderTextColor={isDark ? '#475569' : '#94A3B8'}
               value={notes}
               onChangeText={setNotes}
               multiline
-              numberOfLines={5}
+              numberOfLines={6}
               textAlignVertical="top"
-              style={{ minHeight: 110 }}
             />
+            <View style={[styles.notesIconBox, isNotesValid && { backgroundColor: '#10B981' }]}>
+              {isNotesValid ? (
+                <CheckCircle size={14} color="#FFFFFF" />
+              ) : (
+                <Sparkles size={14} color={notes.trim().length > 0 ? '#EF4444' : '#0D9488'} />
+              )}
+            </View>
           </View>
           {notes.trim().length > 0 && (
-            <Text className="mt-2 text-right text-[11px] font-medium text-slate-400 dark:text-slate-500">
-              {notes.trim().length} characters
-            </Text>
+            <View className="mt-3 flex-row items-center justify-between">
+              <View style={styles.wordCountBadge}>
+                <Text
+                  style={[styles.wordCountText, isNotesValid ? { color: '#10B981' } : { color: '#EF4444' }]}>
+                  {wordCount} WORDS
+                </Text>
+              </View>
+              <View style={styles.charCountBox}>
+                <Text style={styles.charCountText}>{notes.trim().length} CHARS</Text>
+              </View>
+            </View>
           )}
         </View>
 
@@ -493,11 +580,64 @@ export default function WorkExecutionFlow({ issueId, onClose, onSubmit }: WorkEx
           <ChecklistItem done={!!beforeLocation} label="Before location recorded" />
           <ChecklistItem done={!!afterImage} label="After image captured" />
           <ChecklistItem done={!!afterLocation} label="After location recorded" />
-          <ChecklistItem done={!!notes.trim()} label="Work notes added" />
+          <ChecklistItem done={!!notes.trim()} label={isRework ? "Rectification notes added" : "Work notes added"} />
         </View>
 
         <View className="h-4" />
       </ScrollView>
+
+      {/* ── Confirmation Modal ── */}
+      <Modal
+        visible={showConfirmModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowConfirmModal(false)}>
+        <View style={styles.modalOverlay}>
+          <BlurView intensity={20} style={StyleSheet.absoluteFill} tint="dark" />
+          <View style={[styles.confirmModalContent, isDark ? styles.modalDark : styles.modalLight]}>
+            <LinearGradient
+              colors={isRework ? ['#F59E0B', '#D97706'] : ['#0D9488', '#0891B2']}
+              style={styles.modalHeaderIcon}>
+              <ShieldCheck size={36} color="#FFFFFF" strokeWidth={2.5} />
+            </LinearGradient>
+
+            <Text style={[styles.modalTitle, { color: isDark ? '#F8FAFC' : '#0F172A' }]}>
+              {isRework ? 'Submit Rectification' : 'Finalize Resolution'}
+            </Text>
+
+            <Text style={[styles.modalMessage, { color: isDark ? '#94A3B8' : '#64748B' }]}>
+              {isRework
+                ? 'Your corrected evidence and documentation will be sent for secondary verification.'
+                : 'Your resolution protocol and evidence will be submitted for official Unit Officer verification.'}
+            </Text>
+
+            <View style={styles.modalActionRow}>
+              <TouchableOpacity
+                onPress={() => setShowConfirmModal(false)}
+                style={[
+                  styles.modalCancelBtn,
+                  { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#F1F5F9' },
+                ]}>
+                <Text style={[styles.modalCancelText, { color: isDark ? '#94A3B8' : '#64748B' }]}>
+                  Discard
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity onPress={executeSubmit} style={styles.modalConfirmBtn}>
+                <LinearGradient
+                  colors={isRework ? ['#F59E0B', '#D97706'] : ['#0D9488', '#0891B2']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.modalConfirmGrad}>
+                  <Text style={styles.modalConfirmText}>
+                    {isRework ? 'Resubmit' : 'Submit Protocol'}
+                  </Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* ── Footer ── */}
       <View
@@ -521,7 +661,9 @@ export default function WorkExecutionFlow({ issueId, onClose, onSubmit }: WorkEx
               end={{ x: 1, y: 0 }}
               style={styles.submitGrad}>
               <Upload size={18} color="#FFFFFF" strokeWidth={2.5} />
-              <Text className="ml-2 text-[15px] font-extrabold text-white">Submit Resolution</Text>
+              <Text className="ml-2 text-[15px] font-extrabold text-white">
+                {isRework ? 'Resubmit Resolution' : 'Submit Resolution'}
+              </Text>
             </LinearGradient>
           </TouchableOpacity>
         </View>
@@ -608,22 +750,113 @@ export default function WorkExecutionFlow({ issueId, onClose, onSubmit }: WorkEx
 }
 
 const styles = StyleSheet.create({
+  headerContainer: {
+    borderBottomWidth: 1.5,
+    zIndex: 10,
+  },
+  headerLight: {
+    backgroundColor: 'rgba(255,255,255,0.7)',
+    borderColor: 'rgba(0,0,0,0.05)',
+  },
+  headerDark: {
+    backgroundColor: 'rgba(15,23,42,0.7)',
+    borderColor: 'rgba(255,255,255,0.06)',
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '900',
+    letterSpacing: -0.8,
+  },
+  headerSubtitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#94A3B8',
+    letterSpacing: 1.2,
+    marginTop: 2,
+  },
+  closeBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+  },
+  stepperContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 24,
+    paddingBottom: 20,
+    gap: 12,
+  },
+  stepItem: {
+    flex: 1,
+  },
+  stepTrack: {
+    height: 4,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  stepFill: {
+    height: '100%',
+    backgroundColor: '#10B981',
+    borderRadius: 2,
+  },
+  stepText: {
+    fontSize: 9,
+    fontWeight: '800',
+    marginTop: 6,
+    textAlign: 'center',
+    letterSpacing: 0.5,
+  },
   card: {
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 3,
-    marginBottom: 4,
+    borderRadius: 32,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.8)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.08,
+    shadowRadius: 24,
+    elevation: 5,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  sectionHeaderTitle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  sectionIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+  },
+  sectionTitleText: {
+    fontSize: 17,
+    fontWeight: '900',
+    letterSpacing: -0.4,
   },
   imageWrap: {
-    borderRadius: 16,
+    borderRadius: 24,
     overflow: 'hidden',
     position: 'relative',
+    borderWidth: 1.5,
+    borderColor: 'rgba(0,0,0,0.05)',
   },
   previewImage: {
     width: '100%',
-    height: 200,
+    height: 240,
     backgroundColor: '#F1F5F9',
   },
   imageGradient: {
@@ -631,38 +864,252 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: 80,
+    height: 120,
   },
   retakeBtn: {
     position: 'absolute',
-    bottom: 12,
-    right: 12,
+    bottom: 16,
+    right: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.65)',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 10,
+    backgroundColor: 'rgba(15,23,42,0.85)',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
   },
   captureZone: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 28,
-    borderRadius: 20,
-    borderWidth: 2,
-    borderColor: '#0EA5A4',
+    paddingVertical: 40,
+    borderRadius: 24,
+    borderWidth: 2.5,
+    borderColor: '#0D9488',
     borderStyle: 'dashed',
-    backgroundColor: 'rgba(14,165,164,0.03)',
+    backgroundColor: 'rgba(13,148,136,0.03)',
   },
   captureZoneDisabled: {
     borderColor: '#E2E8F0',
-    backgroundColor: 'transparent',
+    backgroundColor: 'rgba(0,0,0,0.02)',
+  },
+  locationBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    padding: 16,
+    borderRadius: 20,
+    borderWidth: 1.5,
+  },
+  locationBoxCapturing: {
+    backgroundColor: 'rgba(245,158,11,0.05)',
+    borderColor: 'rgba(245,158,11,0.2)',
+  },
+  locationBoxSuccess: {
+    backgroundColor: 'rgba(16,185,129,0.05)',
+    borderColor: 'rgba(16,185,129,0.2)',
+  },
+  locationBoxPlaceholder: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 16,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.02)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(0,0,0,0.04)',
+    borderStyle: 'dashed',
+  },
+  locationLabel: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#92400E',
+  },
+  locationSubText: {
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  locationPlaceholderText: {
+    fontSize: 12,
+    fontWeight: '700',
   },
   submitGrad: {
-    height: 56,
-    borderRadius: 16,
+    height: 60,
+    borderRadius: 20,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#0D9488',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 15,
+  },
+  checklistItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.03)',
+  },
+  checklistDot: {
+    width: 22,
+    height: 22,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checklistText: {
+    fontSize: 14,
+    fontWeight: '600',
+    letterSpacing: -0.2,
+  },
+  notesContainer: {
+    borderRadius: 24,
+    padding: 20,
+    borderWidth: 1.5,
+    minHeight: 160,
+    position: 'relative',
+  },
+  notesLight: {
+    backgroundColor: '#F8FAFC',
+    borderColor: '#E2E8F0',
+  },
+  notesDark: {
+    backgroundColor: '#0F172A',
+    borderColor: '#1E293B',
+  },
+  notesInput: {
+    fontSize: 15,
+    fontWeight: '600',
+    lineHeight: 22,
+  },
+  notesIconBox: {
+    position: 'absolute',
+    bottom: 16,
+    right: 16,
+    width: 28,
+    height: 28,
+    borderRadius: 10,
+    backgroundColor: 'rgba(13,148,136,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  charCountBox: {
+    marginTop: 12,
+    alignSelf: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  charCountText: {
+    fontSize: 9,
+    fontWeight: '900',
+    color: '#64748B',
+    letterSpacing: 1,
+  },
+  wordCountBadge: {
+    backgroundColor: 'rgba(0,0,0,0.03)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+  },
+  wordCountText: {
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    padding: 24,
+  },
+  confirmModalContent: {
+    width: '100%',
+    borderRadius: 36,
+    padding: 32,
+    alignItems: 'center',
+    borderWidth: 1.5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 20 },
+    shadowOpacity: 0.2,
+    shadowRadius: 30,
+    elevation: 10,
+  },
+  modalLight: {
+    backgroundColor: '#FFFFFF',
+    borderColor: 'rgba(255,255,255,0.8)',
+  },
+  modalDark: {
+    backgroundColor: '#0F172A',
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
+  modalHeaderIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+    shadowColor: '#0D9488',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: '900',
+    textAlign: 'center',
+    marginBottom: 12,
+    letterSpacing: -0.5,
+  },
+  modalMessage: {
+    fontSize: 14,
+    lineHeight: 22,
+    textAlign: 'center',
+    marginBottom: 32,
+    fontWeight: '600',
+    paddingHorizontal: 10,
+  },
+  modalActionRow: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
+  modalCancelBtn: {
+    flex: 1,
+    height: 56,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalCancelText: {
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  modalConfirmBtn: {
+    flex: 1.5,
+    height: 56,
+  },
+  modalConfirmGrad: {
+    flex: 1,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#0D9488',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 15,
+  },
+  modalConfirmText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '900',
   },
 });

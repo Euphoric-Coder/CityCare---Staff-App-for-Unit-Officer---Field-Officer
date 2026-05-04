@@ -636,17 +636,21 @@ export default function FieldIssueDetailScreen() {
     afterLocation: { latitude: number; longitude: number } | null;
     notes: string;
   }) => {
-    console.log(data);
-    if (!data.beforeImage || !data.afterImage) return;
+    try {
+      console.log('--- Resolution Protocol Submission ---');
+      console.log(data);
 
-    // const beforePhotoId = await uploadImageToConvex(data.beforeImage);
-    // const afterPhotoId = await uploadImageToConvex(data.afterImage);
+      // const beforePhotoId = await uploadImageToConvex(data.beforeImage);
+      // const afterPhotoId = await uploadImageToConvex(data.afterImage);
 
-    // console.log(beforePhotoId, afterPhotoId);
-    setShowWorkFlow(false);
-    Alert.alert('Success', 'Resolution submitted for verification', [
-      { text: 'OK', onPress: () => navigation.goBack() },
-    ]);
+      // console.log(beforePhotoId, afterPhotoId);
+
+      setTimeout(() => {
+        setShowWorkFlow(false);
+      }, 50);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const handleContactCitizen = async () => {
@@ -2392,10 +2396,19 @@ export default function FieldIssueDetailScreen() {
       <Modal
         visible={showWorkFlow}
         animationType="slide"
-        presentationStyle="fullScreen"
+        transparent={true}
+        onDismiss={() => {
+          // Trigger alert only after modal is fully dismissed to prevent iOS freezes
+          Alert.alert(
+            'Protocol Success',
+            `Resolution Protocol for Issue #${issue?.issueCode} has been successfully logged. Your data is now pending Unit Officer verification.`,
+            [{ text: 'Acknowledged', style: 'default' }]
+          );
+        }}
         onRequestClose={() => setShowWorkFlow(false)}>
         <WorkExecutionFlow
           issueId={issue.id}
+          status={issue.status}
           onClose={() => setShowWorkFlow(false)}
           onSubmit={handleWorkFlowSubmit}
         />

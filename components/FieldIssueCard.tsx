@@ -23,7 +23,7 @@ import { Issue } from '../lib/types';
 
 interface FieldIssueCardProps {
   issue: Issue;
-  onPress: (issue: Issue) => void;
+  onPress: (issueId: string) => void;
 }
 
 const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
@@ -259,12 +259,12 @@ export default function FieldIssueCard({ issue, onPress }: FieldIssueCardProps) 
 
       const hours = Math.floor(diff / (1000 * 60 * 60));
       const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-      
+
       setIsOverdue(false);
       setIsUrgent(hours < 3);
       setIsWarning(hours >= 3 && hours < 6);
       setIsSoon(hours >= 6 && hours < 12);
-      
+
       setTimeRemaining(
         hours < 24 ? `${hours}h ${minutes}m` : `${Math.floor(hours / 24)}d ${hours % 24}h`
       );
@@ -353,7 +353,7 @@ export default function FieldIssueCard({ issue, onPress }: FieldIssueCardProps) 
     <TouchableWithoutFeedback
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
-      onPress={() => onPress(issue)}>
+      onPress={() => onPress(issue.id as string)}>
       <Animated.View
         style={[
           { marginBottom: 20, transform: [{ scale: Animated.multiply(scaleAnim, pulseAnim) }] },
@@ -379,9 +379,18 @@ export default function FieldIssueCard({ issue, onPress }: FieldIssueCardProps) 
                 colors={['#EF4444', '#991B1B']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
-                style={{ width: '100%', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12, gap: 8 }}>
+                style={{
+                  width: '100%',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  paddingHorizontal: 20,
+                  paddingVertical: 12,
+                  gap: 8,
+                }}>
                 <Flame color="#FFFFFF" size={14} strokeWidth={2.5} />
-                <Text className="text-[11px] font-black tracking-widest text-white">SLA OVERDUE</Text>
+                <Text className="text-[11px] font-black tracking-widest text-white">
+                  SLA OVERDUE
+                </Text>
               </LinearGradient>
             )}
             {!isOverdue && isUrgent && (
@@ -389,7 +398,14 @@ export default function FieldIssueCard({ issue, onPress }: FieldIssueCardProps) 
                 colors={['#F59E0B', '#B45309']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
-                style={{ width: '100%', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12, gap: 8 }}>
+                style={{
+                  width: '100%',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  paddingHorizontal: 20,
+                  paddingVertical: 12,
+                  gap: 8,
+                }}>
                 <AlertCircle color="#FFFFFF" size={14} strokeWidth={2.5} />
                 <Text className="text-[11px] font-black tracking-widest text-white">
                   SLA CRITICAL — UNDER 3 HRS
@@ -401,7 +417,14 @@ export default function FieldIssueCard({ issue, onPress }: FieldIssueCardProps) 
                 colors={['#FACC15', '#A16207']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
-                style={{ width: '100%', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12, gap: 8 }}>
+                style={{
+                  width: '100%',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  paddingHorizontal: 20,
+                  paddingVertical: 12,
+                  gap: 8,
+                }}>
                 <AlertTriangle color="#FFFFFF" size={14} strokeWidth={2.5} />
                 <Text className="text-[11px] font-black tracking-widest text-white">
                   SLA NEARING — UNDER 6 HRS
@@ -413,7 +436,14 @@ export default function FieldIssueCard({ issue, onPress }: FieldIssueCardProps) 
                 colors={['#6366F1', '#3730A3']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
-                style={{ width: '100%', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12, gap: 8 }}>
+                style={{
+                  width: '100%',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  paddingHorizontal: 20,
+                  paddingVertical: 12,
+                  gap: 8,
+                }}>
                 <Clock color="#FFFFFF" size={14} strokeWidth={2.5} />
                 <Text className="text-[11px] font-black tracking-widest text-white">
                   SLA DUE SOON — UNDER 12 HRS

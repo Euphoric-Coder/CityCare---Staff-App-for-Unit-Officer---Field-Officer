@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,8 @@ import {
   Linking,
   Platform,
   useColorScheme,
+  TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -53,26 +55,74 @@ import {
   UserCheck,
   Mail,
   PhoneOutgoing,
+  MessageSquarePlus,
+  Eye,
+  Users,
+  ShieldAlert,
+  Paperclip,
+  ShieldCheck,
+  Notebook,
+  ImageIcon,
 } from 'lucide-react-native';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { WebView } from 'react-native-webview';
-import { Issue } from '../lib/types';
+import { Issue, IssueStatus, UpdateScope } from '../lib/types';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { mockCitizenMessages } from '../lib/mockData';
 import WorkExecutionFlow from 'components/WorkExecutionFlow';
 import CitizenMessagingInterface from 'components/CitizenMessagingInterface';
-import { useMutation } from 'convex/react';
+import { useMutation, useQuery } from 'convex/react';
 import { api } from 'convex/_generated/api';
+import { Id } from 'convex/_generated/dataModel';
+import { useUser } from 'context/UserContext';
+import * as DocumentPicker from 'expo-document-picker';
+import * as ImagePicker from 'expo-image-picker';
+import { mapIssueToUI } from 'lib/issueMapper';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CONTENT_WIDTH = SCREEN_WIDTH - 32;
 const CAROUSEL_WIDTH = CONTENT_WIDTH - 56;
 
+const STATUS_DOT_COLORS: Record<string, string> = {
+  pending: '#F59E0B',
+  verified: '#3B82F6',
+  assigned: '#6366F1',
+  in_progress: '#0EA5E9',
+  pending_uo_verification: '#A855F7',
+  rework_required: '#F97316',
+  closed: '#10B981',
+  rejected: '#EF4444',
+  reopened: '#EC4899',
+  escalated: '#8B5CF6',
+  resolved: '#10B981',
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  pending: 'Pending',
+  verified: 'Verified',
+  assigned: 'Assigned',
+  in_progress: 'In Progress',
+  pending_uo_verification: 'Pending UO Verification',
+  rework_required: 'Rework Required',
+  closed: 'Closed',
+  rejected: 'Rejected',
+  reopened: 'Reopened',
+  escalated: 'Escalated',
+  resolved: 'Resolved',
+};
+
 type RootStackParamList = {
-  FieldIssueDetail: { issue: Issue };
+  FieldIssueDetail: { issueId: string };
 };
 type FieldIssueDetailScreenRouteProp = RouteProp<RootStackParamList, 'FieldIssueDetail'>;
+
+interface FileAttachment {
+  uri: string;
+  type: 'image' | 'video' | 'pdf';
+  name: string;
+  mimeType?: string;
+}
 
 const CATEGORY_COLORS: Record<
   string,
@@ -240,32 +290,40 @@ const STATUS_CONFIG: Record<
   },
 };
 
-function SectionHeader({ icon, title }: { icon: React.ReactNode; title: string }) {
+function formatTimestamp(dateValue: string | number) {
+  const date = new Date(dateValue);
+  return date.toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+function SectionHeader({ title, icon }: { title: string; icon?: React.ReactNode }) {
   return (
-    <View className="mb-3 flex-row items-center gap-2.5">
-      <View className="h-8 w-8 items-center justify-center rounded-xl bg-teal-50 dark:bg-teal-900/30">
-        {icon}
-      </View>
-      <Text className="text-[15px] font-extrabold tracking-tight text-slate-800 dark:text-slate-100">
+    <View className="flex-row items-center gap-2.5 border-b border-slate-100/50 px-5 pb-4 pt-5 dark:border-slate-800">
+      {icon}
+      <Text className="text-[16px] font-black tracking-tight text-slate-800 dark:text-slate-100">
         {title}
       </Text>
     </View>
   );
 }
 
-function InfoRow({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+function SectionCard({ children }: { children: React.ReactNode }) {
+  const isDark = useColorScheme() === 'dark';
   return (
-    <View className="flex-row items-center justify-between border-b border-slate-100 py-3 last:border-0 dark:border-slate-700/50">
-      <Text className="text-[13px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-        {label}
-      </Text>
-      <Text
-        className={`ml-4 flex-1 text-right text-[14px] font-bold ${
-          accent ? 'text-teal-600 dark:text-teal-400' : 'text-slate-800 dark:text-slate-200'
-        }`}
-        numberOfLines={2}>
-        {value}
-      </Text>
+    <View
+      className="mx-4 mb-5 overflow-hidden rounded-[26px] border border-slate-200/50 bg-white dark:border-slate-800 dark:bg-[#0F172A]/90"
+      style={{
+        shadowColor: isDark ? '#000000' : '#475569',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: isDark ? 0.5 : 0.06,
+        shadowRadius: 20,
+        elevation: 6,
+      }}>
+      {children}
     </View>
   );
 }
@@ -274,8 +332,9 @@ export default function FieldIssueDetailScreen() {
   const isDark = useColorScheme() === 'dark';
   const navigation = useNavigation();
   const route = useRoute<FieldIssueDetailScreenRouteProp>();
-  const issue = route.params?.issue;
   const [showWorkFlow, setShowWorkFlow] = useState(false);
+  const [showStartWorkConfirm, setShowStartWorkConfirm] = useState(false);
+  const [isStartingWork, setIsStartingWork] = useState(false);
   const [showMessaging, setShowMessaging] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [activeVideoIndex, setActiveVideoIndex] = useState(0);
@@ -283,8 +342,34 @@ export default function FieldIssueDetailScreen() {
   const [fullScreenImage, setFullScreenImage] = useState<string | null>(null);
   const [fullScreenVideo, setFullScreenVideo] = useState<string | null>(null);
   const carouselRef = useRef<ScrollView>(null);
+  const [updateText, setUpdateText] = useState('');
+  const [updateAttachments, setUpdateAttachments] = useState<FileAttachment[]>([]);
+  const [updateScope, setUpdateScope] = useState<UpdateScope>('officer_and_citizen');
+  const [showAttachMenu, setShowAttachMenu] = useState(false);
+  const pendingPicker = useRef<'camera' | 'gallery' | 'document' | null>(null);
+  const [previewAttachment, setPreviewAttachment] = useState<any>(null);
+  const issueId = route.params?.issueId;
+
+  const user = useUser();
 
   const generateUploadUrl = useMutation(api.issuesMedia.generateUploadUrl);
+
+  // @ts-ignore
+  const rawIssue = useQuery(api.fieldOfficers.getIssueById, { issueId: issueId });
+
+  const issue = mapIssueToUI(rawIssue);
+
+  const issueUpdates = useQuery(
+    api.issueUpdates.getByIssueId,
+    // @ts-ignore
+    true ? { issueId: issueId } : 'skip'
+  );
+
+  // @ts-ignore
+  const createIssueUpdate = useMutation(api.issueUpdates.createIssueUpdate);
+
+  // For marking the issue to In Progress
+  const startWorkMutation = useMutation(api.fieldOfficers.startWork);
 
   const issueMessages = useMemo(
     () => (issue ? mockCitizenMessages.filter((m) => m.issueId === issue.id) : []),
@@ -294,17 +379,234 @@ export default function FieldIssueDetailScreen() {
 
   const handleBack = () => navigation.goBack();
 
-  const handleStartWork = () => {
-    Alert.alert('Start Work', 'This will mark the issue as In Progress', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Start',
-        onPress: () => {
-          Alert.alert('Success', 'Work has been started on this issue');
-          navigation.goBack();
+  const launchCamera = useCallback(async () => {
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Camera permission is required to take photos.');
+        return;
+      }
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.85,
+      });
+      if (!result.canceled && result.assets[0]) {
+        const asset = result.assets[0];
+        setUpdateAttachments((prev) => [
+          ...prev,
+          {
+            uri: asset.uri,
+            type: 'image',
+            name: asset.fileName ?? `photo_${Date.now()}.jpg`,
+          },
+        ]);
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to open camera. Please try again.');
+      console.error('Camera error:', error);
+    }
+  }, []);
+
+  const launchGallery = useCallback(async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          'Permission Denied',
+          'Gallery permission is required to select photos and videos.'
+        );
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.All,
+        allowsMultipleSelection: true,
+        quality: 0.85,
+        videoMaxDuration: 120,
+      });
+      if (!result.canceled) {
+        const newFiles: FileAttachment[] = result.assets.map((asset) => ({
+          uri: asset.uri,
+          type: asset.type === 'video' ? 'video' : 'image',
+          name: asset.fileName ?? `media_${Date.now()}`,
+          mimeType: asset.mimeType || undefined,
+        }));
+        setUpdateAttachments((prev) => [...prev, ...newFiles]);
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to open gallery. Please try again.');
+      console.error('Gallery error:', error);
+    }
+  }, []);
+
+  const launchDocumentPicker = useCallback(async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'application/pdf',
+        multiple: true,
+        copyToCacheDirectory: true,
+      });
+      if (!result.canceled) {
+        const newFiles: FileAttachment[] = result.assets.map((asset) => ({
+          uri: asset.uri,
+          type: 'pdf',
+          name: asset.name,
+          mimeType: asset.mimeType,
+        }));
+        setUpdateAttachments((prev) => [...prev, ...newFiles]);
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to open document picker. Please try again.');
+      console.error('Document picker error:', error);
+    }
+  }, []);
+
+  const handleAttachMenuDismissed = useCallback(() => {
+    const action = pendingPicker.current;
+    pendingPicker.current = null;
+    if (action === 'camera') launchCamera();
+    else if (action === 'gallery') launchGallery();
+    else if (action === 'document') launchDocumentPicker();
+  }, [launchCamera, launchGallery, launchDocumentPicker]);
+
+  useEffect(() => {
+    if (!showAttachMenu && pendingPicker.current && Platform.OS === 'android') {
+      const action = pendingPicker.current;
+      pendingPicker.current = null;
+      const timer = setTimeout(() => {
+        if (action === 'camera') launchCamera();
+        else if (action === 'gallery') launchGallery();
+        else if (action === 'document') launchDocumentPicker();
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [showAttachMenu, launchCamera, launchGallery, launchDocumentPicker]);
+
+  const uploadFileToConvex = async (file: FileAttachment) => {
+    try {
+      const uploadUrl = await generateUploadUrl();
+
+      const fileResponse = await fetch(file.uri);
+
+      if (!fileResponse.ok) {
+        throw new Error('Failed to read file');
+      }
+
+      const blob = await fileResponse.blob();
+
+      // Use actual mimeType OR fallback
+      const contentType =
+        file.mimeType ||
+        (file.type === 'image'
+          ? 'image/*'
+          : file.type === 'video'
+            ? 'video/*'
+            : 'application/octet-stream');
+
+      const res = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': contentType,
         },
-      },
-    ]);
+        body: blob,
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        console.error('Upload failed:', text);
+        throw new Error('Upload failed');
+      }
+
+      const { storageId } = await res.json();
+
+      return storageId;
+    } catch (err) {
+      console.error('Upload error:', err);
+      throw err;
+    }
+  };
+
+  const handleStartWork = () => {
+    setShowStartWorkConfirm(true);
+  };
+
+  const confirmStartWork = async () => {
+    if (!issue || !user) return;
+    setIsStartingWork(true);
+    try {
+      await startWorkMutation({
+        issueId: issue.id as Id<'issues'>,
+        userId: user.id as Id<'users'>,
+      });
+      setShowStartWorkConfirm(false);
+    } catch (error) {
+      console.error('Start work error:', error);
+      Alert.alert('System Error', 'Failed to update issue status. Please try again.');
+    } finally {
+      setIsStartingWork(false);
+    }
+  };
+
+  const handlePostUpdate = async () => {
+    const textWords = updateText
+      .trim()
+      .split(/\s+/)
+      .filter((word) => word.length > 0);
+    const wordCount = textWords.length;
+
+    if (wordCount < 5) {
+      Alert.alert(
+        'Insufficient Detail',
+        `You have only entered ${wordCount} word${
+          wordCount === 1 ? '' : 's'
+        }. An official update requires a minimum of 5 words to be filed.`
+      );
+      return;
+    }
+
+    try {
+      // Upload all attachments first to DB
+      const uploadedStorageIds = await Promise.all(
+        updateAttachments.map((file) => uploadFileToConvex(file))
+      );
+
+      // Create Issue Update with storageIds
+      await createIssueUpdate({
+        issueId: issue?.id as Id<'issues'>,
+        status: issue?.status as IssueStatus,
+        comment: updateText as string,
+        updatedBy: user?.id as Id<'users'>,
+        role: 'field_officer',
+        attachments: uploadedStorageIds,
+        scope: updateScope,
+      });
+
+      setUpdateText('');
+      setUpdateAttachments([]);
+      setUpdateScope('officer_and_citizen');
+
+      Alert.alert('Success', 'Update posted successfully.');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to upload attachments.');
+    }
+  };
+
+  const handleShowAttachMenu = () => {
+    setShowAttachMenu(true);
+  };
+
+  const handlePickFromCamera = () => {
+    pendingPicker.current = 'camera';
+    setShowAttachMenu(false);
+  };
+
+  const handlePickFromGallery = () => {
+    pendingPicker.current = 'gallery';
+    setShowAttachMenu(false);
+  };
+
+  const handlePickDocument = () => {
+    pendingPicker.current = 'document';
+    setShowAttachMenu(false);
   };
 
   const uploadImageToConvex = async (uri: string) => {
@@ -385,25 +687,10 @@ export default function FieldIssueDetailScreen() {
 
   if (!issue) {
     return (
-      <SafeAreaView className="flex-1 bg-slate-50 dark:bg-slate-900" edges={['top']}>
-        <View className="flex-row items-center border-b border-slate-100 px-5 py-4 dark:border-slate-800">
-          <TouchableOpacity
-            onPress={handleBack}
-            className="h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 dark:bg-slate-800"
-            activeOpacity={0.7}>
-            <ArrowLeft color="#64748B" size={20} strokeWidth={2.5} />
-          </TouchableOpacity>
-          <Text className="flex-1 text-center text-[18px] font-extrabold text-slate-900 dark:text-slate-100">
-            Issue Details
-          </Text>
-          <View className="h-10 w-10" />
-        </View>
-        <View className="flex-1 items-center justify-center">
-          <Text className="text-[16px] text-slate-400 dark:text-slate-600">
-            No issue data available
-          </Text>
-        </View>
-      </SafeAreaView>
+      <View className="flex-1 items-center justify-center bg-slate-50 dark:bg-slate-900">
+        <ActivityIndicator size="large" color="#0D9488" />
+        <Text className="mt-3 text-sm font-medium text-slate-400">Loading issue...</Text>
+      </View>
     );
   }
 
@@ -732,6 +1019,148 @@ export default function FieldIssueDetailScreen() {
           />
         )}
 
+        {/* ── Ultra-Premium Classification Intelligence Card ── */}
+        <View style={styles.descriptionContainer}>
+          <LinearGradient
+            colors={isDark ? ['#1E1B4B', '#0F172A', '#020617'] : ['#FFFFFF', '#F0FDFA', '#F8FAFC']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={[
+              styles.descriptionCard,
+              { borderColor: isDark ? 'rgba(14,165,164,0.3)' : 'rgba(14,165,164,0.15)' },
+            ]}>
+            {/* Cinematic Effects Layers */}
+            <View
+              style={[
+                styles.descriptionGlow,
+                { backgroundColor: isDark ? 'rgba(14,165,164,0.15)' : 'rgba(14,165,164,0.08)' },
+              ]}
+            />
+            <View style={styles.descriptionWatermark}>
+              <Layers
+                size={180}
+                color={isDark ? 'rgba(255,255,255,0.03)' : 'rgba(14,165,164,0.03)'}
+                strokeWidth={1}
+              />
+            </View>
+
+            {/* Header Content */}
+            <View className="mb-6 flex-row items-center justify-between">
+              <View className="flex-1 flex-row items-center gap-4">
+                <LinearGradient colors={['#0EA5A4', '#0D9488']} style={styles.descriptionIconBox}>
+                  <Layers size={22} color="#FFFFFF" strokeWidth={2.5} />
+                </LinearGradient>
+                <View className="flex-1">
+                  <Text
+                    numberOfLines={1}
+                    style={[
+                      styles.descriptionHeaderTitle,
+                      { color: isDark ? '#FFFFFF' : '#0F172A', marginBottom: 2 },
+                    ]}>
+                    Classification
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            <View style={{ gap: 20 }}>
+              {/* ELITE CATEGORY DISPLAY */}
+              <View>
+                <Text style={[styles.premiumCatLabel, { color: isDark ? '#94A3B8' : '#64748B' }]}>
+                  PRIMARY DOMAIN
+                </Text>
+                <View
+                  style={[
+                    styles.eliteCatBadge,
+                    {
+                      backgroundColor: isDark ? catColor.darkBg : catColor.bg,
+                      borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+                    },
+                  ]}>
+                  <View style={[styles.eliteCatIconBox, { backgroundColor: catColor.icon }]}>
+                    {(() => {
+                      const IconComp =
+                        CATEGORY_ICON_MAP[issue.category.toLowerCase()] || CATEGORY_ICON_MAP.other;
+                      return <IconComp size={18} color="#FFFFFF" strokeWidth={2.5} />;
+                    })()}
+                  </View>
+                  <Text style={[styles.eliteCatText, { color: isDark ? '#FFFFFF' : '#0F172A' }]}>
+                    {CATEGORY_LABEL_MAP[issue.category.toLowerCase()] || issue.category}
+                  </Text>
+                </View>
+              </View>
+
+              {/* BREATHTAKING SUB-CATEGORIES */}
+              {issue.subCategories && issue.subCategories.length > 0 && (
+                <View>
+                  <Text style={[styles.premiumCatLabel, { color: isDark ? '#94A3B8' : '#64748B' }]}>
+                    SPECIALIZED SUB-DOMAINS
+                  </Text>
+                  <View className="mt-2 flex-row flex-wrap gap-2.5">
+                    {issue.subCategories.map((sub, i) => (
+                      <View
+                        key={i}
+                        style={[
+                          styles.frostedSubCatChip,
+                          {
+                            backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+                            borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)',
+                          },
+                        ]}>
+                        <Tag size={12} color="#0EA5A4" strokeWidth={2.5} />
+                        <Text
+                          style={[
+                            styles.frostedSubCatText,
+                            { color: isDark ? '#E2E8F0' : '#475569' },
+                          ]}>
+                          {sub}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              )}
+
+              {/* SOPHISTICATED TAGS */}
+              {issue.tags && issue.tags.length > 0 && (
+                <View>
+                  <Text style={[styles.premiumCatLabel, { color: isDark ? '#94A3B8' : '#64748B' }]}>
+                    INTEL_TAGS
+                  </Text>
+                  <View className="mt-2 flex-row flex-wrap gap-2">
+                    {issue.tags.map((tag, i) => (
+                      <View key={i} style={styles.intelTag}>
+                        <Hash size={10} color="#0EA5A4" strokeWidth={3} />
+                        <Text style={styles.intelTagText}>
+                          {tag.replace(/^#/, '').toUpperCase()}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              )}
+
+              {/* City FOOTER */}
+              <View
+                style={[
+                  styles.premiumWardFooter,
+                  { borderTopColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' },
+                ]}>
+                <View className="flex-row items-center gap-2">
+                  <MapPin size={14} color="#0EA5A4" strokeWidth={2.5} />
+                  <Text
+                    style={[styles.premiumWardLabel, { color: isDark ? '#94A3B8' : '#64748B' }]}>
+                    ASSIGNED REGION
+                  </Text>
+                </View>
+                <Text style={[styles.premiumWardValue, { color: isDark ? '#5EEAD4' : '#0D9488' }]}>
+                  {issue.city}
+                </Text>
+              </View>
+            </View>
+          </LinearGradient>
+        </View>
+
         {/* ── Ultra-Premium Intelligence Description Card ── */}
         <View style={styles.descriptionContainer}>
           <LinearGradient
@@ -775,26 +1204,6 @@ export default function FieldIssueDetailScreen() {
                   </Text>
                   <Text style={styles.descriptionSubtitle}>REPORTED DETAILS</Text>
                 </View>
-              </View>
-              <View
-                style={[
-                  styles.descriptionTag,
-                  {
-                    backgroundColor: isDark ? '#134E4A' : '#F0FDFA',
-                    borderColor: isDark ? '#14B8A6' : '#CCFBF1',
-                  },
-                ]}>
-                <Layers
-                  size={10}
-                  color={isDark ? '#5EEAD4' : '#0D9488'}
-                  strokeWidth={2.5}
-                  className="mr-1"
-                />
-                <Text
-                  numberOfLines={1}
-                  style={[styles.descriptionTagText, { color: isDark ? '#5EEAD4' : '#0D9488' }]}>
-                  Issue Context
-                </Text>
               </View>
             </View>
 
@@ -1289,148 +1698,6 @@ export default function FieldIssueDetailScreen() {
           </LinearGradient>
         </View>
 
-        {/* ── Ultra-Premium Classification Intelligence Card ── */}
-        <View style={styles.descriptionContainer}>
-          <LinearGradient
-            colors={isDark ? ['#1E1B4B', '#0F172A', '#020617'] : ['#FFFFFF', '#F0FDFA', '#F8FAFC']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={[
-              styles.descriptionCard,
-              { borderColor: isDark ? 'rgba(14,165,164,0.3)' : 'rgba(14,165,164,0.15)' },
-            ]}>
-            {/* Cinematic Effects Layers */}
-            <View
-              style={[
-                styles.descriptionGlow,
-                { backgroundColor: isDark ? 'rgba(14,165,164,0.15)' : 'rgba(14,165,164,0.08)' },
-              ]}
-            />
-            <View style={styles.descriptionWatermark}>
-              <Layers
-                size={180}
-                color={isDark ? 'rgba(255,255,255,0.03)' : 'rgba(14,165,164,0.03)'}
-                strokeWidth={1}
-              />
-            </View>
-
-            {/* Header Content */}
-            <View className="mb-6 flex-row items-center justify-between">
-              <View className="flex-1 flex-row items-center gap-4">
-                <LinearGradient colors={['#0EA5A4', '#0D9488']} style={styles.descriptionIconBox}>
-                  <Layers size={22} color="#FFFFFF" strokeWidth={2.5} />
-                </LinearGradient>
-                <View className="flex-1">
-                  <Text
-                    numberOfLines={1}
-                    style={[
-                      styles.descriptionHeaderTitle,
-                      { color: isDark ? '#FFFFFF' : '#0F172A', marginBottom: 2 },
-                    ]}>
-                    Classification
-                  </Text>
-                </View>
-              </View>
-            </View>
-
-            <View style={{ gap: 20 }}>
-              {/* ELITE CATEGORY DISPLAY */}
-              <View>
-                <Text style={[styles.premiumCatLabel, { color: isDark ? '#94A3B8' : '#64748B' }]}>
-                  PRIMARY DOMAIN
-                </Text>
-                <View
-                  style={[
-                    styles.eliteCatBadge,
-                    {
-                      backgroundColor: isDark ? catColor.darkBg : catColor.bg,
-                      borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
-                    },
-                  ]}>
-                  <View style={[styles.eliteCatIconBox, { backgroundColor: catColor.icon }]}>
-                    {(() => {
-                      const IconComp =
-                        CATEGORY_ICON_MAP[issue.category.toLowerCase()] || CATEGORY_ICON_MAP.other;
-                      return <IconComp size={18} color="#FFFFFF" strokeWidth={2.5} />;
-                    })()}
-                  </View>
-                  <Text style={[styles.eliteCatText, { color: isDark ? '#FFFFFF' : '#0F172A' }]}>
-                    {CATEGORY_LABEL_MAP[issue.category.toLowerCase()] || issue.category}
-                  </Text>
-                </View>
-              </View>
-
-              {/* BREATHTAKING SUB-CATEGORIES */}
-              {issue.subCategories && issue.subCategories.length > 0 && (
-                <View>
-                  <Text style={[styles.premiumCatLabel, { color: isDark ? '#94A3B8' : '#64748B' }]}>
-                    SPECIALIZED SUB-DOMAINS
-                  </Text>
-                  <View className="mt-2 flex-row flex-wrap gap-2.5">
-                    {issue.subCategories.map((sub, i) => (
-                      <View
-                        key={i}
-                        style={[
-                          styles.frostedSubCatChip,
-                          {
-                            backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
-                            borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)',
-                          },
-                        ]}>
-                        <Tag size={12} color="#0EA5A4" strokeWidth={2.5} />
-                        <Text
-                          style={[
-                            styles.frostedSubCatText,
-                            { color: isDark ? '#E2E8F0' : '#475569' },
-                          ]}>
-                          {sub}
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              )}
-
-              {/* SOPHISTICATED TAGS */}
-              {issue.tags && issue.tags.length > 0 && (
-                <View>
-                  <Text style={[styles.premiumCatLabel, { color: isDark ? '#94A3B8' : '#64748B' }]}>
-                    INTEL_TAGS
-                  </Text>
-                  <View className="mt-2 flex-row flex-wrap gap-2">
-                    {issue.tags.map((tag, i) => (
-                      <View key={i} style={styles.intelTag}>
-                        <Hash size={10} color="#0EA5A4" strokeWidth={3} />
-                        <Text style={styles.intelTagText}>
-                          {tag.replace(/^#/, '').toUpperCase()}
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              )}
-
-              {/* City FOOTER */}
-              <View
-                style={[
-                  styles.premiumWardFooter,
-                  { borderTopColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' },
-                ]}>
-                <View className="flex-row items-center gap-2">
-                  <MapPin size={14} color="#0EA5A4" strokeWidth={2.5} />
-                  <Text
-                    style={[styles.premiumWardLabel, { color: isDark ? '#94A3B8' : '#64748B' }]}>
-                    ASSIGNED REGION
-                  </Text>
-                </View>
-                <Text style={[styles.premiumWardValue, { color: isDark ? '#5EEAD4' : '#0D9488' }]}>
-                  {issue.city}
-                </Text>
-              </View>
-            </View>
-          </LinearGradient>
-        </View>
-
         {/* ── Citizen Card ── */}
         <View style={styles.descriptionContainer}>
           <LinearGradient
@@ -1564,83 +1831,464 @@ export default function FieldIssueDetailScreen() {
           </LinearGradient>
         </View>
 
-        {/* ── Timeline ── */}
-        <View className="mb-4 rounded-3xl bg-white p-5 dark:bg-slate-900" style={styles.card}>
+        {/* ── Issue Updates ── */}
+        <SectionCard>
           <SectionHeader
-            icon={<Calendar size={16} color="#0EA5A4" strokeWidth={2.5} />}
-            title="Timeline"
+            title="Operations Log"
+            icon={<MessageSquarePlus color="#0EA5A4" size={20} strokeWidth={2.5} />}
           />
 
-          <View className="gap-0">
-            <TimelineItem
-              label="Reported"
-              value={new Date(issue.createdAt).toLocaleString('en-IN', {
-                day: 'numeric',
-                month: 'short',
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
-              color="#22C55E"
-              isLast={!slaDate}
-            />
-            {slaDate && (
-              <TimelineItem
-                label="SLA Deadline"
-                value={slaDate.toLocaleString('en-IN', {
-                  day: 'numeric',
-                  month: 'short',
-                  year: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
-                color={isOverdue ? '#EF4444' : '#F59E0B'}
-                isLast
-                overdue={isOverdue}
-              />
+          <View className="bg-slate-50/30 px-5 py-6 dark:bg-slate-900/40">
+            {issueUpdates?.length === 0 ? (
+              <View className="items-center py-12">
+                <View style={styles.emptyLogIconBox}>
+                  <MessageSquarePlus
+                    color={isDark ? '#475569' : '#CBD5E1'}
+                    size={24}
+                    strokeWidth={1.5}
+                  />
+                </View>
+                <Text style={styles.emptyLogText}>NO OPERATIONAL UPDATES DETECTED</Text>
+              </View>
+            ) : (
+              (issueUpdates ?? []).map((upd, index: number) => {
+                const statusColor = STATUS_DOT_COLORS[upd.status] ?? '#94A3B8';
+                const isLatest = index === 0;
+                const isLast = index === (issueUpdates?.length ?? 0) - 1;
+
+                const roleMeta =
+                  upd.role === 'unit_officer'
+                    ? {
+                        label: 'Unit Officer',
+                        icon: <ShieldCheck size={10} color="#0EA5A4" />,
+                        color: '#0EA5A4',
+                      }
+                    : upd.role === 'field_officer'
+                      ? {
+                          label: 'Field Officer',
+                          icon: <User size={10} color="#F59E0B" />,
+                          color: '#F59E0B',
+                        }
+                      : {
+                          label: 'Administrator',
+                          icon: <ShieldAlert size={10} color="#EF4444" />,
+                          color: '#EF4444',
+                        };
+
+                return (
+                  <View key={upd._id} style={styles.intelTimelineRow}>
+                    {/* Cinematic Timeline Track */}
+                    <View style={styles.timelineTrack}>
+                      <View style={[styles.timelineNode, { backgroundColor: statusColor }]}>
+                        {isLatest && (
+                          <View
+                            style={[styles.timelineNodePulse, { backgroundColor: statusColor }]}
+                          />
+                        )}
+                      </View>
+                      {!isLast && (
+                        <LinearGradient
+                          colors={[statusColor, 'rgba(148,163,184,0.1)']}
+                          style={styles.timelineVector}
+                        />
+                      )}
+                    </View>
+
+                    {/* Intelligence Payload Card */}
+                    <View style={[styles.intelPayloadCard, { borderTopColor: statusColor }]}>
+                      <LinearGradient
+                        colors={isDark ? ['#1E293B', '#0F172A'] : ['#FFFFFF', '#F8FAFC']}
+                        style={StyleSheet.absoluteFill}
+                      />
+
+                      {/* Payload Header - Multi-Tier Responsive */}
+                      <View style={styles.intelPayloadHeader}>
+                        <View className="flex-1 pr-2">
+                          <Text
+                            style={[
+                              styles.intelPayloadStatus,
+                              { color: isDark ? '#FFFFFF' : '#1E293B' },
+                            ]}>
+                            {STATUS_LABELS[upd.status] || upd.status}
+                          </Text>
+                          <View className="mt-1 flex-row flex-wrap items-center gap-1.5">
+                            <View
+                              style={[
+                                styles.roleMicroBadge,
+                                { borderColor: roleMeta.color + '33' },
+                              ]}>
+                              {roleMeta.icon}
+                              <Text style={[styles.roleMicroText, { color: roleMeta.color }]}>
+                                {roleMeta.label}
+                              </Text>
+                            </View>
+                            <Text className="text-[10px] font-bold text-slate-400 dark:text-slate-500">
+                              •
+                            </Text>
+                            <Text className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                              {upd.updater?.fullName || 'Anonymous'}
+                            </Text>
+                          </View>
+                        </View>
+
+                        <View style={styles.intelPayloadMeta}>
+                          <Text style={styles.intelPayloadTime}>
+                            {formatTimestamp(upd.createdAt)}
+                          </Text>
+                          <View
+                            style={[
+                              styles.visibilityTag,
+                              {
+                                backgroundColor: isDark
+                                  ? 'rgba(255,255,255,0.06)'
+                                  : 'rgba(0,0,0,0.04)',
+                              },
+                            ]}>
+                            {upd.scope === 'citizen' ? (
+                              <Eye size={9} color="#64748B" />
+                            ) : (
+                              <Users size={9} color="#64748B" />
+                            )}
+                            <Text style={styles.visibilityTagText}>
+                              {upd.scope === 'officer_and_citizen' ? 'PUBLIC' : 'INTERNAL'}
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+
+                      {/* Content Area */}
+                      {upd.comment && (
+                        <View className="px-4 py-4">
+                          <Text
+                            style={[
+                              styles.intelPayloadComment,
+                              { color: isDark ? '#CBD5E1' : '#475569' },
+                            ]}>
+                            {upd.comment}
+                          </Text>
+                        </View>
+                      )}
+
+                      {/* Field Evidence Area */}
+                      {upd.attachments?.length > 0 && (
+                        <View style={styles.mediaIntelRegion}>
+                          <View className="mb-3 flex-row items-center gap-2">
+                            <View style={styles.mediaIntelLine} />
+                            <Text style={styles.mediaIntelTitle}>
+                              FIELD EVIDENCE ({upd.attachments.length})
+                            </Text>
+                          </View>
+
+                          <ScrollView
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            contentContainerStyle={{ gap: 12 }}>
+                            {upd.attachments.map((att: any, ai: number) => {
+                              const isImage = att.contentType?.startsWith('image');
+                              const isVideo = att.contentType?.startsWith('video');
+
+                              return (
+                                <TouchableOpacity
+                                  key={ai}
+                                  activeOpacity={0.8}
+                                  onPress={() =>
+                                    setPreviewAttachment({
+                                      ...att,
+                                      type: isImage ? 'image' : isVideo ? 'video' : 'pdf',
+                                    })
+                                  }
+                                  style={styles.mediaIntelThumbWrapper}>
+                                  {isImage ? (
+                                    <Image
+                                      source={{ uri: att.url }}
+                                      style={styles.mediaIntelThumb}
+                                      resizeMode="cover"
+                                    />
+                                  ) : (
+                                    <View
+                                      style={[
+                                        styles.mediaIntelThumb,
+                                        {
+                                          backgroundColor: '#0F172A',
+                                          justifyContent: 'center',
+                                          alignItems: 'center',
+                                        },
+                                      ]}>
+                                      <Play size={16} color="#FFFFFF" fill="#FFFFFF" />
+                                    </View>
+                                  )}
+                                  <View style={styles.mediaTypeTag}>
+                                    <Text style={styles.mediaTypeTagText}>
+                                      {isImage ? 'IMAGE' : isVideo ? 'VIDEO' : 'PDF'}
+                                    </Text>
+                                  </View>
+                                </TouchableOpacity>
+                              );
+                            })}
+                          </ScrollView>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+                );
+              })
             )}
           </View>
-        </View>
+        </SectionCard>
 
-        {/* ── Issue Updates ── */}
-        {issue.issueUpdates && issue.issueUpdates.length > 0 && (
-          <View className="mb-4 rounded-3xl bg-white p-5 dark:bg-slate-900" style={styles.card}>
-            <SectionHeader
-              icon={<RefreshCw size={16} color="#0EA5A4" strokeWidth={2.5} />}
-              title="Activity Log"
-            />
-            <View className="gap-3">
-              {issue.issueUpdates
-                .slice()
-                .reverse()
-                .map((update, i) => (
-                  <View
-                    key={update.id}
-                    className="rounded-2xl border border-slate-100 bg-slate-50 p-3.5 dark:border-slate-700/50 dark:bg-slate-800/60">
-                    <View className="mb-1.5 flex-row items-center justify-between">
-                      <View className="rounded-lg bg-teal-50 px-2.5 py-1 dark:bg-teal-900/30">
-                        <Text className="text-[11px] font-extrabold uppercase tracking-wide text-teal-700 dark:text-teal-400">
-                          {update.status}
-                        </Text>
-                      </View>
-                      <Text className="text-[11px] font-medium text-slate-400 dark:text-slate-500">
-                        {new Date(update.createdAt).toLocaleDateString('en-IN', {
-                          day: 'numeric',
-                          month: 'short',
-                        })}
-                      </Text>
-                    </View>
-                    <Text className="text-[13px] leading-5 text-slate-600 dark:text-slate-400">
-                      {update.comment}
-                    </Text>
-                    <Text className="mt-1.5 text-[11px] font-semibold text-slate-400 dark:text-slate-600">
-                      by {update.updatedBy} · {update.role}
-                    </Text>
+        {/* POST UPDATE */}
+        <SectionCard>
+          <SectionHeader
+            title="Post Update"
+            icon={<Send color={isDark ? '#94A3B8' : '#64748B'} size={16} strokeWidth={2.5} />}
+          />
+          <View className="gap-4 px-5 py-4">
+            {/* Scope Selector */}
+            <View>
+              <Text className="mb-2.5 ml-1 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
+                Visibility Scope
+              </Text>
+              <View className="shadow-inner flex-row rounded-full bg-slate-200/60 p-1 dark:bg-slate-800/80">
+                {(
+                  [
+                    {
+                      value: 'citizen' as UpdateScope,
+                      label: 'Citizen Only',
+                      icon: <Eye size={11} strokeWidth={3} />,
+                      gradientOptions: isDark ? ['#0284C7', '#0369A1'] : ['#38BDF8', '#0284C7'],
+                    },
+                    {
+                      value: 'officer_and_citizen' as UpdateScope,
+                      label: 'UO & Citizen',
+                      icon: <Users size={11} strokeWidth={3} />,
+                      gradientOptions: isDark ? ['#059669', '#047857'] : ['#34D399', '#059669'],
+                    },
+                    {
+                      value: 'admin_only' as UpdateScope,
+                      label: 'Admin Only',
+                      icon: <ShieldAlert size={11} strokeWidth={3} />,
+                      gradientOptions: isDark ? ['#E11D48', '#BE123C'] : ['#FB7185', '#E11D48'],
+                    },
+                  ] as const
+                ).map((opt) => {
+                  const isActive = updateScope === opt.value;
+                  return (
+                    <TouchableOpacity
+                      key={opt.value}
+                      onPress={() => setUpdateScope(opt.value)}
+                      activeOpacity={0.85}
+                      style={{
+                        flex: 1,
+                        borderRadius: 999,
+                        marginHorizontal: 2,
+                      }}>
+                      {isActive ? (
+                        <LinearGradient
+                          // @ts-ignore
+                          colors={opt.gradientOptions}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                          style={{
+                            borderRadius: 999,
+                            paddingVertical: 8,
+                            paddingHorizontal: 6,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexDirection: 'row',
+                            gap: 4,
+                          }}>
+                          {React.cloneElement(opt.icon as React.ReactElement<{ color: string }>, {
+                            color: '#FFFFFF',
+                          })}
+                          <Text
+                            style={{ color: '#fff' }}
+                            numberOfLines={1}
+                            adjustsFontSizeToFit
+                            className="text-[10px] font-black">
+                            {opt.label}
+                          </Text>
+                        </LinearGradient>
+                      ) : (
+                        <View
+                          style={{
+                            borderRadius: 999,
+                            paddingVertical: 8,
+                            paddingHorizontal: 6,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexDirection: 'row',
+                            gap: 4,
+                          }}>
+                          {React.cloneElement(opt.icon as React.ReactElement<{ color: string }>, {
+                            color: isDark ? '#94A3B8' : '#64748B',
+                          })}
+                          <Text
+                            style={{ color: isDark ? '#94A3B8' : '#64748B' }}
+                            numberOfLines={1}
+                            adjustsFontSizeToFit
+                            className="text-[10px] font-bold">
+                            {opt.label}
+                          </Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            {/* Comment Canvas */}
+            <View
+              className={`overflow-hidden rounded-[24px] border bg-white shadow-sm dark:bg-slate-900 ${
+                updateText &&
+                updateText
+                  .trim()
+                  .split(/\s+/)
+                  .filter((word) => word.length > 0).length < 5
+                  ? 'border-amber-300 dark:border-amber-900/60'
+                  : 'border-slate-200 dark:border-slate-800'
+              }`}>
+              <View className="flex-row items-center justify-between border-b border-slate-100 bg-slate-50/80 px-4 py-3.5 dark:border-slate-800/80 dark:bg-slate-800/40">
+                <View className="flex-row items-center gap-2.5">
+                  <View className="h-8 w-8 items-center justify-center rounded-xl bg-amber-100 dark:bg-amber-900/40">
+                    <Notebook color={isDark ? '#FBBF24' : '#F59E0B'} size={15} strokeWidth={2.5} />
                   </View>
-                ))}
+                  <Text className="text-[14px] font-black tracking-tight text-slate-800 dark:text-slate-100">
+                    Comment
+                  </Text>
+                </View>
+
+                <View
+                  className={`rounded-lg px-2.5 py-1.5 ${
+                    updateText
+                      .trim()
+                      .split(/\s+/)
+                      .filter((word) => word.length > 0).length >= 5
+                      ? 'bg-emerald-100 dark:bg-emerald-900/40'
+                      : 'bg-amber-100 dark:bg-amber-900/40'
+                  }`}>
+                  <Text
+                    className={`text-[10px] font-black ${
+                      updateText
+                        .trim()
+                        .split(/\s+/)
+                        .filter((word) => word.length > 0).length >= 5
+                        ? 'text-emerald-700 dark:text-emerald-400'
+                        : 'text-amber-700 dark:text-amber-400'
+                    }`}>
+                    {
+                      updateText
+                        .trim()
+                        .split(/\s+/)
+                        .filter((word) => word.length > 0).length
+                    }{' '}
+                    WORDS{' '}
+                    {updateText
+                      .trim()
+                      .split(/\s+/)
+                      .filter((word) => word.length > 0).length < 5 && '(MIN 5)'}
+                  </Text>
+                </View>
+              </View>
+
+              <View className="max-h-[220px] px-1 py-1">
+                <ScrollView
+                  showsVerticalScrollIndicator={false}
+                  contentContainerStyle={{ flexGrow: 1 }}
+                  nestedScrollEnabled={true}
+                  keyboardShouldPersistTaps="handled">
+                  <TextInput
+                    className="min-h-[110px] bg-transparent px-4 py-3"
+                    placeholder="Record a secure update (minimum 5 words)..."
+                    placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
+                    value={updateText}
+                    onChangeText={setUpdateText}
+                    multiline
+                    scrollEnabled={false}
+                    style={{
+                      fontSize: 15,
+                      lineHeight: 24,
+                      textAlignVertical: 'top',
+                      color: isDark ? '#F1F5F9' : '#1F2937',
+                      fontWeight: '500',
+                    }}
+                  />
+                </ScrollView>
+              </View>
+            </View>
+
+            {/* Attachment previews */}
+            {updateAttachments.length > 0 && (
+              <View>
+                <Text className="mb-2 text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                  Attachments ({updateAttachments.length})
+                </Text>
+                <View className="flex-row flex-wrap gap-2">
+                  {updateAttachments.map((att, i) => (
+                    <View key={i} style={styles.attachmentPreviewWrap}>
+                      {att.type === 'image' ? (
+                        <Image
+                          source={{ uri: att.uri }}
+                          style={styles.attachmentPreview}
+                          resizeMode="cover"
+                        />
+                      ) : att.type === 'video' ? (
+                        <View style={[styles.attachmentPreview, styles.attachmentMediaPlaceholder]}>
+                          <Video color="#fff" size={22} strokeWidth={2} />
+                          <Text style={styles.attachmentMediaLabel} numberOfLines={1}>
+                            {att.name}
+                          </Text>
+                        </View>
+                      ) : (
+                        <View style={[styles.attachmentPreview, styles.attachmentPdfPlaceholder]}>
+                          <Text style={styles.attachmentPdfIcon}>PDF</Text>
+                          <Text style={styles.attachmentMediaLabel} numberOfLines={1}>
+                            {att.name}
+                          </Text>
+                        </View>
+                      )}
+                      <TouchableOpacity
+                        onPress={() =>
+                          setUpdateAttachments(updateAttachments.filter((_, idx) => idx !== i))
+                        }
+                        activeOpacity={0.8}
+                        style={styles.attachmentRemove}>
+                        <X color="#fff" size={10} strokeWidth={3} />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {/* Action row */}
+            <View className="flex-row gap-3">
+              <TouchableOpacity
+                onPress={handleShowAttachMenu}
+                activeOpacity={0.75}
+                className="flex-row items-center gap-2 rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 dark:border-slate-600/50 dark:bg-slate-700">
+                <Paperclip color={isDark ? '#94A3B8' : '#64748B'} size={15} strokeWidth={2.5} />
+                <Text className="text-[13px] font-semibold text-slate-600 dark:text-slate-300">
+                  Attach
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={handlePostUpdate}
+                activeOpacity={0.85}
+                style={[styles.actionBtn, { flex: 1 }]}>
+                <LinearGradient
+                  colors={['#0D9488', '#0891B2']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.actionBtnGradient}>
+                  <Send color="#FFFFFF" size={16} strokeWidth={2.5} />
+                  <Text className="text-[14px] font-bold text-white">Post Update</Text>
+                </LinearGradient>
+              </TouchableOpacity>
             </View>
           </View>
-        )}
+        </SectionCard>
 
         <View className="h-6" />
       </ScrollView>
@@ -1651,6 +2299,95 @@ export default function FieldIssueDetailScreen() {
           {actionButton()}
         </View>
       )}
+
+      {/* ── Start Work Confirmation Modal ── */}
+      <Modal
+        visible={showStartWorkConfirm}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowStartWorkConfirm(false)}>
+        <View style={styles.modalOverlay}>
+          <BlurView
+            intensity={80}
+            style={StyleSheet.absoluteFill}
+            tint={isDark ? 'dark' : 'light'}
+          />
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            activeOpacity={1}
+            onPress={() => setShowStartWorkConfirm(false)}
+          />
+
+          <View style={[styles.confirmModalContent, isDark ? styles.modalDark : styles.modalLight]}>
+            <LinearGradient
+              colors={['#22C55E', '#16A34A']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.modalHeaderIcon}>
+              <Play color="#FFFFFF" size={32} strokeWidth={2.5} fill="#FFFFFF" />
+            </LinearGradient>
+
+            <Text style={[styles.modalTitle, { color: isDark ? '#F8FAFC' : '#0F172A' }]}>
+              Begin Mission?
+            </Text>
+
+            <View style={styles.modalIssueInfo}>
+              <Text style={[styles.modalIssueName, { color: isDark ? '#E2E8F0' : '#334155' }]}>
+                {issue.title}
+              </Text>
+              <View className="flex flex-row items-center justify-center">
+                <View style={styles.modalIssueCodeBox}>
+                  <Hash size={12} color="#22C55E" strokeWidth={3} />
+                  <Text style={styles.modalIssueCodeText}>{issue.issueCode}</Text>
+                </View>
+              </View>
+            </View>
+
+            <View
+              style={[
+                styles.modalWarningBox,
+                { backgroundColor: isDark ? 'rgba(34,197,94,0.1)' : 'rgba(34,197,94,0.05)' },
+              ]}>
+              <ShieldAlert size={18} color="#22C55E" />
+              <Text style={[styles.modalWarningText, { color: isDark ? '#A7F3D0' : '#065F46' }]}>
+                Status will become <Text style={{ fontWeight: '900' }}>In Progress</Text>. Only
+                admins/Unit Officers can change it after this.
+              </Text>
+            </View>
+
+            <View style={styles.modalActionRow}>
+              <TouchableOpacity
+                onPress={() => setShowStartWorkConfirm(false)}
+                style={[styles.modalCancelBtn, { borderColor: isDark ? '#334155' : '#E2E8F0' }]}>
+                <Text style={[styles.modalCancelText, { color: isDark ? '#94A3B8' : '#64748B' }]}>
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={confirmStartWork}
+                disabled={isStartingWork}
+                activeOpacity={0.8}
+                style={styles.modalConfirmBtn}>
+                <LinearGradient
+                  colors={['#22C55E', '#15803D']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.modalConfirmGrad}>
+                  {isStartingWork ? (
+                    <RefreshCw size={20} color="#FFFFFF" strokeWidth={2.5} />
+                  ) : (
+                    <>
+                      <Text style={styles.modalConfirmText}>Confirm</Text>
+                      <ChevronRight size={18} color="#FFFFFF" strokeWidth={2.5} />
+                    </>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <Modal
         visible={showWorkFlow}
@@ -1724,6 +2461,277 @@ export default function FieldIssueDetailScreen() {
             </View>
           )}
         </View>
+      </Modal>
+
+      {/* Attachment picker bottom sheet */}
+      <Modal
+        visible={showAttachMenu}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowAttachMenu(false)}
+        onDismiss={handleAttachMenuDismissed}>
+        <TouchableOpacity
+          style={styles.attachMenuOverlay}
+          activeOpacity={1}
+          onPress={() => setShowAttachMenu(false)}>
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+            style={[
+              styles.attachMenuSheet,
+              isDark ? styles.attachMenuSheetDark : styles.attachMenuSheetLight,
+            ]}>
+            {/* Drag handle */}
+            <View
+              style={[styles.attachMenuHandle, { backgroundColor: isDark ? '#334155' : '#CBD5E1' }]}
+            />
+
+            {/* Gradient banner header */}
+            <LinearGradient
+              colors={isDark ? ['#1E3A5F', '#0F2236'] : ['#EFF6FF', '#E0F2FE']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.attachMenuBanner}>
+              <View
+                style={[
+                  styles.attachMenuBannerIconRing,
+                  { borderColor: isDark ? '#3B82F620' : '#BFDBFE' },
+                ]}>
+                <View
+                  style={[
+                    styles.attachMenuBannerIcon,
+                    { backgroundColor: isDark ? '#1D4ED8' : '#2563EB' },
+                  ]}>
+                  <Paperclip color="#FFFFFF" size={20} strokeWidth={2.5} />
+                </View>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={[styles.attachMenuBannerTitle, { color: isDark ? '#F1F5F9' : '#0F172A' }]}>
+                  Add Attachment
+                </Text>
+                <Text
+                  style={[styles.attachMenuBannerSub, { color: isDark ? '#93C5FD' : '#3B82F6' }]}>
+                  Choose how to attach your file
+                </Text>
+              </View>
+            </LinearGradient>
+
+            {/* Option cards */}
+            <View style={styles.attachMenuOptionsGrid}>
+              {/* Camera */}
+              <TouchableOpacity
+                onPress={handlePickFromCamera}
+                activeOpacity={0.72}
+                style={[
+                  styles.attachMenuCard,
+                  {
+                    backgroundColor: isDark ? '#0F1E38' : '#EFF6FF',
+                    borderColor: isDark ? '#2563EB' : '#93C5FD',
+                  },
+                ]}>
+                <View
+                  style={[
+                    styles.attachMenuCardGlow,
+                    { backgroundColor: isDark ? '#2563EB18' : '#DBEAFE' },
+                  ]}
+                />
+                <View style={[styles.attachMenuCardIcon, { backgroundColor: '#2563EB' }]}>
+                  <Camera color="#FFFFFF" size={24} strokeWidth={2.5} />
+                </View>
+                <Text
+                  style={[styles.attachMenuCardTitle, { color: isDark ? '#93C5FD' : '#1E40AF' }]}>
+                  Camera
+                </Text>
+                <View
+                  style={[
+                    styles.attachMenuCardBadge,
+                    { backgroundColor: isDark ? '#1D4ED830' : '#DBEAFE' },
+                  ]}>
+                  <Text
+                    style={[
+                      styles.attachMenuCardBadgeText,
+                      { color: isDark ? '#60A5FA' : '#2563EB' },
+                    ]}>
+                    Live shot
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
+              {/* Gallery */}
+              <TouchableOpacity
+                onPress={handlePickFromGallery}
+                activeOpacity={0.72}
+                style={[
+                  styles.attachMenuCard,
+                  {
+                    backgroundColor: isDark ? '#0B1F14' : '#F0FDF4',
+                    borderColor: isDark ? '#16A34A' : '#86EFAC',
+                  },
+                ]}>
+                <View
+                  style={[
+                    styles.attachMenuCardGlow,
+                    { backgroundColor: isDark ? '#16A34A18' : '#DCFCE7' },
+                  ]}
+                />
+                <View style={[styles.attachMenuCardIcon, { backgroundColor: '#16A34A' }]}>
+                  <ImageIcon color="#FFFFFF" size={24} strokeWidth={2.5} />
+                </View>
+                <Text
+                  style={[styles.attachMenuCardTitle, { color: isDark ? '#86EFAC' : '#14532D' }]}>
+                  Gallery
+                </Text>
+                <View
+                  style={[
+                    styles.attachMenuCardBadge,
+                    { backgroundColor: isDark ? '#15803D30' : '#DCFCE7' },
+                  ]}>
+                  <Text
+                    style={[
+                      styles.attachMenuCardBadgeText,
+                      { color: isDark ? '#4ADE80' : '#16A34A' },
+                    ]}>
+                    Photo / Video
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
+              {/* PDF */}
+              <TouchableOpacity
+                onPress={handlePickDocument}
+                activeOpacity={0.72}
+                style={[
+                  styles.attachMenuCard,
+                  {
+                    backgroundColor: isDark ? '#1F0F07' : '#FFF7ED',
+                    borderColor: isDark ? '#EA580C' : '#FDBA74',
+                  },
+                ]}>
+                <View
+                  style={[
+                    styles.attachMenuCardGlow,
+                    { backgroundColor: isDark ? '#EA580C18' : '#FFEDD5' },
+                  ]}
+                />
+                <View style={[styles.attachMenuCardIcon, { backgroundColor: '#EA580C' }]}>
+                  <FileText color="#FFFFFF" size={24} strokeWidth={2.5} />
+                </View>
+                <Text
+                  style={[styles.attachMenuCardTitle, { color: isDark ? '#FDBA74' : '#7C2D12' }]}>
+                  PDF
+                </Text>
+                <View
+                  style={[
+                    styles.attachMenuCardBadge,
+                    { backgroundColor: isDark ? '#C2410C30' : '#FFEDD5' },
+                  ]}>
+                  <Text
+                    style={[
+                      styles.attachMenuCardBadgeText,
+                      { color: isDark ? '#FB923C' : '#EA580C' },
+                    ]}>
+                    Document
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+
+            {/* Divider */}
+            <View
+              style={[
+                styles.attachMenuDivider,
+                { backgroundColor: isDark ? '#1E293B' : '#F1F5F9' },
+              ]}
+            />
+
+            {/* Cancel button */}
+            <TouchableOpacity
+              onPress={() => setShowAttachMenu(false)}
+              activeOpacity={0.75}
+              style={[
+                styles.attachMenuCancel,
+                {
+                  backgroundColor: isDark ? '#1E293B' : '#F8FAFC',
+                  borderColor: isDark ? '#334155' : '#E2E8F0',
+                },
+              ]}>
+              <X color={isDark ? '#64748B' : '#94A3B8'} size={15} strokeWidth={2.5} />
+              <Text
+                style={{
+                  color: isDark ? '#94A3B8' : '#64748B',
+                  fontSize: 14,
+                  fontWeight: '700',
+                  letterSpacing: 0.2,
+                }}>
+                Cancel
+              </Text>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* ATTACHMENT PREVIEW MODAL */}
+      <Modal
+        visible={!!previewAttachment}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPreviewAttachment(null)}>
+        <TouchableOpacity
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.95)',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+          activeOpacity={1}
+          onPress={() => setPreviewAttachment(null)}>
+          <View className="absolute right-6 top-14 z-50">
+            <View className="h-14 w-14 items-center justify-center rounded-full border-[1.5px] border-white/20 bg-slate-800/80 backdrop-blur-md">
+              <X color="#ffffff" size={32} strokeWidth={2.5} />
+            </View>
+          </View>
+
+          <TouchableOpacity
+            activeOpacity={1}
+            style={{ width: '100%', alignItems: 'center', justifyContent: 'center' }}
+            onPress={() => {}}>
+            {previewAttachment?.type === 'image' && (
+              <Image
+                source={{ uri: previewAttachment.url }}
+                style={{ width: SCREEN_WIDTH, height: '80%' }}
+                resizeMode="contain"
+              />
+            )}
+
+            {(previewAttachment?.type === 'video' || previewAttachment?.type === 'pdf') && (
+              <View className="items-center px-10">
+                <View
+                  className={`h-24 w-24 items-center justify-center rounded-3xl ${previewAttachment.type === 'video' ? 'bg-cyan-500/20' : 'bg-red-500/20'} mb-6`}>
+                  {previewAttachment.type === 'video' ? (
+                    <Video color="#22D3EE" size={40} strokeWidth={2} />
+                  ) : (
+                    <FileText color="#EF4444" size={40} strokeWidth={2} />
+                  )}
+                </View>
+                <Text className="mb-2 text-center text-[20px] font-black tracking-tight text-white">
+                  {previewAttachment.type === 'video' ? 'Video Evidence' : 'Document Evidence'}
+                </Text>
+                <Text className="mb-8 text-center text-[13px] font-medium text-slate-400">
+                  Due to native platform requirements, please open this file in your system's
+                  default viewer.
+                </Text>
+                <TouchableOpacity
+                  onPress={() => Linking.openURL(previewAttachment.url)}
+                  className="w-full flex-row items-center justify-center gap-2 rounded-2xl bg-white px-6 py-4">
+                  <Text className="text-[15px] font-black text-slate-900">
+                    Open External Viewer
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </TouchableOpacity>
+        </TouchableOpacity>
       </Modal>
     </SafeAreaView>
   );
@@ -1889,54 +2897,6 @@ function WorkSubmittedBanner({ timestamp, comment }: { timestamp?: string; comme
             </View>
           ) : null}
         </View>
-      </View>
-    </View>
-  );
-}
-
-function TimelineItem({
-  label,
-  value,
-  color,
-  isLast,
-  overdue,
-}: {
-  label: string;
-  value: string;
-  color: string;
-  isLast?: boolean;
-  overdue?: boolean;
-}) {
-  return (
-    <View className="flex-row gap-3">
-      <View className="items-center" style={{ width: 24 }}>
-        <View
-          className="h-5 w-5 items-center justify-center rounded-full"
-          style={{ backgroundColor: color + '22', borderWidth: 2, borderColor: color }}>
-          <View className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} />
-        </View>
-        {!isLast && (
-          <View
-            className="mt-1 w-0.5 flex-1"
-            style={{ backgroundColor: '#E2E8F0', minHeight: 24 }}
-          />
-        )}
-      </View>
-      <View className="flex-1 pb-4">
-        <Text
-          className={`mb-0.5 text-[12px] font-bold uppercase tracking-widest ${overdue ? 'text-red-500' : 'text-slate-400 dark:text-slate-500'}`}>
-          {label}
-        </Text>
-        <Text
-          className={`text-[14px] font-semibold ${overdue ? 'text-red-600 dark:text-red-400' : 'text-slate-800 dark:text-slate-200'}`}>
-          {value}
-        </Text>
-        {overdue && (
-          <View className="mt-1 flex-row items-center gap-1">
-            <AlertTriangle size={11} color="#EF4444" strokeWidth={2.5} />
-            <Text className="text-[11px] font-bold text-red-500">SLA Overdue</Text>
-          </View>
-        )}
       </View>
     </View>
   );
@@ -3155,6 +4115,414 @@ const styles = StyleSheet.create({
     letterSpacing: 1.2,
     marginBottom: 4,
   },
+  intelTimelineRow: {
+    flexDirection: 'row',
+    marginBottom: 4,
+  },
+  timelineTrack: {
+    width: 20,
+    alignItems: 'center',
+  },
+  timelineNode: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginTop: 18,
+    zIndex: 5,
+  },
+  timelineNodePulse: {
+    position: 'absolute',
+    top: -4,
+    left: -4,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    opacity: 0.3,
+  },
+  timelineVector: {
+    flex: 1,
+    width: 2,
+    marginTop: 6,
+    marginBottom: -6,
+    opacity: 0.4,
+  },
+  intelPayloadCard: {
+    flex: 1,
+    marginLeft: 16,
+    marginBottom: 24,
+    borderRadius: 24,
+    overflow: 'hidden',
+    borderTopWidth: 3,
+    backgroundColor: 'transparent',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  intelPayloadHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(148,163,184,0.08)',
+  },
+  intelPayloadMeta: {
+    alignItems: 'flex-end',
+    gap: 4,
+  },
+  intelPayloadStatus: {
+    fontSize: 14,
+    fontWeight: '900',
+    letterSpacing: -0.2,
+  },
+  intelPayloadTime: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#94A3B8',
+    letterSpacing: 0.5,
+  },
+  intelPayloadComment: {
+    fontSize: 14,
+    lineHeight: 22,
+    fontWeight: '600',
+  },
+  roleMicroBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  roleMicroText: {
+    fontSize: 8,
+    fontWeight: '900',
+  },
+  visibilityTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  visibilityTagText: {
+    fontSize: 8,
+    fontWeight: '900',
+    color: '#64748B',
+  },
+  mediaIntelRegion: {
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(148,163,184,0.08)',
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 16,
+  },
+  mediaIntelLine: {
+    width: 2,
+    height: 12,
+    backgroundColor: '#0EA5A4',
+    borderRadius: 1,
+  },
+  mediaIntelTitle: {
+    fontSize: 9,
+    fontWeight: '900',
+    color: '#94A3B8',
+    letterSpacing: 1.2,
+  },
+  mediaIntelThumbWrapper: {
+    width: 100,
+    height: 70,
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: 'rgba(148,163,184,0.1)',
+  },
+  mediaIntelThumb: {
+    width: '100%',
+    height: '100%',
+  },
+  mediaTypeTag: {
+    position: 'absolute',
+    bottom: 6,
+    right: 6,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  mediaTypeTagText: {
+    fontSize: 7,
+    fontWeight: '900',
+    color: '#FFFFFF',
+  },
+  emptyLogIconBox: {
+    width: 60,
+    height: 60,
+    borderRadius: 24,
+    backgroundColor: 'rgba(148,163,184,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  emptyLogText: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: '#94A3B8',
+    letterSpacing: 1.5,
+  },
+  attachmentPreviewWrap: {
+    position: 'relative',
+  },
+  attachmentPreview: {
+    width: 72,
+    height: 60,
+    borderRadius: 10,
+    backgroundColor: '#E5E7EB',
+  },
+  attachmentRemove: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#EF4444',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  attachmentMediaPlaceholder: {
+    backgroundColor: '#1E293B',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  attachmentPdfPlaceholder: {
+    backgroundColor: '#FEF2F2',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  attachmentMediaLabel: {
+    fontSize: 9,
+    color: '#fff',
+    fontWeight: '600',
+    textAlign: 'center',
+    paddingHorizontal: 4,
+  },
+  attachmentPdfIcon: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: '#DC2626',
+    letterSpacing: 1,
+  },
+  attachMenuOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    justifyContent: 'flex-end',
+  },
+  attachMenuSheet: {
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    paddingHorizontal: 16,
+    paddingBottom: 44,
+    paddingTop: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -10 },
+    shadowOpacity: 0.22,
+    shadowRadius: 28,
+    elevation: 24,
+  },
+  attachMenuSheetLight: {
+    backgroundColor: '#FFFFFF',
+  },
+  attachMenuSheetDark: {
+    backgroundColor: '#0B1120',
+  },
+  attachMenuHandle: {
+    width: 44,
+    height: 5,
+    borderRadius: 3,
+    alignSelf: 'center',
+    marginBottom: 18,
+  },
+  attachMenuBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    borderRadius: 20,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    marginBottom: 16,
+  },
+  attachMenuBannerIconRing: {
+    width: 56,
+    height: 56,
+    borderRadius: 18,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  attachMenuBannerIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  attachMenuBannerTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    letterSpacing: -0.4,
+    marginBottom: 3,
+  },
+  attachMenuBannerSub: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  attachMenuHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    marginBottom: 24,
+  },
+  attachMenuHeaderIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  attachMenuTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    marginBottom: 2,
+    letterSpacing: -0.3,
+  },
+  attachMenuSubtitle: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  attachMenuOptionsGrid: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 16,
+  },
+  attachMenuCard: {
+    flex: 1,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    paddingVertical: 22,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+    gap: 8,
+    overflow: 'hidden',
+  },
+  attachMenuCardGlow: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 48,
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+  },
+  attachMenuCardIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.28,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  attachMenuCardTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+  },
+  attachMenuCardBadge: {
+    borderRadius: 20,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  attachMenuCardBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.1,
+  },
+  attachMenuCardSub: {
+    fontSize: 11,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  attachMenuDivider: {
+    height: 1.5,
+    borderRadius: 1,
+    marginBottom: 14,
+  },
+  attachMenuOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    marginBottom: 4,
+  },
+  attachMenuIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  attachMenuOptionTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  attachMenuOptionSub: {
+    fontSize: 12,
+  },
+  attachmentThumb: {
+    width: 80,
+    height: 64,
+    borderRadius: 10,
+    marginRight: 8,
+    backgroundColor: '#E5E7EB',
+  },
+  attachMenuCancel: {
+    borderRadius: 16,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    flexDirection: 'row',
+    gap: 8,
+  },
+  actionBtnGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+  },
   submittedNoteText: {
     fontSize: 13,
     fontWeight: '500',
@@ -3184,5 +4552,122 @@ const styles = StyleSheet.create({
   fullScreenImage: {
     width: SCREEN_WIDTH,
     height: SCREEN_WIDTH * 1.5,
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  confirmModalContent: {
+    width: '100%',
+    borderRadius: 32,
+    padding: 32,
+    alignItems: 'center',
+    borderWidth: 1.5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 20 },
+    shadowOpacity: 0.15,
+    shadowRadius: 30,
+    elevation: 10,
+  },
+  modalLight: {
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    borderColor: 'rgba(255,255,255,0.8)',
+  },
+  modalDark: {
+    backgroundColor: 'rgba(15,23,42,0.95)',
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  modalHeaderIcon: {
+    width: 72,
+    height: 72,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+    shadowColor: '#22C55E',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: '900',
+    letterSpacing: -0.5,
+    marginBottom: 8,
+  },
+  modalIssueInfo: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  modalIssueName: {
+    fontSize: 16,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: 6,
+  },
+  modalIssueCodeBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(34,197,94,0.1)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    gap: 4,
+  },
+  modalIssueCodeText: {
+    color: '#22C55E',
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
+  modalWarningBox: {
+    flexDirection: 'row',
+    padding: 16,
+    borderRadius: 16,
+    gap: 12,
+    marginBottom: 28,
+  },
+  modalWarningText: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '600',
+  },
+  modalActionRow: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
+  modalCancelBtn: {
+    flex: 1,
+    paddingVertical: 16,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalCancelText: {
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  modalConfirmBtn: {
+    flex: 2,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  modalConfirmGrad: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    gap: 8,
+  },
+  modalConfirmText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '900',
   },
 });

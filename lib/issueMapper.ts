@@ -1,4 +1,4 @@
-export function mapIssueToUI(issue: any, userMap: Record<string, any>) {
+export function mapIssueToUI(issue: any,) {
   if (!issue) return null;
 
   return {

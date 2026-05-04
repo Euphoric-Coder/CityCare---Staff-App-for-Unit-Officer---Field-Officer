@@ -279,7 +279,7 @@ export default function UOVerificationPanel({
       role: 'UnitOfficer',
       attachments: [],
       updatedBy: 'uo-1',
-      scope: 'field_and_citizen',
+      scope: 'officer_and_citizen',
       createdAt: new Date().toISOString(),
     };
     onApprove({
@@ -307,7 +307,7 @@ export default function UOVerificationPanel({
             role: 'UnitOfficer',
             attachments: [],
             updatedBy: 'uo-1',
-            scope: 'field_and_citizen',
+            scope: 'officer_and_citizen',
             createdAt: new Date().toISOString(),
           };
           onRework(reworkNote.trim(), {

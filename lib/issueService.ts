@@ -66,7 +66,7 @@ export const issueService = {
         issueId,
         'Verified',
         'Issue verified by Unit Officer.',
-        'field_and_citizen',
+        'officer_and_citizen',
         'UnitOfficer'
       )
     );
@@ -105,7 +105,7 @@ export const issueService = {
         issueId,
         'Assigned',
         `Assigned to ${officer.name}.${note ? ' ' + note : ''}`,
-        'field_and_citizen',
+        'officer_and_citizen',
         'UnitOfficer'
       )
     );
@@ -187,7 +187,7 @@ export const issueService = {
         issueId,
         'Rework Required',
         `Rework requested: ${reason}. ${comment}`,
-        'field_and_citizen',
+        'officer_and_citizen',
         'UnitOfficer'
       )
     );
@@ -233,7 +233,7 @@ export const issueService = {
         issueId,
         'Verified',
         'Reopened issue re-verified by Unit Officer.',
-        'field_and_citizen',
+        'officer_and_citizen',
         'UnitOfficer'
       )
     );

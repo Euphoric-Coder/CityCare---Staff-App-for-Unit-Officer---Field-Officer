@@ -14,7 +14,6 @@ import FieldOfficerDashboard from '../screens/FieldOfficerDashboard';
 import FieldIssueCard from './FieldIssueCard';
 import SimpleFilterBar from './SimpleFilterBar';
 import NotificationPanel from './NotificationPanel';
-import { mockFieldOfficerNotifications } from '../lib/mockData';
 import { Issue } from '../lib/types';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from 'convex/_generated/api';
@@ -88,15 +87,15 @@ export default function FieldDashboardScreen() {
     setTimeout(() => setRefreshing(false), 1500);
   };
 
-  const handleIssuePress = (issue: Issue) => {
-    if (!issue?.id) {
+  const handleIssuePress = (issueId: string) => {
+    if (!issueId) {
       // This should never happen since the card is only rendered for valid issues, but just in case
       // @ts-ignore
       Alert.alert('Error', 'Invalid issue data');
       return;
     }
     // @ts-expect-error - navigation params
-    navigation.navigate('FieldIssueDetail' as never, { issue } as never);
+    navigation.navigate('FieldIssueDetail' as never, { issueId } as never);
   };
 
   if (!rawIssues && !notifications) {
@@ -156,8 +155,9 @@ export default function FieldDashboardScreen() {
             filteredIssues.map((issue) => (
               <FieldIssueCard
                 key={issue?.id}
+                // @ts-ignore - Passing issue as is
                 issue={issue}
-                onPress={() => handleIssuePress(issue)}
+                onPress={() => handleIssuePress(issue?.id)}
               />
             ))
           ) : (

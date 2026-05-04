@@ -350,7 +350,7 @@ export default function SLAOverduePanel({
               role: 'UnitOfficer',
               attachments: [],
               updatedBy: 'uo-1',
-              scope: 'field_and_citizen',
+              scope: 'officer_and_citizen',
               createdAt: new Date().toISOString(),
             };
             const updated: Issue = {
@@ -437,7 +437,7 @@ export default function SLAOverduePanel({
               role: 'UnitOfficer',
               attachments: [],
               updatedBy: 'uo-1',
-              scope: 'field_and_citizen',
+              scope: 'officer_and_citizen',
               createdAt: new Date().toISOString(),
             };
             const updated: Issue = {
@@ -478,7 +478,7 @@ export default function SLAOverduePanel({
               role: 'UnitOfficer',
               attachments: [],
               updatedBy: 'uo-1',
-              scope: 'field_and_citizen',
+              scope: 'officer_and_citizen',
               createdAt: new Date().toISOString(),
             };
             const updated: Issue = {

@@ -63,6 +63,7 @@ export const createIssue = mutation({
 
   handler: async (ctx, args) => {
     // Generate Issue Code
+    // @ts-ignore
     const prefix = CATEGORY_PREFIX[args.category] ?? 'OT';
 
     const randomPart = generateRandomCode(6);
@@ -271,7 +272,7 @@ export const reopenIssue = mutation({
       updatedBy: args.userId,
       role: 'citizen',
       attachments: [],
-      scope: 'field_and_citizen',
+      scope: 'officer_and_citizen',
       createdAt: Date.now(),
     });
 

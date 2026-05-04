@@ -205,7 +205,7 @@ export interface VerificationChecklist {
 
 export type UserRole = 'unit_officer' | 'field_officer' | 'citizen' | 'admin' | 'city_admin';
 
-export type UpdateScope = 'citizen' | 'field_and_citizen' | 'admin_only';
+export type UpdateScope = 'citizen' | 'officer_and_citizen' | 'admin_only';
 
 export interface IssueUpdate {
   id: string;

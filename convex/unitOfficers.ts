@@ -201,7 +201,7 @@ export const verifyIssue = mutation({
         role: 'unit_officer',
         attachments: [],
         updatedBy: args.verifiedBy,
-        scope: 'field_and_citizen',
+        scope: 'officer_and_citizen',
         createdAt: Date.now(),
       });
 
@@ -233,7 +233,7 @@ export const verifyIssue = mutation({
         role: 'unit_officer',
         attachments: [],
         updatedBy: args.verifiedBy,
-        scope: 'field_and_citizen',
+        scope: 'officer_and_citizen',
         createdAt: Date.now(),
       });
 
@@ -482,7 +482,7 @@ export const assignIssueToFieldOfficer = mutation({
       role: 'unit_officer',
       attachments: [],
       updatedBy: args.assignedBy,
-      scope: 'field_and_citizen',
+      scope: 'officer_and_citizen',
       createdAt: now,
     });
 

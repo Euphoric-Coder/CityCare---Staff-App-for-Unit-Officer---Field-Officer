@@ -438,7 +438,7 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
   const [showReassignModal, setShowReassignModal] = useState(false);
   const [verificationTab, setVerificationTab] = useState<'verify' | 'reject'>('verify');
   const [updateText, setUpdateText] = useState('');
-  const [updateScope, setUpdateScope] = useState<UpdateScope>('field_and_citizen');
+  const [updateScope, setUpdateScope] = useState<UpdateScope>('officer_and_citizen');
   const [updateAttachments, setUpdateAttachments] = useState<FileAttachment[]>([]);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
   const pendingPicker = useRef<'camera' | 'gallery' | 'document' | null>(null);
@@ -830,7 +830,7 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
 
       setUpdateText('');
       setUpdateAttachments([]);
-      setUpdateScope('field_and_citizen');
+      setUpdateScope('officer_and_citizen');
 
       Alert.alert('Success', 'Update posted successfully.');
     } catch (error) {
@@ -1711,7 +1711,7 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
                           bg: 'bg-sky-50 dark:bg-sky-900/40',
                           text: 'text-sky-700 dark:text-sky-300',
                         }
-                      : upd.scope === 'field_and_citizen'
+                      : upd.scope === 'officer_and_citizen'
                         ? {
                             label: 'Officer & Citizen',
                             icon: <Users color="#059669" size={11} strokeWidth={2.5} />,
@@ -1777,13 +1777,11 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
                             <Text
                               style={{
                                 color:
-                                  upd.role === 'citizen'
-                                    ? '#2563EB'
-                                    : upd.role === 'unit_officer'
-                                      ? '#0D9488'
-                                      : upd.role === 'field_officer'
-                                        ? '#D97706'
-                                        : '#7C3AED',
+                                  upd.role === 'unit_officer'
+                                    ? '#0D9488'
+                                    : upd.role === 'field_officer'
+                                      ? '#D97706'
+                                      : '#7C3AED',
                               }}
                               className="text-[11px] font-black uppercase">
                               {upd.role === 'unit_officer'
@@ -1943,7 +1941,7 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
                         gradientOptions: isDark ? ['#0284C7', '#0369A1'] : ['#38BDF8', '#0284C7'],
                       },
                       {
-                        value: 'field_and_citizen' as UpdateScope,
+                        value: 'officer_and_citizen' as UpdateScope,
                         label: 'FO & Citizen',
                         icon: <Users size={11} strokeWidth={3} />,
                         gradientOptions: isDark ? ['#059669', '#047857'] : ['#34D399', '#059669'],

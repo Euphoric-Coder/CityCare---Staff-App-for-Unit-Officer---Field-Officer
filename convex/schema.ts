@@ -234,18 +234,14 @@ export default defineSchema({
     // Who performed the update
     updatedBy: v.optional(v.id('users')),
 
-    role: v.union(
-      v.literal('unit_officer'),
-      v.literal('field_officer'),
-      v.literal('admin')
-    ),
+    role: v.union(v.literal('citizen'), v.literal('unit_officer'), v.literal('field_officer'), v.literal('admin')),
 
     // Attachments (photos/videos/documents)
     attachments: v.optional(v.array(v.id('_storage'))),
 
     // Visibility scope
     scope: v.union(
-      v.literal('field_and_citizen'), // visible to citizen and officers
+      v.literal('officer_and_citizen'), // visible to citizen and officers
       v.literal('citizen'), // citizens only
       v.literal('admin_only') // admin only
     ),

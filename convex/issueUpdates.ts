@@ -1,3 +1,4 @@
+import { Id } from './_generated/dataModel';
 import { mutation, query } from './_generated/server';
 import { v } from 'convex/values';
 
@@ -14,7 +15,7 @@ export const getByIssueId = query({
 
     const enriched = await Promise.all(
       updates.map(async (u) => {
-        const user = await ctx.db.get(u.updatedBy);
+        const user = await ctx.db.get(u.updatedBy as Id<'users'>);
 
         const attachments = await Promise.all(
           (u.attachments || []).map(async (fileId) => {
@@ -56,7 +57,7 @@ export const createIssueUpdate = mutation({
       v.literal('admin')
     ),
     attachments: v.optional(v.array(v.id('_storage'))),
-    scope: v.union(v.literal('field_and_citizen'), v.literal('citizen'), v.literal('admin_only')),
+    scope: v.union(v.literal('officer_and_citizen'), v.literal('citizen'), v.literal('admin_only')),
   },
 
   handler: async (ctx, args) => {

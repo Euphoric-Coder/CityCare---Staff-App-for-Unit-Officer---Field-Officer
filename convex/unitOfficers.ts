@@ -40,6 +40,34 @@ export const getUnitOfficerIssues = query({
           .withIndex('by_user', (q) => q.eq('userId', issue.reportedBy))
           .unique();
 
+        // Fetch Field Officer using userId stored in issue
+        let fieldOfficerDetails = null;
+
+        if (issue.assignedFieldOfficer) {
+          const fo = await ctx.db
+            .query('fieldOfficers')
+            .withIndex('by_user', (q) => q.eq('userId', issue.assignedFieldOfficer as Id<'users'>))
+            .unique();
+
+          if (fo) {
+            const foUser = await ctx.db.get(fo.userId);
+
+            fieldOfficerDetails = {
+              _id: fo._id,
+              userId: fo.userId,
+              fullName: foUser?.fullName || fo.fullName,
+              email: fo.email,
+              phone: fo.phone,
+              rating: fo.rating,
+              efficiencyScore: fo.efficiencyScore,
+              currentActiveIssues: fo.currentActiveIssues,
+              maxIssueCapacity: fo.maxIssueCapacity,
+              workloadPercentage: (fo.currentActiveIssues / fo.maxIssueCapacity) * 100,
+              specialisations: fo.specialisations,
+            };
+          }
+        }
+
         return {
           ...issue,
 
@@ -48,6 +76,7 @@ export const getUnitOfficerIssues = query({
             email: citizen?.email ?? 'N/A',
             phone: citizen?.phone ?? 'N/A',
           },
+          fieldOfficerDetails,
         };
       })
     );

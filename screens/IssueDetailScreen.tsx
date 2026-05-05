@@ -23,6 +23,8 @@ import * as DocumentPicker from 'expo-document-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
+import { WebView } from 'react-native-webview';
 import {
   ArrowLeft,
   MapPin,
@@ -54,6 +56,7 @@ import {
   EyeOff,
   Users,
   ShieldAlert,
+  ShieldCheck,
   MessageSquarePlus,
   X,
   Camera,
@@ -67,12 +70,12 @@ import {
   HeartPulse,
   MoreHorizontal,
   Notebook,
+  Compass,
+  ExternalLink,
+  Maximize2,
 } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Issue, IssueStatus, IssueUpdate, UpdateScope } from '../lib/types';
-import { mockFieldOfficers } from '../lib/mockData';
-import { issueService } from '../lib/issueService';
-import StatusBadge, { PriorityBadge } from '../components/StatusBadge';
 import RejectionModal from '../components/RejectionModal';
 import ReassignmentModal from '../components/ReassignmentModal';
 import {
@@ -104,7 +107,6 @@ interface FileAttachment {
 }
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const CAROUSEL_ITEM_WIDTH = SCREEN_WIDTH - 48;
 
 const STATUS_DOT_COLORS: Record<string, string> = {
   pending: '#F59E0B',
@@ -268,23 +270,35 @@ function PhotoCarousel({
   photos,
   label,
   isDark,
+  statusHex,
+  onPressImage,
 }: {
   photos: string[];
   label: string;
   isDark: boolean;
+  statusHex: string;
+  onPressImage: (uri: string) => void;
 }) {
   const [activeIndex, setActiveIndex] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
 
+  // Use a fallback estimated width, but we will rely on exact onLayout calculations for pixel-perfect sizing
+  const defaultWidth = Dimensions.get('window').width - 100;
+  const [itemWidth, setItemWidth] = useState(defaultWidth);
+
   const goTo = (index: number) => {
     const clamped = Math.max(0, Math.min(index, photos.length - 1));
-    scrollRef.current?.scrollTo({ x: clamped * CAROUSEL_ITEM_WIDTH, animated: true });
+    scrollRef.current?.scrollTo({ x: clamped * itemWidth, animated: true });
     setActiveIndex(clamped);
   };
 
   return (
-    <View>
-      <View style={{ position: 'relative' }}>
+    <View
+      onLayout={(e) => {
+        // Capture exact width provided by the parent container layout engine
+        setItemWidth(e.nativeEvent.layout.width);
+      }}>
+      <View style={{ position: 'relative' }} className="overflow-hidden rounded-[24px]">
         <ScrollView
           ref={scrollRef}
           horizontal
@@ -292,14 +306,43 @@ function PhotoCarousel({
           showsHorizontalScrollIndicator={false}
           scrollEventThrottle={16}
           onMomentumScrollEnd={(e) => {
-            const index = Math.round(e.nativeEvent.contentOffset.x / CAROUSEL_ITEM_WIDTH);
+            const index = Math.round(e.nativeEvent.contentOffset.x / itemWidth);
             setActiveIndex(index);
           }}
-          style={{ width: CAROUSEL_ITEM_WIDTH }}>
+          style={{ width: itemWidth }}>
           {photos.map((photo, i) => (
-            <View key={i} style={{ width: CAROUSEL_ITEM_WIDTH, paddingHorizontal: 0 }}>
-              <Image source={{ uri: photo }} style={styles.carouselPhoto} resizeMode="cover" />
-            </View>
+            <TouchableOpacity
+              key={i}
+              activeOpacity={0.9}
+              onPress={() => onPressImage(photo)}
+              style={{ width: itemWidth }}>
+              <Image
+                source={{ uri: photo }}
+                style={{ width: '100%', height: 240, borderRadius: 24 }}
+                resizeMode="cover"
+              />
+
+              {/* Cinematic Premium Gradient */}
+              <LinearGradient
+                colors={['rgba(0,0,0,0.4)', 'transparent', 'rgba(0,0,0,0.7)']}
+                style={StyleSheet.absoluteFillObject}
+                className="rounded-[24px]"
+              />
+
+              {/* Floating Badge on Image */}
+              <View className="absolute left-4 top-4 overflow-hidden rounded-full border border-white/30 bg-black/40 px-3 py-1.5 shadow-sm">
+                <Text className="text-[9px] font-black tracking-[0.15em] text-white">
+                  SECURED EVIDENCE
+                </Text>
+              </View>
+
+              {/* Premium Carousel Counter */}
+              <View className="absolute bottom-4 right-4 rounded-xl border border-white/10 bg-black/60 px-3 py-1.5">
+                <Text className="text-[11px] font-black text-white">
+                  {i + 1} / {photos.length}
+                </Text>
+              </View>
+            </TouchableOpacity>
           ))}
         </ScrollView>
 
@@ -309,49 +352,39 @@ function PhotoCarousel({
               <TouchableOpacity
                 onPress={() => goTo(activeIndex - 1)}
                 activeOpacity={0.85}
-                style={[styles.carouselArrow, styles.carouselArrowLeft]}>
-                <ChevronLeft color="#fff" size={20} strokeWidth={2.5} />
+                className="absolute left-3 top-[45%] h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-black/30 shadow-lg">
+                <ChevronLeft color="#FFFFFF" size={20} strokeWidth={3} />
               </TouchableOpacity>
             )}
             {activeIndex < photos.length - 1 && (
               <TouchableOpacity
                 onPress={() => goTo(activeIndex + 1)}
                 activeOpacity={0.85}
-                style={[styles.carouselArrow, styles.carouselArrowRight]}>
-                <ChevronRight color="#fff" size={20} strokeWidth={2.5} />
+                className="absolute right-3 top-[45%] h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-black/30 shadow-lg">
+                <ChevronRight color="#FFFFFF" size={20} strokeWidth={3} />
               </TouchableOpacity>
             )}
           </>
         )}
-
-        <View style={styles.carouselLabelContainer}>
-          <View
-            className={
-              label === 'BEFORE'
-                ? 'rounded-xl bg-slate-800/80 px-3 py-1'
-                : 'rounded-xl bg-emerald-600/90 px-3 py-1'
-            }>
-            <Text className="text-[11px] font-extrabold tracking-widest text-white">{label}</Text>
-          </View>
-          <View className="ml-2 rounded-xl bg-black/50 px-2.5 py-1">
-            <Text className="text-[11px] font-bold text-white">
-              {activeIndex + 1}/{photos.length}
-            </Text>
-          </View>
-        </View>
       </View>
 
+      {/* High-Fidelity Dot Indicators */}
       {photos.length > 1 && (
-        <View style={styles.dotsRow}>
+        <View className="mt-4 flex-row justify-center gap-2 pb-2">
           {photos.map((_, i) => (
             <TouchableOpacity key={i} onPress={() => goTo(i)} activeOpacity={0.7}>
               <View
-                style={[
-                  styles.dot,
-                  i === activeIndex
-                    ? { backgroundColor: '#0D9488', width: 20 }
-                    : { backgroundColor: isDark ? '#334155' : '#CBD5E1', width: 8 },
-                ]}
+                style={{
+                  width: i === activeIndex ? 20 : 6,
+                  height: 6,
+                  borderRadius: 3,
+                  backgroundColor:
+                    i === activeIndex
+                      ? statusHex
+                      : isDark
+                        ? 'rgba(255,255,255,0.2)'
+                        : 'rgba(0,0,0,0.1)',
+                }}
               />
             </TouchableOpacity>
           ))}
@@ -361,45 +394,18 @@ function PhotoCarousel({
   );
 }
 
-function VideoEvidenceCard({ videoUrl, isDark }: { videoUrl: string; isDark: boolean }) {
-  const openVideo = () => {
-    Linking.openURL(videoUrl).catch(() => {
-      Alert.alert('Cannot open video', 'No compatible app found to play this video.');
-    });
-  };
-
-  return (
-    <TouchableOpacity onPress={openVideo} activeOpacity={0.88} style={styles.videoCard}>
-      <LinearGradient
-        colors={isDark ? ['#1E293B', '#0F172A'] : ['#F8FAFC', '#F1F5F9']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.videoGradient}>
-        <View style={styles.videoIconWrap}>
-          <LinearGradient colors={['#0D9488', '#0891B2']} style={styles.videoPlayCircle}>
-            <Play color="#fff" size={22} fill="#fff" strokeWidth={0} />
-          </LinearGradient>
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text className="mb-0.5 text-[13px] font-bold text-slate-800 dark:text-slate-100">
-            Video Evidence
-          </Text>
-          <Text className="text-[11px] text-slate-400 dark:text-slate-500" numberOfLines={1}>
-            Tap to play in external viewer
-          </Text>
-        </View>
-        <ChevronRight color={isDark ? '#475569' : '#94A3B8'} size={18} strokeWidth={2} />
-      </LinearGradient>
-    </TouchableOpacity>
-  );
-}
-
 export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
   const user = useUser();
   const navigation = useNavigation();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const { issueId } = route.params;
+
+  // Evidence Intelligence States
+  const [fullScreenImage, setFullScreenImage] = useState<string | null>(null);
+  const [fullScreenVideo, setFullScreenVideo] = useState<string | null>(null);
+  const [activeVideoIndex, setActiveVideoIndex] = useState(0);
+  const [playingVideo, setPlayingVideo] = useState<number | null>(null);
 
   const issueUpdates = useQuery(
     api.issueUpdates.getByIssueId,
@@ -899,7 +905,7 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
     return null;
   }
 
-  const mappedIssue = mapIssueToUI(issue, {});
+  const mappedIssue = mapIssueToUI(issue);
 
   if (!mappedIssue) {
     return (
@@ -919,6 +925,153 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
   const hasPhotos =
     allBeforePhotos.length > 0 || allAfterPhotos.length > 0 || mappedIssue.images.length > 0;
   const hasVideo = (mappedIssue.videoEvidence?.length ?? 0) > 0;
+
+  const getStatusStyle = (
+    statusValue: string
+  ): {
+    hex: string;
+    bg: string;
+    border: string;
+    borderClass: string;
+    glow: string;
+    gradientDark: readonly [string, string, ...string[]];
+    gradientLight: readonly [string, string, ...string[]];
+  } => {
+    switch (statusValue) {
+      case 'pending':
+        return {
+          hex: '#F59E0B',
+          bg: isDark ? 'rgba(245, 158, 11, 0.12)' : '#FFFBEB',
+          border: isDark ? 'rgba(245, 158, 11, 0.4)' : 'rgba(245, 158, 11, 0.3)',
+          borderClass: 'border-amber-500/40',
+          glow: 'rgba(245, 158, 11, 0.6)',
+          gradientDark: ['#78350F', '#0F172A', '#020617'],
+          gradientLight: ['#FFFFFF', '#FFFBEB', '#FEF3C7'],
+        };
+      case 'verified':
+        return {
+          hex: '#06B6D4',
+          bg: isDark ? 'rgba(6, 182, 212, 0.12)' : '#ECFEFF',
+          border: isDark ? 'rgba(6, 182, 212, 0.4)' : 'rgba(6, 182, 212, 0.3)',
+          borderClass: 'border-cyan-500/40',
+          glow: 'rgba(6, 182, 212, 0.6)',
+          gradientDark: ['#164E63', '#0F172A', '#020617'],
+          gradientLight: ['#FFFFFF', '#ECFEFF', '#CFFAFE'],
+        };
+      case 'assigned':
+        return {
+          hex: '#6366F1',
+          bg: isDark ? 'rgba(99, 102, 241, 0.12)' : '#EEF2FF',
+          border: isDark ? 'rgba(99, 102, 241, 0.4)' : 'rgba(99, 102, 241, 0.3)',
+          borderClass: 'border-indigo-500/40',
+          glow: 'rgba(99, 102, 241, 0.6)',
+          gradientDark: ['#312E81', '#0F172A', '#020617'],
+          gradientLight: ['#FFFFFF', '#EEF2FF', '#E0E7FF'],
+        };
+      case 'in_progress':
+        return {
+          hex: '#8B5CF6',
+          bg: isDark ? 'rgba(139, 92, 246, 0.12)' : '#F5F3FF',
+          border: isDark ? 'rgba(139, 92, 246, 0.4)' : 'rgba(139, 92, 246, 0.3)',
+          borderClass: 'border-violet-500/40',
+          glow: 'rgba(139, 92, 246, 0.6)',
+          gradientDark: ['#4C1D95', '#0F172A', '#020617'],
+          gradientLight: ['#FFFFFF', '#F5F3FF', '#EDE9FE'],
+        };
+      case 'pending_uo_verification':
+        return {
+          hex: '#F97316',
+          bg: isDark ? 'rgba(249, 115, 22, 0.15)' : '#FFF7ED',
+          border: isDark ? 'rgba(249, 115, 22, 0.5)' : 'rgba(249, 115, 22, 0.4)',
+          borderClass: 'border-orange-500/50',
+          glow: 'rgba(249, 115, 22, 0.7)',
+          gradientDark: ['#7C2D12', '#0F172A', '#020617'],
+          gradientLight: ['#FFFFFF', '#FFF7ED', '#FFEDD5'],
+        };
+      case 'rework_required':
+        return {
+          hex: '#EC4899',
+          bg: isDark ? 'rgba(236, 72, 153, 0.12)' : '#FDF2F8',
+          border: isDark ? 'rgba(236, 72, 153, 0.4)' : 'rgba(236, 72, 153, 0.3)',
+          borderClass: 'border-pink-500/40',
+          glow: 'rgba(236, 72, 153, 0.6)',
+          gradientDark: ['#831843', '#0F172A', '#020617'],
+          gradientLight: ['#FFFFFF', '#FDF2F8', '#FCE7F3'],
+        };
+      case 'reopened':
+        return {
+          hex: '#F97316',
+          bg: isDark ? 'rgba(249, 115, 22, 0.15)' : '#FFF7ED',
+          border: isDark ? 'rgba(249, 115, 22, 0.5)' : 'rgba(249, 115, 22, 0.4)',
+          borderClass: 'border-orange-500/50',
+          glow: 'rgba(249, 115, 22, 0.7)',
+          gradientDark: ['#7C2D12', '#0F172A', '#020617'],
+          gradientLight: ['#FFFFFF', '#FFF7ED', '#FFEDD5'],
+        };
+      case 'escalated':
+        return {
+          hex: '#EF4444',
+          bg: isDark ? 'rgba(239, 68, 68, 0.15)' : '#FEF2F2',
+          border: isDark ? 'rgba(239, 68, 68, 0.5)' : 'rgba(239, 68, 68, 0.4)',
+          borderClass: 'border-red-500/50',
+          glow: 'rgba(239, 68, 68, 0.7)',
+          gradientDark: ['#7F1D1D', '#0F172A', '#020617'],
+          gradientLight: ['#FFFFFF', '#FEF2F2', '#FEE2E2'],
+        };
+      case 'resolved':
+        return {
+          hex: '#10B981',
+          bg: isDark ? 'rgba(16, 185, 129, 0.15)' : '#F0FDF4',
+          border: isDark ? 'rgba(16, 185, 129, 0.5)' : 'rgba(16, 185, 129, 0.4)',
+          borderClass: 'border-emerald-500/50',
+          glow: 'rgba(16, 185, 129, 0.7)',
+          gradientDark: ['#064E3B', '#0F172A', '#020617'],
+          gradientLight: ['#FFFFFF', '#ECFDF5', '#D1FAE5'],
+        };
+      case 'rejected':
+        return {
+          hex: '#EF4444',
+          bg: isDark ? 'rgba(239, 68, 68, 0.12)' : '#FEF2F2',
+          border: isDark ? 'rgba(239, 68, 68, 0.4)' : 'rgba(239, 68, 68, 0.3)',
+          borderClass: 'border-red-500/40',
+          glow: 'rgba(239, 68, 68, 0.6)',
+          gradientDark: ['#7F1D1D', '#0F172A', '#020617'],
+          gradientLight: ['#FFFFFF', '#FEF2F2', '#FEE2E2'],
+        };
+      case 'withdrawn':
+        return {
+          hex: '#64748B',
+          bg: isDark ? 'rgba(100, 116, 139, 0.12)' : '#F8FAFC',
+          border: isDark ? 'rgba(100, 116, 139, 0.4)' : 'rgba(100, 116, 139, 0.3)',
+          borderClass: 'border-slate-500/40',
+          glow: 'rgba(100, 116, 139, 0.6)',
+          gradientDark: ['#0F172A', '#020617', '#000000'],
+          gradientLight: ['#FFFFFF', '#F8FAFC', '#F1F5F9'],
+        };
+      case 'closed':
+        return {
+          hex: '#64748B',
+          bg: isDark ? 'rgba(100, 116, 139, 0.08)' : '#F8FAFC',
+          border: isDark ? 'rgba(100, 116, 139, 0.3)' : 'rgba(100, 116, 139, 0.2)',
+          borderClass: 'border-slate-500/30',
+          glow: 'rgba(100, 116, 139, 0.4)',
+          gradientDark: ['#0F172A', '#020617', '#000000'],
+          gradientLight: ['#FFFFFF', '#F8FAFC', '#F1F5F9'],
+        };
+      default:
+        return {
+          hex: '#3B82F6',
+          bg: isDark ? 'rgba(59, 130, 246, 0.12)' : '#EFF6FF',
+          border: isDark ? 'rgba(59, 130, 246, 0.4)' : 'rgba(59, 130, 246, 0.3)',
+          borderClass: 'border-blue-500/40',
+          glow: 'rgba(59, 130, 246, 0.6)',
+          gradientDark: ['#1E3A8A', '#0F172A', '#020617'],
+          gradientLight: ['#FFFFFF', '#EFF6FF', '#DBEAFE'],
+        };
+    }
+  };
+
+  const statusStyle = getStatusStyle(mappedIssue.status);
 
   return (
     <SafeAreaView className="flex-1 bg-slate-100 dark:bg-slate-900" edges={['top']}>
@@ -982,1201 +1135,1838 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
         </View>
 
         <ScrollView
-          className="flex-1"
+          className="flex-1 px-5"
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}>
-          {/* HERO TITLE CARD */}
-          <SectionCard>
-            <View className="px-5 pb-4 pt-5">
-              {(() => {
-                const STATUS_META: Record<string, any> = {
-                  pending: {
-                    bg: 'bg-amber-100',
-                    darkBg: 'dark:bg-amber-900/40',
-                    text: 'text-amber-700',
-                    darkText: 'dark:text-amber-300',
-                    dot: '#F59E0B',
-                    border: 'border-amber-200 dark:border-amber-800',
-                  },
-                  verified: {
-                    bg: 'bg-emerald-100',
-                    darkBg: 'dark:bg-emerald-900/40',
-                    text: 'text-emerald-700',
-                    darkText: 'dark:text-emerald-300',
-                    dot: '#10B981',
-                    border: 'border-emerald-200 dark:border-emerald-800',
-                  },
-                  assigned: {
-                    bg: 'bg-blue-100',
-                    darkBg: 'dark:bg-blue-900/40',
-                    text: 'text-blue-700',
-                    darkText: 'dark:text-blue-300',
-                    dot: '#3B82F6',
-                    border: 'border-blue-200 dark:border-blue-800',
-                  },
-                  in_progress: {
-                    bg: 'bg-violet-100',
-                    darkBg: 'dark:bg-violet-900/40',
-                    text: 'text-violet-700',
-                    darkText: 'dark:text-violet-300',
-                    dot: '#8B5CF6',
-                    border: 'border-violet-200 dark:border-violet-800',
-                  },
-                  pending_uo_verification: {
-                    bg: 'bg-amber-500',
-                    darkBg: 'dark:bg-amber-800',
-                    text: 'text-white',
-                    darkText: 'dark:text-white',
-                    dot: '#FFFFFF',
-                    border: 'border-amber-400 dark:border-amber-500',
-                  },
-                  rework_required: {
-                    bg: 'bg-red-100',
-                    darkBg: 'dark:bg-red-900/40',
-                    text: 'text-red-700',
-                    darkText: 'dark:text-red-300',
-                    dot: '#EF4444',
-                    border: 'border-red-200 dark:border-red-800',
-                  },
-                  resolved: {
-                    bg: 'bg-emerald-500',
-                    darkBg: 'dark:bg-emerald-800',
-                    text: 'text-white',
-                    darkText: 'dark:text-white',
-                    dot: '#FFFFFF',
-                    border: 'border-emerald-400 dark:border-emerald-600',
-                  },
-                  closed: {
-                    bg: 'bg-slate-100',
-                    darkBg: 'dark:bg-slate-700/50',
-                    text: 'text-slate-600',
-                    darkText: 'dark:text-slate-400',
-                    dot: '#94A3B8',
-                    border: 'border-slate-200 dark:border-slate-600',
-                  },
-                  rejected: {
-                    bg: 'bg-red-100',
-                    darkBg: 'dark:bg-red-900/40',
-                    text: 'text-red-900',
-                    darkText: 'dark:text-red-400',
-                    dot: '#991B1B',
-                    border: 'border-red-200 dark:border-red-800',
-                  },
-                };
-                const PRIORITY_META: Record<string, any> = {
-                  critical: {
-                    bg: 'bg-red-100',
-                    darkBg: 'dark:bg-red-900/40',
-                    text: 'text-red-700',
-                    darkText: 'dark:text-red-300',
-                    dot: '#DC2626',
-                  },
-                  high: {
-                    bg: 'bg-orange-100',
-                    darkBg: 'dark:bg-orange-900/40',
-                    text: 'text-orange-700',
-                    darkText: 'dark:text-orange-300',
-                    dot: '#F97316',
-                  },
-                  medium: {
-                    bg: 'bg-amber-100',
-                    darkBg: 'dark:bg-amber-900/40',
-                    text: 'text-amber-700',
-                    darkText: 'dark:text-amber-300',
-                    dot: '#F59E0B',
-                  },
-                  low: {
-                    bg: 'bg-green-100',
-                    darkBg: 'dark:bg-green-900/40',
-                    text: 'text-green-700',
-                    darkText: 'dark:text-green-300',
-                    dot: '#10B981',
-                  },
-                };
+          {/* HERO TITLE CARD (Breathtaking Modernization) */}
+          {(() => {
+            const PRIORITY_META: Record<string, any> = {
+              critical: { bg: 'bg-red-100', text: 'text-red-700', dot: '#DC2626' },
+              high: { bg: 'bg-orange-100', text: 'text-orange-700', dot: '#F97316' },
+              medium: { bg: 'bg-amber-100', text: 'text-amber-700', dot: '#F59E0B' },
+              low: { bg: 'bg-green-100', text: 'text-green-700', dot: '#10B981' },
+            };
+            const pm = PRIORITY_META[mappedIssue.priority] || PRIORITY_META.medium;
+            const StatusIconValue =
+              mappedIssue.status === 'in_progress'
+                ? TrendingUp
+                : mappedIssue.status === 'pending_uo_verification'
+                  ? Clock
+                  : CheckCircle;
 
-                const getStatusIconValue = (val: string) => {
-                  switch (val) {
-                    case 'pending':
-                    case 'pending_uo_verification':
-                      return Clock;
-                    case 'verified':
-                    case 'resolved':
-                    case 'closed':
-                      return CheckCircle;
-                    case 'assigned':
-                      return UserCheck;
-                    case 'in_progress':
-                      return TrendingUp;
-                    case 'rework_required':
-                      return AlertTriangle;
-                    default:
-                      return CheckCircle;
-                  }
-                };
+            return (
+              <View
+                style={{
+                  shadowColor: statusStyle.hex,
+                  shadowOffset: { width: 0, height: 25 },
+                  shadowOpacity: isDark ? 0.4 : 0.15,
+                  shadowRadius: 40,
+                  elevation: 20,
+                  marginBottom: 32,
+                }}>
+                <View
+                  style={{
+                    backgroundColor: isDark ? '#020617' : '#FFFFFF',
+                    borderColor: statusStyle.border,
+                    borderWidth: 2.5,
+                    borderRadius: 40,
+                    overflow: 'hidden',
+                  }}>
+                  {/* Status Ambient Tint */}
+                  <View
+                    style={{ backgroundColor: statusStyle.bg, ...StyleSheet.absoluteFillObject }}
+                  />
 
-                const sm = STATUS_META[mappedIssue.status] || STATUS_META.pending;
-                const pm = PRIORITY_META[mappedIssue.priority] || PRIORITY_META.medium;
-                const StatusIconValue = getStatusIconValue(mappedIssue.status);
+                  {/* Priority Side Strip */}
+                  <View
+                    style={{
+                      backgroundColor: pm.dot,
+                      position: 'absolute',
+                      left: 0,
+                      top: 0,
+                      bottom: 0,
+                      width: 10,
+                      shadowColor: pm.dot,
+                      shadowOpacity: 1,
+                      shadowRadius: 15,
+                    }}
+                  />
 
-                return (
-                  <View className="mb-4 flex-row flex-wrap items-center gap-2">
-                    <View
-                      className={`shrink-0 flex-row items-center gap-1.5 rounded-full border px-3.5 py-1.5 shadow-sm ${sm.bg} ${sm.darkBg} ${sm.border}`}>
-                      <StatusIconValue
-                        size={12}
-                        strokeWidth={3}
-                        color={
-                          sm.text === 'text-white' || sm.bg.includes('500') ? '#FFFFFF' : sm.dot
-                        }
-                      />
-                      <Text
-                        className={`text-[10px] font-black tracking-widest ${sm.text} ${sm.darkText}`}>
-                        {STATUS_LABELS[mappedIssue.status]?.toUpperCase() ??
-                          mappedIssue.status.toUpperCase()}
-                      </Text>
+                  <View className="py-8 pl-10 pr-7">
+                    {/* Header Row */}
+                    <View className="mb-6 flex-row items-center gap-3">
+                      <View
+                        className={`flex-row items-center gap-2 rounded-full border px-4 py-2 ${statusStyle.borderClass} bg-white/60 shadow-sm dark:bg-slate-900/60`}>
+                        <StatusIconValue size={12} strokeWidth={3} color={statusStyle.hex} />
+                        <Text
+                          style={{ color: statusStyle.hex }}
+                          className="text-[10px] font-black uppercase tracking-widest">
+                          {STATUS_LABELS[mappedIssue.status]?.toUpperCase() ||
+                            mappedIssue.status.toUpperCase()}
+                        </Text>
+                      </View>
+
+                      <View
+                        className={`flex-row items-center gap-2 rounded-full border border-slate-200/50 bg-white/60 px-4 py-2 shadow-sm dark:border-white/10 dark:bg-slate-900/60`}>
+                        <View
+                          className="h-2 w-2 rounded-full"
+                          style={{ backgroundColor: pm.dot }}
+                        />
+                        <Text
+                          className={`text-[10px] font-black uppercase tracking-widest ${pm.text} dark:text-white`}>
+                          {mappedIssue.priority.toUpperCase()}
+                        </Text>
+                      </View>
                     </View>
 
-                    <View
-                      className={`flex-row items-center gap-1.5 rounded-full border px-3 py-1.5 shadow-sm ${pm.bg} ${pm.darkBg} border-slate-200/50 dark:border-white/10 dark:bg-slate-800`}>
+                    <Text className="mb-6 text-[28px] font-black leading-[38px] tracking-tight text-slate-900 dark:text-white">
+                      {mappedIssue.title}
+                    </Text>
+
+                    {/* SLA Section */}
+                    {mappedIssue.slaDeadline &&
+                      (() => {
+                        const isOverdue =
+                          new Date(mappedIssue.slaDeadline) < new Date() &&
+                          !['resolved', 'closed', 'rejected', 'withdrawn'].includes(
+                            mappedIssue.status
+                          );
+
+                        if (isOverdue) {
+                          return (
+                            <LinearGradient
+                              colors={['#EF4444', '#B91C1C']}
+                              start={{ x: 0, y: 0 }}
+                              end={{ x: 1, y: 1 }}
+                              className="mb-6 flex-row items-center gap-4 rounded-[24px] px-6 py-5"
+                              style={{
+                                shadowColor: '#EF4444',
+                                shadowOffset: { width: 0, height: 6 },
+                                shadowOpacity: 0.35,
+                                shadowRadius: 12,
+                                elevation: 8,
+                              }}>
+                              <View className="h-[48px] w-[48px] items-center justify-center rounded-[16px] bg-white/20">
+                                <AlertTriangle color="#FFFFFF" size={24} strokeWidth={2.5} />
+                              </View>
+                              <View className="flex-1 justify-center">
+                                <Text className="text-[10px] font-black uppercase tracking-[0.2em] text-red-100">
+                                  SLA PROTOCOL BREACHED
+                                </Text>
+                                <Text className="mt-0.5 text-[15px] font-black leading-tight text-white">
+                                  Missed: {formatTimestamp(mappedIssue.slaDeadline)}
+                                </Text>
+                              </View>
+                            </LinearGradient>
+                          );
+                        }
+
+                        return (
+                          <View className="mb-6 flex-row items-center gap-4 rounded-[24px] border border-orange-200/60 bg-orange-50/80 px-6 py-5 shadow-sm dark:border-orange-500/20 dark:bg-orange-900/10">
+                            <View className="h-[48px] w-[48px] items-center justify-center rounded-[16px] bg-orange-100/80 dark:bg-orange-500/20">
+                              <Clock color={isDark ? '#FB923C' : '#EA580C'} size={24} strokeWidth={2.5} />
+                            </View>
+                            <View className="flex-1 justify-center">
+                              <Text className="text-[10px] font-black uppercase tracking-[0.2em] text-orange-600 dark:text-orange-500">
+                                ACTIVE SLA DEADLINE
+                              </Text>
+                              <Text className="mt-0.5 text-[15px] font-black leading-tight text-orange-800 dark:text-orange-300">
+                                Due: {formatTimestamp(mappedIssue.slaDeadline)}
+                              </Text>
+                            </View>
+                          </View>
+                        );
+                      })()}
+
+                    {/* Assigned Officer card (Preserved) */}
+                    {mappedIssue.assignedOfficer && (
                       <View
-                        className="h-2 w-2 rounded-full border border-white/50"
-                        style={{
-                          backgroundColor: pm.dot,
-                          shadowColor: pm.dot,
-                          shadowOffset: { width: 0, height: 1 },
-                          shadowOpacity: 1,
-                          shadowRadius: 3,
-                        }}
-                      />
-                      <Text
-                        className={`text-[10px] font-black tracking-widest ${pm.text} ${pm.darkText}`}>
-                        {mappedIssue.priority.toUpperCase()}
+                        className="mt-3 overflow-hidden rounded-2xl border border-teal-200 dark:border-teal-700/50"
+                        style={styles.officerCard}>
+                        <LinearGradient
+                          colors={isDark ? ['#0d3330', '#0f172a'] : ['#f0fdfa', '#e6fffa']}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                          style={styles.officerGradient}>
+                          {/* Top row */}
+                          <View className="flex-row items-start gap-3">
+                            {/* Avatar */}
+                            <View style={styles.officerAvatar}>
+                              {assignedOfficerData?.avatar ? (
+                                <Image
+                                  source={{ uri: assignedOfficerData.avatar }}
+                                  style={styles.officerAvatarImg}
+                                />
+                              ) : (
+                                <View
+                                  className="h-full w-full items-center justify-center"
+                                  style={{ backgroundColor: isDark ? '#134E4A' : '#CCFBF1' }}>
+                                  <UserCheck
+                                    color={isDark ? '#5EEAD4' : '#0F766E'}
+                                    size={22}
+                                    strokeWidth={2.5}
+                                  />
+                                </View>
+                              )}
+                            </View>
+
+                            <View className="flex-1">
+                              <Text className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-teal-600 dark:text-teal-400">
+                                Assigned Officer
+                              </Text>
+                              <Text className="mb-1 text-[16px] font-extrabold text-teal-800 dark:text-teal-200">
+                                {assignedOfficerData?.fullName}
+                              </Text>
+
+                              {/* Stats row */}
+                              {assignedOfficerData && (
+                                <View className="flex-row items-center gap-3">
+                                  <View className="flex-row items-center gap-1">
+                                    <Star
+                                      color="#F59E0B"
+                                      size={12}
+                                      fill="#F59E0B"
+                                      strokeWidth={2}
+                                    />
+                                    <Text className="text-[12px] font-bold text-amber-500">
+                                      {assignedOfficerData.rating.toFixed(1)}
+                                    </Text>
+                                  </View>
+                                  <View className="flex-row items-center gap-1">
+                                    <TrendingUp
+                                      color={isDark ? '#10B981' : '#059669'}
+                                      size={12}
+                                      strokeWidth={2.5}
+                                    />
+                                    <Text className="text-[12px] font-semibold text-emerald-600 dark:text-emerald-400">
+                                      {assignedOfficerData?.efficiencyScore}%
+                                    </Text>
+                                  </View>
+                                  <View className="flex-row items-center gap-1">
+                                    <Briefcase
+                                      color={isDark ? '#6B7280' : '#9CA3AF'}
+                                      size={11}
+                                      strokeWidth={2}
+                                    />
+                                    <Text className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                                      {assignedOfficerData?.currentActiveIssues} active
+                                    </Text>
+                                  </View>
+                                </View>
+                              )}
+                            </View>
+
+                            {(mappedIssue.status === 'assigned' ||
+                              mappedIssue.status === 'in_progress') && (
+                              <TouchableOpacity
+                                onPress={() => setShowReassignModal(true)}
+                                activeOpacity={0.75}
+                                className="h-10 w-10 items-center justify-center rounded-xl border border-amber-200 bg-amber-100 dark:border-amber-700/50 dark:bg-amber-900/40">
+                                <RefreshCw color="#D97706" size={17} strokeWidth={2.5} />
+                              </TouchableOpacity>
+                            )}
+                          </View>
+
+                          {/* Specialisations */}
+                          {assignedOfficerData?.specialisations &&
+                            assignedOfficerData.specialisations.length > 0 && (
+                              <View className="mt-3 flex-row flex-wrap gap-1.5">
+                                {/* @ts-ignore */}
+                                {assignedOfficerData.specialisations.map((spec, i) => (
+                                  <View
+                                    key={i}
+                                    className="rounded-full px-2.5 py-1"
+                                    style={{
+                                      backgroundColor: isDark ? '#0C2A3F' : '#EFF6FF',
+                                      borderWidth: 1,
+                                      borderColor: isDark ? '#1E3A5F' : '#BFDBFE',
+                                    }}>
+                                    <Text className="text-[11px] font-bold text-blue-600 dark:text-blue-300">
+                                      {spec}
+                                    </Text>
+                                  </View>
+                                ))}
+                              </View>
+                            )}
+
+                          {/* Workload bar */}
+                          {assignedOfficerData && (
+                            <View className="mt-3">
+                              <View className="mb-1.5 flex-row items-center justify-between">
+                                <Text className="text-[11px] font-semibold text-teal-700 dark:text-teal-400">
+                                  Current Workload
+                                </Text>
+                                <Text
+                                  className="text-[12px] font-extrabold"
+                                  style={{
+                                    color:
+                                      assignedOfficerData.workloadPercentage >= 85
+                                        ? '#EF4444'
+                                        : assignedOfficerData.workloadPercentage >= 55
+                                          ? '#F59E0B'
+                                          : '#10B981',
+                                  }}>
+                                  {assignedOfficerData.workloadPercentage.toFixed(2)}%
+                                </Text>
+                              </View>
+                              <View
+                                className="h-1.5 overflow-hidden rounded-full"
+                                style={{ backgroundColor: isDark ? '#1E293B' : '#CCFBF1' }}>
+                                <View
+                                  style={{
+                                    width: `${Math.min(assignedOfficerData.workloadPercentage, 100)}%`,
+                                    height: '100%',
+                                    backgroundColor:
+                                      assignedOfficerData.workloadPercentage >= 85
+                                        ? '#EF4444'
+                                        : assignedOfficerData.workloadPercentage >= 55
+                                          ? '#F59E0B'
+                                          : '#10B981',
+                                    borderRadius: 99,
+                                  }}
+                                />
+                              </View>
+                            </View>
+                          )}
+                        </LinearGradient>
+                      </View>
+                    )}
+                  </View>
+                </View>
+              </View>
+            );
+          })()}
+
+          {/* CATEGORY CARD*/}
+          <View
+            style={{
+              shadowColor: statusStyle.hex,
+              shadowOffset: { width: 0, height: 20 },
+              shadowOpacity: isDark ? 0.35 : 0.1,
+              shadowRadius: 30,
+              elevation: 15,
+              marginBottom: 32,
+            }}>
+            <LinearGradient
+              colors={isDark ? statusStyle.gradientDark : statusStyle.gradientLight}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={{
+                borderColor: statusStyle.border,
+                borderWidth: 1.5,
+                borderRadius: 40,
+                overflow: 'hidden',
+                position: 'relative',
+              }}>
+              {/* Cinematic Watermark Layer */}
+              <View style={{ position: 'absolute', right: -40, bottom: -40, opacity: 0.04 }}>
+                <Layers size={220} color={statusStyle.hex} strokeWidth={1} />
+              </View>
+
+              <View className="py-9 pe-7 ps-7">
+                {/* Header Section */}
+                <View className="mb-8 flex-row items-center gap-4">
+                  <LinearGradient
+                    colors={[statusStyle.hex, statusStyle.hex]}
+                    style={{
+                      height: 50,
+                      width: 50,
+                      borderRadius: 18,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}>
+                    <Layers size={24} color="#FFFFFF" strokeWidth={2.5} />
+                  </LinearGradient>
+                  <View className="flex-1">
+                    <Text className="text-[20px] font-black tracking-tight text-slate-900 dark:text-white">
+                      Classification
+                    </Text>
+                    <Text
+                      className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500"
+                      style={{ color: statusStyle.hex }}>
+                      HIERARCHICAL MATRIX
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={{ gap: 24 }}>
+                  {/* ELITE CATEGORY DISPLAY */}
+                  <View>
+                    <Text className="mb-3 text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500">
+                      PRIMARY DOMAIN
+                    </Text>
+                    <View
+                      style={{
+                        backgroundColor: statusStyle.bg,
+                        borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+                        borderWidth: 1,
+                        borderRadius: 24,
+                        padding: 12,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 15,
+                      }}>
+                      <View
+                        style={{ backgroundColor: statusStyle.hex }}
+                        className="h-11 w-11 items-center justify-center rounded-xl shadow-md">
+                        {(() => {
+                          let IconComponent = MoreHorizontal;
+                          switch (mappedIssue.category) {
+                            case 'road':
+                              IconComponent = MapPin;
+                              break;
+                            case 'electricity':
+                              IconComponent = Zap;
+                              break;
+                            case 'water':
+                              IconComponent = Droplets;
+                              break;
+                            case 'sanitation':
+                              IconComponent = Trash2;
+                              break;
+                            case 'drainage':
+                              IconComponent = Recycle;
+                              break;
+                            case 'solid_waste':
+                              IconComponent = Package;
+                              break;
+                            case 'public_health':
+                              IconComponent = HeartPulse;
+                              break;
+                          }
+                          return <IconComponent color="#FFFFFF" size={20} strokeWidth={2.5} />;
+                        })()}
+                      </View>
+                      <Text className="text-[18px] font-black tracking-tight text-slate-900 dark:text-white">
+                        {CATEGORY_LABEL_MAP[mappedIssue.category] ??
+                          mappedIssue.category.toUpperCase()}
                       </Text>
                     </View>
                   </View>
-                );
-              })()}
 
-              <Text className="mb-5 text-[26px] font-black leading-[34px] tracking-tight text-slate-900 dark:text-white">
-                {mappedIssue.title}
-              </Text>
-
-              {/* SLA DEADLINE ENHANCED */}
-              {mappedIssue.slaDeadline &&
-                (() => {
-                  const isOverdue =
-                    new Date(mappedIssue.slaDeadline) < new Date() &&
-                    !['resolved', 'closed', 'rejected', 'escalated'].includes(mappedIssue.status);
-
-                  if (isOverdue) {
-                    return (
-                      <LinearGradient
-                        colors={['#EF4444', '#9F1239']}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 0 }}
-                        className="mb-5 flex-row items-center justify-between rounded-[20px] px-5 py-4 shadow-sm">
-                        <View className="flex-row items-center gap-3.5">
-                          <View className="rounded-full bg-white/30 p-2.5 shadow-sm">
-                            <AlertTriangle color="#FFFFFF" size={16} strokeWidth={3} />
-                          </View>
-                          <View>
-                            <Text className="mb-0.5 text-[10px] font-black uppercase tracking-[0.2em] text-white/90">
-                              SLA OVERDUE
-                            </Text>
-                            <Text className="text-[14px] font-black tracking-wide text-white">
-                              Was due: {formatTimestamp(mappedIssue.slaDeadline)}
-                            </Text>
-                          </View>
-                        </View>
-                        <View className="rounded-full border border-red-200 bg-white px-3 py-1.5 shadow-sm">
-                          <Text className="text-[10px] font-black uppercase tracking-widest text-red-700">
-                            IMMEDIATE ACTION
-                          </Text>
-                        </View>
-                      </LinearGradient>
-                    );
-                  }
-
-                  return (
-                    <View className="mb-5 flex-row items-center gap-3.5 rounded-[20px] border border-orange-200/60 bg-orange-50/80 px-4 py-4 shadow-sm dark:border-orange-800/50 dark:bg-orange-900/20">
-                      <View className="rounded-full bg-orange-100 p-2.5 shadow-sm dark:bg-orange-900/60">
-                        <Clock color={isDark ? '#FCA5A5' : '#EA580C'} size={16} strokeWidth={2.5} />
-                      </View>
-                      <View>
-                        <Text className="mb-0.5 text-[10px] font-black uppercase tracking-[0.2em] text-orange-600/80 dark:text-orange-400">
-                          SLA Deadline
-                        </Text>
-                        <Text className="text-[14px] font-black tracking-wide text-orange-700 dark:text-orange-300">
-                          Due: {formatTimestamp(mappedIssue.slaDeadline)}
-                        </Text>
-                      </View>
-                    </View>
-                  );
-                })()}
-
-              {/* Assigned Officer card */}
-              {mappedIssue.assignedOfficer && (
-                <View
-                  className="mt-3 overflow-hidden rounded-2xl border border-teal-200 dark:border-teal-700/50"
-                  style={styles.officerCard}>
-                  <LinearGradient
-                    colors={isDark ? ['#0d3330', '#0f172a'] : ['#f0fdfa', '#e6fffa']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.officerGradient}>
-                    {/* Top row */}
-                    <View className="flex-row items-start gap-3">
-                      {/* Avatar */}
-                      <View style={styles.officerAvatar}>
-                        {assignedOfficerData?.avatar ? (
-                          <Image
-                            source={{ uri: assignedOfficerData.avatar }}
-                            style={styles.officerAvatarImg}
-                          />
-                        ) : (
+                  {/* BREATHTAKING SUB-CATEGORIES */}
+                  {mappedIssue.subCategories && mappedIssue.subCategories.length > 0 && (
+                    <View>
+                      <Text className="mb-3 text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500">
+                        SPECIALIZED SUB-DOMAINS
+                      </Text>
+                      <View className="flex-row flex-wrap gap-2.5">
+                        {mappedIssue.subCategories.map((sub: string, i: number) => (
                           <View
-                            className="h-full w-full items-center justify-center"
-                            style={{ backgroundColor: isDark ? '#134E4A' : '#CCFBF1' }}>
-                            <UserCheck
-                              color={isDark ? '#5EEAD4' : '#0F766E'}
-                              size={22}
-                              strokeWidth={2.5}
-                            />
-                          </View>
-                        )}
-                      </View>
-
-                      <View className="flex-1">
-                        <Text className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-teal-600 dark:text-teal-400">
-                          Assigned Officer
-                        </Text>
-                        <Text className="mb-1 text-[16px] font-extrabold text-teal-800 dark:text-teal-200">
-                          {assignedOfficerData?.fullName}
-                        </Text>
-
-                        {/* Stats row */}
-                        {assignedOfficerData && (
-                          <View className="flex-row items-center gap-3">
-                            <View className="flex-row items-center gap-1">
-                              <Star color="#F59E0B" size={12} fill="#F59E0B" strokeWidth={2} />
-                              <Text className="text-[12px] font-bold text-amber-500">
-                                {assignedOfficerData.rating.toFixed(1)}
-                              </Text>
-                            </View>
-                            <View className="flex-row items-center gap-1">
-                              <TrendingUp
-                                color={isDark ? '#10B981' : '#059669'}
-                                size={12}
-                                strokeWidth={2.5}
-                              />
-                              <Text className="text-[12px] font-semibold text-emerald-600 dark:text-emerald-400">
-                                {assignedOfficerData?.efficiencyScore}%
-                              </Text>
-                            </View>
-                            <View className="flex-row items-center gap-1">
-                              <Briefcase
-                                color={isDark ? '#6B7280' : '#9CA3AF'}
-                                size={11}
-                                strokeWidth={2}
-                              />
-                              <Text className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-                                {assignedOfficerData?.currentActiveIssues} active
-                              </Text>
-                            </View>
-                          </View>
-                        )}
-                      </View>
-
-                      {(mappedIssue.status === 'assigned' ||
-                        mappedIssue.status === 'in_progress') && (
-                        <TouchableOpacity
-                          onPress={() => setShowReassignModal(true)}
-                          activeOpacity={0.75}
-                          className="h-10 w-10 items-center justify-center rounded-xl border border-amber-200 bg-amber-100 dark:border-amber-700/50 dark:bg-amber-900/40">
-                          <RefreshCw color="#D97706" size={17} strokeWidth={2.5} />
-                        </TouchableOpacity>
-                      )}
-                    </View>
-
-                    {/* Specialisations */}
-                    {assignedOfficerData?.specialisations &&
-                      assignedOfficerData.specialisations.length > 0 && (
-                        <View className="mt-3 flex-row flex-wrap gap-1.5">
-                          {assignedOfficerData.specialisations.map((spec, i) => (
-                            <View
-                              key={i}
-                              className="rounded-full px-2.5 py-1"
-                              style={{
-                                backgroundColor: isDark ? '#0C2A3F' : '#EFF6FF',
-                                borderWidth: 1,
-                                borderColor: isDark ? '#1E3A5F' : '#BFDBFE',
-                              }}>
-                              <Text className="text-[11px] font-bold text-blue-600 dark:text-blue-300">
-                                {spec}
-                              </Text>
-                            </View>
-                          ))}
-                        </View>
-                      )}
-
-                    {/* Workload bar */}
-                    {assignedOfficerData && (
-                      <View className="mt-3">
-                        <View className="mb-1.5 flex-row items-center justify-between">
-                          <Text className="text-[11px] font-semibold text-teal-700 dark:text-teal-400">
-                            Current Workload
-                          </Text>
-                          <Text
-                            className="text-[12px] font-extrabold"
+                            key={i}
                             style={{
-                              color:
-                                assignedOfficerData.workloadPercentage >= 85
-                                  ? '#EF4444'
-                                  : assignedOfficerData.workloadPercentage >= 55
-                                    ? '#F59E0B'
-                                    : '#10B981',
+                              backgroundColor: isDark
+                                ? 'rgba(255,255,255,0.05)'
+                                : 'rgba(0,0,0,0.03)',
+                              borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)',
+                              borderWidth: 1,
+                              borderRadius: 14,
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              gap: 8,
+                              paddingHorizontal: 14,
+                              paddingVertical: 8,
                             }}>
-                            {assignedOfficerData.workloadPercentage.toFixed(2)}%
-                          </Text>
-                        </View>
-                        <View
-                          className="h-1.5 overflow-hidden rounded-full"
-                          style={{ backgroundColor: isDark ? '#1E293B' : '#CCFBF1' }}>
-                          <View
-                            style={{
-                              width: `${Math.min(assignedOfficerData.workloadPercentage, 100)}%`,
-                              height: '100%',
-                              backgroundColor:
-                                assignedOfficerData.workloadPercentage >= 85
-                                  ? '#EF4444'
-                                  : assignedOfficerData.workloadPercentage >= 55
-                                    ? '#F59E0B'
-                                    : '#10B981',
-                              borderRadius: 99,
-                            }}
-                          />
-                        </View>
+                            <Tag size={12} color={statusStyle.hex} strokeWidth={2.5} />
+                            <Text className="text-[11px] font-black tracking-wide text-slate-700 dark:text-slate-200">
+                              {sub.toUpperCase()}
+                            </Text>
+                          </View>
+                        ))}
                       </View>
-                    )}
-                  </LinearGradient>
-                </View>
-              )}
-            </View>
-          </SectionCard>
+                    </View>
+                  )}
 
-          {/* CATEGORY & SUBCATEGORY */}
-          <SectionCard>
-            <SectionHeader
-              title="Category Details"
-              icon={<Tag color={isDark ? '#94A3B8' : '#64748B'} size={16} strokeWidth={2.5} />}
-            />
-            <View className="px-5 py-5">
-              {/* Primary category chip */}
-              <View>
-                <View className="mb-3 flex-row items-center gap-2">
-                  <View className="h-1.5 w-1.5 rounded-full bg-blue-500 shadow-sm" />
-                  <Text className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
-                    Primary Classification
-                  </Text>
-                </View>
-                <View className="flex-row">
+                  {/* SOPHISTICATED TAGS */}
+                  {mappedIssue.tags && mappedIssue.tags.length > 0 && (
+                    <View>
+                      <Text className="mb-3 text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500">
+                        INTEL_TAGS
+                      </Text>
+                      <View className="flex-row flex-wrap gap-2">
+                        {mappedIssue.tags.map((tag: string, i: number) => (
+                          <View
+                            key={i}
+                            className="flex-row items-center gap-1.5 rounded-lg border border-slate-200/50 bg-slate-50/50 px-3 py-2 dark:border-white/5 dark:bg-black/20">
+                            <Hash color={statusStyle.hex} size={10} strokeWidth={3} />
+                            <Text className="text-[10px] font-black tracking-widest text-slate-600 dark:text-slate-300">
+                              {tag.replace(/^#/, '').toUpperCase()}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+                    </View>
+                  )}
+
+                  {/* City FOOTER */}
                   <View
-                    style={[
-                      styles.categoryBadge,
-                      { backgroundColor: isDark ? catColor.darkBg : catColor.bg, borderRadius: 16 },
-                    ]}>
-                    {(() => {
-                      let IconComponent = MoreHorizontal;
-                      switch (mappedIssue.category) {
-                        case 'road':
-                          IconComponent = MapPin;
-                          break;
-                        case 'electricity':
-                          IconComponent = Zap;
-                          break;
-                        case 'water':
-                          IconComponent = Droplets;
-                          break;
-                        case 'sanitation':
-                          IconComponent = Trash2;
-                          break;
-                        case 'drainage':
-                          IconComponent = Recycle;
-                          break;
-                        case 'solid_waste':
-                          IconComponent = Package;
-                          break;
-                        case 'public_health':
-                          IconComponent = HeartPulse;
-                          break;
-                      }
-                      return <IconComponent color={catColor.icon} size={16} strokeWidth={2.5} />;
-                    })()}
+                    style={{
+                      borderTopColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+                      borderTopWidth: 1,
+                    }}
+                    className="mt-2 flex-row items-center justify-between pt-6">
+                    <View className="flex-row items-center gap-2.5">
+                      <View
+                        style={{ backgroundColor: statusStyle.bg }}
+                        className="h-8 w-8 items-center justify-center rounded-lg">
+                        <MapPin size={14} color={statusStyle.hex} strokeWidth={2.5} />
+                      </View>
+                      <Text className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
+                        ASSIGNED REGION
+                      </Text>
+                    </View>
                     <Text
-                      style={{ color: isDark ? catColor.darkText : catColor.text }}
-                      className="ml-2 text-[14px] font-black tracking-wide">
-                      {CATEGORY_LABEL_MAP[mappedIssue.category] ??
-                        mappedIssue.category.toUpperCase()}
+                      style={{ color: statusStyle.hex }}
+                      className="text-[14px] font-black tracking-tight">
+                      {mappedIssue.city || 'KOLKATA'}
                     </Text>
                   </View>
                 </View>
               </View>
-
-              {/* Sub-categories */}
-              {mappedIssue.subCategories && mappedIssue.subCategories.length > 0 && (
-                <>
-                  <View className="my-5 h-[2px] w-full rounded-full bg-slate-50 dark:bg-slate-800/80" />
-                  <View>
-                    <View className="mb-3 flex-row items-center gap-2">
-                      <View className="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-sm" />
-                      <Text className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
-                        Sub-Categories
-                      </Text>
-                    </View>
-                    <View className="flex-row flex-wrap gap-2.5">
-                      {mappedIssue.subCategories.map((sub: string, i: number) => (
-                        <View
-                          key={i}
-                          className="flex-row items-center gap-1.5 rounded-full border border-slate-200/80 bg-slate-100 px-3.5 py-1.5 shadow-sm dark:border-slate-700/60 dark:bg-slate-800/80">
-                          <Tag color={isDark ? '#94A3B8' : '#64748B'} size={11} strokeWidth={3} />
-                          <Text className="text-[11px] font-black tracking-wider text-slate-700 dark:text-slate-200">
-                            {sub.toUpperCase()}
-                          </Text>
-                        </View>
-                      ))}
-                    </View>
-                  </View>
-                </>
-              )}
-
-              {/* Tags */}
-              {mappedIssue.tags && mappedIssue.tags.length > 0 && (
-                <>
-                  <View className="my-5 h-[2px] w-full rounded-full bg-slate-50 dark:bg-slate-800/80" />
-                  <View>
-                    <View className="mb-3 flex-row items-center gap-2">
-                      <View className="h-1.5 w-1.5 rounded-full bg-teal-500 shadow-sm" />
-                      <Text className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
-                        Associated Tags
-                      </Text>
-                    </View>
-                    <View className="flex-row flex-wrap gap-2">
-                      {mappedIssue.tags.map((tag: string, i: number) => (
-                        <View
-                          key={i}
-                          className="flex-row items-center gap-1 rounded-md border border-teal-200/50 bg-teal-50/50 px-2.5 py-1 dark:border-teal-700/30 dark:bg-teal-900/20">
-                          <Hash color={isDark ? '#5EEAD4' : '#0F766E'} size={11} strokeWidth={3} />
-                          <Text className="text-[10px] font-black tracking-widest text-teal-700 dark:text-teal-300">
-                            {tag.replace(/^#/, '').toUpperCase()}
-                          </Text>
-                        </View>
-                      ))}
-                    </View>
-                  </View>
-                </>
-              )}
-            </View>
-          </SectionCard>
+            </LinearGradient>
+          </View>
 
           {/* REPORTED BY */}
-          <SectionCard>
-            <SectionHeader
-              title="Reporter Profile"
-              icon={<User color={isDark ? '#94A3B8' : '#64748B'} size={16} strokeWidth={2.5} />}
-            />
-            <View className="px-5 py-5">
-              <View className="mb-5 flex-row items-center gap-4 rounded-[20px] border border-slate-100 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/50">
-                <View className="h-14 w-14 items-center justify-center rounded-2xl bg-blue-100 shadow-sm dark:bg-blue-900/60">
-                  <Text className="text-[20px] font-black tracking-tighter text-blue-700 dark:text-blue-300">
-                    {mappedIssue.citizenName
-                      .split(' ')
-                      .map((n: string) => n[0])
-                      .join('')
-                      .slice(0, 2)}
-                  </Text>
-                </View>
-                <View className="flex-1 justify-center">
-                  <Text className="mb-1 text-[18px] font-black tracking-tight text-slate-800 dark:text-slate-100">
-                    {mappedIssue.citizenName}
-                  </Text>
-                  <View className="flex-row items-center gap-1.5">
-                    <View className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                    <Text className="text-[11px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
-                      Verified Citizen
+          <View
+            style={{
+              shadowColor: statusStyle.hex,
+              shadowOffset: { width: 0, height: 20 },
+              shadowOpacity: isDark ? 0.35 : 0.1,
+              shadowRadius: 30,
+              elevation: 15,
+              marginBottom: 32,
+            }}>
+            <LinearGradient
+              colors={isDark ? statusStyle.gradientDark : statusStyle.gradientLight}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={{
+                borderColor: statusStyle.border,
+                borderWidth: 1.5,
+                borderRadius: 40,
+                overflow: 'hidden',
+                position: 'relative',
+              }}>
+              {/* Cinematic Watermark Layer */}
+              <View style={{ position: 'absolute', right: -40, bottom: -40, opacity: 0.04 }}>
+                <UserCheck size={220} color={statusStyle.hex} strokeWidth={1} />
+              </View>
+
+              <View className="py-9 pe-7 ps-7">
+                {/* Header Section */}
+                <View className="mb-8 flex-row items-center gap-4">
+                  <LinearGradient
+                    colors={[statusStyle.hex, statusStyle.hex]}
+                    style={{
+                      height: 50,
+                      width: 50,
+                      borderRadius: 18,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}>
+                    <User size={24} color="#FFFFFF" strokeWidth={2.5} />
+                  </LinearGradient>
+                  <View className="flex-1">
+                    <Text className="text-[20px] font-black tracking-tight text-slate-900 dark:text-white">
+                      Reporter Info
+                    </Text>
+                    <Text
+                      className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500"
+                      style={{ color: statusStyle.hex }}>
+                      CITIZEN IDENTITY
                     </Text>
                   </View>
                 </View>
-              </View>
 
-              <View className="gap-3">
-                <View className="flex-row items-center gap-3.5 rounded-2xl bg-slate-100 px-4 py-3.5 shadow-sm dark:bg-slate-800">
-                  <Mail color={isDark ? '#94A3B8' : '#64748B'} size={16} strokeWidth={2.5} />
-                  <Text className="flex-1 text-[13px] font-bold tracking-wide text-slate-700 dark:text-slate-200">
-                    {mappedIssue.citizenEmail}
-                  </Text>
+                {/* Elite Profile Widget */}
+                <View className="mb-8">
+                  <View className="mb-6 flex-row items-center gap-5">
+                    <View className="h-16 w-16 overflow-hidden rounded-2xl shadow-lg">
+                      <LinearGradient
+                        colors={['#1E1B4B', statusStyle.hex]}
+                        style={StyleSheet.absoluteFill}
+                      />
+                      <View className="flex-1 items-center justify-center">
+                        <User size={32} color="#FFFFFF" strokeWidth={2.5} />
+                      </View>
+                    </View>
+                    <View className="flex-1">
+                      <Text className="text-[20px] font-black tracking-tight text-slate-900 dark:text-white">
+                        {mappedIssue.citizenName}
+                      </Text>
+                      <View className="mt-1 flex-row items-center gap-2">
+                        <View className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        <Text className="text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">
+                          Verified Citizen
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* Citizen Data Grid */}
+                  <View className="rounded-3xl border border-slate-200/50 bg-white/50 p-1 dark:border-white/5 dark:bg-black/20">
+                    <View className="flex-row items-center justify-between border-b border-slate-100 p-4 dark:border-white/5">
+                      <View className="flex-row items-center gap-3">
+                        <View
+                          style={{ backgroundColor: statusStyle.bg }}
+                          className="h-8 w-8 items-center justify-center rounded-lg">
+                          <Phone size={14} color={statusStyle.hex} strokeWidth={2.5} />
+                        </View>
+                        <Text className="text-[10px] font-black text-slate-400 dark:text-slate-500">
+                          PHONE
+                        </Text>
+                      </View>
+                      <Text className="text-[13px] font-black tracking-tight text-slate-700 dark:text-slate-200">
+                        {mappedIssue.citizenPhone}
+                      </Text>
+                    </View>
+
+                    <View className="flex-row items-center justify-between p-4">
+                      <View className="flex-row items-center gap-3">
+                        <View
+                          style={{ backgroundColor: statusStyle.bg }}
+                          className="h-8 w-8 items-center justify-center rounded-lg">
+                          <Mail size={14} color={statusStyle.hex} strokeWidth={2.5} />
+                        </View>
+                        <Text className="text-[10px] font-black text-slate-400 dark:text-slate-500">
+                          EMAIL
+                        </Text>
+                      </View>
+                      <Text className="text-[13px] font-black tracking-tight text-slate-700 dark:text-slate-200">
+                        {mappedIssue.citizenEmail}
+                      </Text>
+                    </View>
+                  </View>
                 </View>
-                <View className="flex-row items-center gap-3.5 rounded-2xl bg-slate-100 px-4 py-3.5 shadow-sm dark:bg-slate-800">
-                  <Phone color={isDark ? '#94A3B8' : '#64748B'} size={16} strokeWidth={2.5} />
-                  <Text className="flex-1 text-[13px] font-bold tracking-wide text-slate-700 dark:text-slate-200">
-                    {mappedIssue.citizenPhone}
-                  </Text>
-                </View>
-                <View className="flex-row items-center gap-3.5 rounded-2xl bg-slate-100 px-4 py-3.5 shadow-sm dark:bg-slate-800">
-                  <Calendar color={isDark ? '#94A3B8' : '#64748B'} size={16} strokeWidth={2.5} />
-                  <Text className="flex-1 text-[13px] font-bold tracking-wide text-slate-700 dark:text-slate-200">
-                    {formatDateFull(mappedIssue.dateReported)}
-                  </Text>
-                </View>
+
+                {/* Flagship Communication Trigger (1:1 Premium Parity) */}
+                <TouchableOpacity
+                  onPress={() => {}} // Handle contact
+                  activeOpacity={0.85}
+                  style={{
+                    borderRadius: 24,
+                    overflow: 'hidden',
+                    marginTop: 12,
+                    shadowColor: statusStyle.hex,
+                    shadowOffset: { width: 0, height: 10 },
+                    shadowOpacity: 0.4,
+                    shadowRadius: 15,
+                    elevation: 10,
+                  }}>
+                  <LinearGradient
+                    colors={[statusStyle.hex, statusStyle.hex]} // Status-coded base
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={{ flexDirection: 'row', alignItems: 'center', padding: 20 }}>
+                    {/* Cinematic Ripple Layer */}
+                    <View
+                      style={{
+                        position: 'absolute',
+                        left: -20,
+                        top: -20,
+                        width: 120,
+                        height: 120,
+                        borderRadius: 60,
+                        backgroundColor: 'rgba(255,255,255,0.08)',
+                      }}
+                    />
+
+                    <View
+                      style={{
+                        width: 52,
+                        height: 52,
+                        borderRadius: 18,
+                        backgroundColor: 'rgba(255,255,255,0.15)',
+                        borderWidth: 1,
+                        borderColor: 'rgba(255,255,255,0.2)',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}>
+                      <Mail size={22} color="#FFFFFF" strokeWidth={2.5} />
+                    </View>
+                    <View className="ml-4 flex-1">
+                      <Text
+                        style={{
+                          color: '#FFFFFF',
+                          fontSize: 14,
+                          fontWeight: '900',
+                          letterSpacing: 1.5,
+                        }}>
+                        CONTACT REPORTER
+                      </Text>
+                      <Text
+                        style={{
+                          color: 'rgba(255,255,255,0.7)',
+                          fontSize: 9,
+                          fontWeight: '800',
+                          marginTop: 2,
+                          letterSpacing: 0.5,
+                        }}>
+                        SECURE FO COORDINATION
+                      </Text>
+                    </View>
+                    <View
+                      style={{
+                        width: 36,
+                        height: 36,
+                        borderRadius: 12,
+                        backgroundColor: 'rgba(255,255,255,0.1)',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}>
+                      <ChevronRight size={18} color="#FFFFFF" strokeWidth={3} />
+                    </View>
+                  </LinearGradient>
+                </TouchableOpacity>
               </View>
-            </View>
-          </SectionCard>
+            </LinearGradient>
+          </View>
 
           {/* LOCATION DETAILS */}
-          <SectionCard>
-            <SectionHeader
-              title="Location Details"
-              icon={<MapPin color={isDark ? '#94A3B8' : '#64748B'} size={16} strokeWidth={2.5} />}
-            />
-            <View className="px-5 py-5">
-              <View className="mb-4 overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-                <View
-                  className="absolute bottom-0 left-0 top-0 w-1.5"
-                  style={{ backgroundColor: isDark ? '#3B82F6' : '#2563EB' }}
-                />
-                <View className="p-4 pl-5">
-                  <Text className="mb-3 text-[14px] font-black leading-[22px] tracking-tight text-slate-800 dark:text-slate-100">
-                    {mappedIssue.address || 'Address Unspecified'}
-                  </Text>
-                  <View className="flex-row flex-wrap gap-2">
-                    {mappedIssue.city && (
-                      <View className="rounded-[8px] bg-slate-100 px-2.5 py-1 dark:bg-slate-700/50">
-                        <Text className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
-                          {mappedIssue.city}
-                        </Text>
-                      </View>
-                    )}
-                    {mappedIssue.state && (
-                      <View className="rounded-[8px] bg-slate-100 px-2.5 py-1 dark:bg-slate-700/50">
-                        <Text className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
-                          {mappedIssue.state}
-                        </Text>
-                      </View>
-                    )}
-                    {mappedIssue.postal && (
-                      <View className="rounded-[8px] bg-slate-100 px-2.5 py-1 dark:bg-slate-700/50">
-                        <Text className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
-                          {mappedIssue.postal}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                </View>
-                <View className="flex-row items-center gap-2 border-t border-slate-100 bg-slate-50/50 px-5 py-2.5 dark:border-slate-700/50 dark:bg-slate-900/50">
-                  <MapPin color={isDark ? '#94A3B8' : '#64748B'} size={12} strokeWidth={3} />
-                  <Text className="text-[10px] font-black tracking-widest text-slate-500 dark:text-slate-400">
-                    {mappedIssue.coordinates.latitude.toFixed(6)},{' '}
-                    {mappedIssue.coordinates.longitude.toFixed(6)}
-                  </Text>
-                </View>
+          <View
+            style={{
+              shadowColor: statusStyle.hex,
+              shadowOffset: { width: 0, height: 20 },
+              shadowOpacity: isDark ? 0.35 : 0.1,
+              shadowRadius: 30,
+              elevation: 15,
+              marginBottom: 32,
+            }}>
+            <LinearGradient
+              colors={isDark ? statusStyle.gradientDark : statusStyle.gradientLight}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={{
+                borderColor: statusStyle.border,
+                borderWidth: 1.5,
+                borderRadius: 40,
+                overflow: 'hidden',
+                position: 'relative',
+              }}>
+              {/* Cinematic Watermark Layer */}
+              <View style={{ position: 'absolute', right: -40, bottom: -40, opacity: 0.04 }}>
+                <Navigation size={220} color={statusStyle.hex} strokeWidth={1} />
               </View>
 
-              <TouchableOpacity onPress={openMaps} activeOpacity={0.85} style={styles.mapsBtn}>
-                <LinearGradient
-                  colors={['#0D9488', '#0891B2']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.mapsBtnGradient}>
-                  <Navigation color="#FFFFFF" size={17} strokeWidth={3} />
-                  <Text className="flex-1 text-[14px] font-black tracking-wide text-white">
-                    Open in Google Maps
-                  </Text>
-                  <ChevronRight color="rgba(255,255,255,0.7)" size={18} strokeWidth={3} />
-                </LinearGradient>
-              </TouchableOpacity>
-            </View>
-          </SectionCard>
-
-          {/* DESCRIPTION */}
-          <SectionCard>
-            <SectionHeader
-              title="Description"
-              icon={<FileText color={isDark ? '#94A3B8' : '#64748B'} size={16} strokeWidth={2.5} />}
-            />
-            <View className="px-5 py-6">
-              <View className="overflow-hidden rounded-[24px] rounded-tl-[6px] border border-blue-100 bg-blue-50/40 px-6 py-5 shadow-sm dark:border-blue-900/30 dark:bg-blue-900/10">
-                {/* Bold Editorial Left-Border */}
-                <View className="absolute bottom-0 left-0 top-0 w-1.5 bg-blue-500" />
-
-                {/* Giant Watermark Background */}
-                <View className="absolute -right-6 -top-6 opacity-[0.04] dark:opacity-5">
-                  <FileText color={isDark ? '#60A5FA' : '#2563EB'} size={140} strokeWidth={2} />
-                </View>
-
-                <Text className="text-[15px] font-medium leading-[28px] tracking-[0.02em] text-slate-700 dark:text-slate-300">
-                  {mappedIssue.description || 'No detailed description provided by the citizen.'}
-                </Text>
-              </View>
-            </View>
-          </SectionCard>
-
-          {/* PHOTO EVIDENCE */}
-          {hasPhotos && (
-            <SectionCard>
-              <SectionHeader
-                title="Photo Evidence"
-                icon={<Tag color={isDark ? '#94A3B8' : '#64748B'} size={16} strokeWidth={2.5} />}
-              />
-              <View className="gap-5 pb-4 pt-4">
-                {mappedIssue.images.length > 0 && (
-                  <View className="px-5">
-                    <Text className="mb-3 text-[12px] font-extrabold uppercase tracking-widest text-slate-500 dark:text-slate-400">
-                      Photos by Citizen ({mappedIssue.images.length} photo
-                      {mappedIssue.images.length > 1 ? 's' : ''})
+              <View className="py-9 pe-7 ps-7">
+                {/* Header Section */}
+                <View className="mb-8 flex-row items-center gap-4">
+                  <LinearGradient
+                    colors={[statusStyle.hex, statusStyle.hex]}
+                    style={{
+                      height: 50,
+                      width: 50,
+                      borderRadius: 18,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}>
+                    <MapPin size={24} color="#FFFFFF" strokeWidth={2.5} />
+                  </LinearGradient>
+                  <View className="flex-1">
+                    <Text className="text-[20px] font-black tracking-tight text-slate-900 dark:text-white">
+                      Location
                     </Text>
-                    <PhotoCarousel photos={mappedIssue.images} label="PHOTOS" isDark={isDark} />
-                  </View>
-                )}
-                {allBeforePhotos.length > 0 && (
-                  <View className="px-5">
-                    <Text className="mb-3 text-[12px] font-extrabold uppercase tracking-widest text-slate-500 dark:text-slate-400">
-                      Before ({allBeforePhotos.length} photo{allBeforePhotos.length > 1 ? 's' : ''})
+                    <Text
+                      className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500"
+                      style={{ color: isDark ? statusStyle.hex : statusStyle.hex }}>
+                      GEOSPATIAL DATA
                     </Text>
-                    <PhotoCarousel photos={allBeforePhotos} label="BEFORE" isDark={isDark} />
                   </View>
-                )}
-                {allAfterPhotos.length > 0 && (
-                  <View className="px-5">
-                    <View className="mb-5 h-px bg-slate-100 dark:bg-slate-700/60" />
-                    <Text className="mb-3 text-[12px] font-extrabold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">
-                      After ({allAfterPhotos.length} photo{allAfterPhotos.length > 1 ? 's' : ''})
-                    </Text>
-                    <PhotoCarousel photos={allAfterPhotos} label="AFTER" isDark={isDark} />
-                  </View>
-                )}
-              </View>
-            </SectionCard>
-          )}
-
-          {/* VIDEO EVIDENCE */}
-          {hasVideo && (
-            <SectionCard>
-              <SectionHeader
-                title="Video Evidence"
-                icon={<Video color={isDark ? '#94A3B8' : '#64748B'} size={16} strokeWidth={2.5} />}
-              />
-              <View className="gap-2 px-5 pb-4 pt-3">
-                {mappedIssue.videoEvidence!.map((url, i) => (
-                  <VideoEvidenceCard key={i} videoUrl={url} isDark={isDark} />
-                ))}
-              </View>
-            </SectionCard>
-          )}
-
-          {/* ISSUE UPDATES */}
-          <SectionCard>
-            <SectionHeader
-              title="Issue Updates"
-              icon={
-                <MessageSquarePlus
-                  color={isDark ? '#38BDF8' : '#0284C7'}
-                  size={18}
-                  strokeWidth={2.5}
-                />
-              }
-            />
-            <View className="bg-slate-50/50 px-5 py-5 dark:bg-slate-900/30">
-              {issueUpdates?.length === 0 ? (
-                <View className="items-center py-10">
-                  <View className="mb-3 h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 dark:bg-slate-800">
-                    <MessageSquarePlus
-                      color={isDark ? '#475569' : '#CBD5E1'}
-                      size={20}
-                      strokeWidth={2}
-                    />
-                  </View>
-                  <Text className="text-[13px] font-bold text-slate-400 dark:text-slate-500">
-                    No updates yet
-                  </Text>
                 </View>
-              ) : (
-                (issueUpdates ?? []).map((upd, index: number) => {
-                  const dotColor = STATUS_DOT_COLORS[upd.status] ?? '#94A3B8';
-                  const isLast = index === (issueUpdates?.length ?? 0) - 1;
 
-                  const scopeMeta =
-                    upd.scope === 'citizen'
-                      ? {
-                          label: 'Citizen only',
-                          icon: <Eye color="#0284C7" size={11} strokeWidth={2.5} />,
-                          bg: 'bg-sky-50 dark:bg-sky-900/40',
-                          text: 'text-sky-700 dark:text-sky-300',
-                        }
-                      : upd.scope === 'officer_and_citizen'
-                        ? {
-                            label: 'Officer & Citizen',
-                            icon: <Users color="#059669" size={11} strokeWidth={2.5} />,
-                            bg: 'bg-emerald-50 dark:bg-emerald-900/40',
-                            text: 'text-emerald-700 dark:text-emerald-300',
-                          }
-                        : {
-                            label: 'Admin only',
-                            icon: <ShieldAlert color="#DC2626" size={11} strokeWidth={2.5} />,
-                            bg: 'bg-red-50 dark:bg-red-900/40',
-                            text: 'text-red-700 dark:text-red-300',
-                          };
+                {/* Cinematic Geo-Widget */}
+                <TouchableOpacity
+                  onPress={openMaps}
+                  activeOpacity={0.85}
+                  style={{ borderRadius: 28, overflow: 'hidden' }}>
+                  <LinearGradient
+                    colors={
+                      isDark ? ['rgba(30,41,59,0.5)', 'rgba(15,23,42,0.8)'] : ['#F8FAFC', '#F1F5F9']
+                    }
+                    className="border border-white/10 dark:border-white/5">
+                    <View className="p-6">
+                      <View className="flex-row items-center gap-5">
+                        <View className="flex-1">
+                          <Text className="text-[16px] font-black leading-[24px] tracking-tight text-slate-800 dark:text-slate-100">
+                            {mappedIssue.address || 'Address Unspecified'}
+                          </Text>
 
-                  return (
-                    <View key={upd._id} style={styles.timelineRow}>
-                      {/* LEFT TIMELINE */}
-                      <View className="items-center" style={styles.timelineLeft}>
-                        <View
-                          style={[
-                            styles.timelineDot,
-                            {
-                              backgroundColor: dotColor,
-                              shadowColor: dotColor,
-                              shadowOffset: { width: 0, height: 4 },
-                              shadowOpacity: 0.4,
-                              shadowRadius: 8,
-                              elevation: 5,
-                              borderWidth: 2,
-                              borderColor: isDark ? '#1E293B' : '#FFFFFF',
-                            },
-                          ]}
-                        />
-                        {!isLast && (
-                          <LinearGradient
-                            colors={[dotColor, isDark ? '#334155' : '#E2E8F0']}
-                            style={[
-                              styles.timelineLine,
-                              { flex: 1, width: 2, opacity: 0.5, marginTop: 4, marginBottom: 4 },
-                            ]}
-                          />
-                        )}
-                      </View>
-
-                      {/* CARD */}
-                      <View
-                        className={`mb-5 ml-4 flex-1 overflow-hidden rounded-[24px] border ${
-                          isLast
-                            ? 'border-cyan-300/60 bg-white shadow-sm dark:border-cyan-800/60 dark:bg-slate-800'
-                            : 'border-slate-200/60 bg-white/60 dark:border-slate-700/50 dark:bg-slate-800/60'
-                        }`}>
-                        {/* HEADER */}
-                        <View className="flex-row items-center justify-between border-b border-slate-100 px-4 py-3 dark:border-slate-700/50">
-                          <View>
-                            <Text className="mb-0.5 text-[14px] font-black text-slate-800 dark:text-slate-100">
-                              {STATUS_LABELS[upd.status] || upd.status}
-                            </Text>
-                            <Text className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                              {formatTimestamp(upd.createdAt)}
-                            </Text>
-                          </View>
-
-                          <View className="items-end gap-1.5">
-                            <Text
-                              style={{
-                                color:
-                                  upd.role === 'unit_officer'
-                                    ? '#0D9488'
-                                    : upd.role === 'field_officer'
-                                      ? '#D97706'
-                                      : '#7C3AED',
-                              }}
-                              className="text-[11px] font-black uppercase">
-                              {upd.role === 'unit_officer'
-                                ? 'Unit Officer'
-                                : upd.role === 'field_officer'
-                                  ? 'Field Officer'
-                                  : upd.role.charAt(0).toUpperCase() + upd.role.slice(1)}
-                            </Text>
+                          {/* Professional Geo-Data Pillars (Chromatic Toning) */}
+                          <View className="mt-5 flex-row items-center gap-3">
                             <View
-                              className={`flex-row items-center gap-1.5 rounded-lg px-2 py-1 ${scopeMeta.bg}`}>
-                              {scopeMeta.icon}
-                              <Text className={`text-[9px] font-black uppercase ${scopeMeta.text}`}>
-                                {scopeMeta.label}
+                              style={{ backgroundColor: statusStyle.bg }}
+                              className="flex-row items-center gap-2 rounded-xl border border-slate-200/40 px-3 py-2 dark:border-white/5">
+                              <Compass size={12} color={statusStyle.hex} strokeWidth={3} />
+                              <Text
+                                style={{ color: statusStyle.hex }}
+                                className="text-[8px] font-black opacity-70">
+                                LAT
+                              </Text>
+                              <Text
+                                style={{ color: statusStyle.hex }}
+                                className="text-[11px] font-black tracking-tight">
+                                {mappedIssue.coordinates.latitude.toFixed(6)}°
+                              </Text>
+                            </View>
+
+                            <View
+                              style={{ backgroundColor: statusStyle.bg }}
+                              className="flex-row items-center gap-2 rounded-xl border border-slate-200/40 px-3 py-2 dark:border-white/5">
+                              <Compass
+                                size={12}
+                                color={statusStyle.hex}
+                                strokeWidth={3}
+                                className="rotate-90"
+                              />
+                              <Text
+                                style={{ color: statusStyle.hex }}
+                                className="text-[8px] font-black opacity-70">
+                                LNG
+                              </Text>
+                              <Text
+                                style={{ color: statusStyle.hex }}
+                                className="text-[11px] font-black tracking-tight">
+                                {mappedIssue.coordinates.longitude.toFixed(6)}°
                               </Text>
                             </View>
                           </View>
                         </View>
 
-                        {/* COMMENT */}
-                        {upd.comment && (
-                          <View className="px-4 py-3.5">
-                            <Text className="text-[14px] font-medium leading-[22px] text-slate-600 dark:text-slate-300">
-                              {upd.comment}
-                            </Text>
-                          </View>
-                        )}
-
-                        {/* ATTACHMENTS */}
-                        {upd.attachments?.length > 0 && (
-                          <View className="border-t border-slate-100 bg-slate-50/50 px-4 py-3 dark:border-slate-700/40 dark:bg-slate-900/20">
-                            <View className="mb-2.5 flex-row items-center gap-1.5">
-                              <Paperclip
-                                color={isDark ? '#64748B' : '#94A3B8'}
-                                size={12}
-                                strokeWidth={2.5}
-                              />
-                              <Text className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
-                                Attachments ({upd.attachments.length})
-                              </Text>
-                            </View>
-
-                            <ScrollView
-                              horizontal
-                              showsHorizontalScrollIndicator={false}
-                              contentContainerStyle={{ gap: 10 }}>
-                              {upd.attachments.map((att: any, ai: number) => {
-                                const isImage = att.contentType?.startsWith('image');
-                                const isVideo = att.contentType?.startsWith('video');
-                                const isPDF = att.contentType?.includes('pdf');
-
-                                if (isImage) {
-                                  return (
-                                    <TouchableOpacity
-                                      key={ai}
-                                      activeOpacity={0.8}
-                                      onPress={() =>
-                                        setPreviewAttachment({ ...att, type: 'image' })
-                                      }>
-                                      <Image
-                                        source={{ uri: att.url }}
-                                        style={[
-                                          styles.attachmentThumb,
-                                          {
-                                            borderRadius: 12,
-                                            borderWidth: 1,
-                                            borderColor: isDark ? '#334155' : '#E2E8F0',
-                                          },
-                                        ]}
-                                        resizeMode="cover"
-                                      />
-                                    </TouchableOpacity>
-                                  );
-                                }
-
-                                if (isVideo) {
-                                  return (
-                                    <TouchableOpacity
-                                      key={ai}
-                                      activeOpacity={0.8}
-                                      onPress={() =>
-                                        setPreviewAttachment({ ...att, type: 'video' })
-                                      }
-                                      style={[
-                                        styles.attachmentThumb,
-                                        {
-                                          backgroundColor: '#0F172A',
-                                          alignItems: 'center',
-                                          justifyContent: 'center',
-                                          borderRadius: 12,
-                                          borderWidth: 1,
-                                          borderColor: isDark ? '#334155' : '#E2E8F0',
-                                        },
-                                      ]}>
-                                      <View className="h-8 w-8 items-center justify-center rounded-full bg-white/20">
-                                        <Play color="#fff" size={14} fill="#fff" />
-                                      </View>
-                                    </TouchableOpacity>
-                                  );
-                                }
-
-                                if (isPDF) {
-                                  return (
-                                    <TouchableOpacity
-                                      key={ai}
-                                      activeOpacity={0.8}
-                                      onPress={() => setPreviewAttachment({ ...att, type: 'pdf' })}
-                                      style={[
-                                        styles.attachmentThumb,
-                                        {
-                                          backgroundColor: '#FEF2F2',
-                                          alignItems: 'center',
-                                          justifyContent: 'center',
-                                          borderRadius: 12,
-                                          borderWidth: 1,
-                                          borderColor: isDark ? '#334155' : '#E2E8F0',
-                                        },
-                                      ]}>
-                                      <View className="h-8 w-8 items-center justify-center rounded-full bg-red-100">
-                                        <FileText color="#DC2626" size={14} strokeWidth={2.5} />
-                                      </View>
-                                    </TouchableOpacity>
-                                  );
-                                }
-
-                                return null;
-                              })}
-                            </ScrollView>
-                          </View>
-                        )}
+                        <View
+                          style={{ backgroundColor: statusStyle.bg }}
+                          className="h-10 w-10 items-center justify-center rounded-xl shadow-sm">
+                          <ExternalLink size={20} color={statusStyle.hex} strokeWidth={2.5} />
+                        </View>
                       </View>
                     </View>
-                  );
-                })
-              )}
-            </View>
-          </SectionCard>
 
-          {/* POST UPDATE */}
-          <SectionCard>
-            <SectionHeader
-              title="Post Update"
-              icon={<Send color={isDark ? '#94A3B8' : '#64748B'} size={16} strokeWidth={2.5} />}
-            />
-            <View className="gap-4 px-5 py-4">
-              {/* Scope Selector */}
-              <View>
-                <Text className="mb-2.5 ml-1 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
-                  Visibility Scope
-                </Text>
-                <View className="shadow-inner flex-row rounded-full bg-slate-200/60 p-1 dark:bg-slate-800/80">
-                  {(
-                    [
-                      {
-                        value: 'citizen' as UpdateScope,
-                        label: 'Citizen Only',
-                        icon: <Eye size={11} strokeWidth={3} />,
-                        gradientOptions: isDark ? ['#0284C7', '#0369A1'] : ['#38BDF8', '#0284C7'],
-                      },
-                      {
-                        value: 'officer_and_citizen' as UpdateScope,
-                        label: 'FO & Citizen',
-                        icon: <Users size={11} strokeWidth={3} />,
-                        gradientOptions: isDark ? ['#059669', '#047857'] : ['#34D399', '#059669'],
-                      },
-                      {
-                        value: 'admin_only' as UpdateScope,
-                        label: 'Admin Only',
-                        icon: <ShieldAlert size={11} strokeWidth={3} />,
-                        gradientOptions: isDark ? ['#E11D48', '#BE123C'] : ['#FB7185', '#E11D48'],
-                      },
-                    ] as const
-                  ).map((opt) => {
-                    const isActive = updateScope === opt.value;
-                    return (
-                      <TouchableOpacity
-                        key={opt.value}
-                        onPress={() => setUpdateScope(opt.value)}
-                        activeOpacity={0.85}
-                        style={{
-                          flex: 1,
-                          borderRadius: 999,
-                          marginHorizontal: 2,
-                        }}>
-                        {isActive ? (
-                          <LinearGradient
-                            // @ts-ignore
-                            colors={opt.gradientOptions}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 1 }}
-                            style={{
-                              borderRadius: 999,
-                              paddingVertical: 8,
-                              paddingHorizontal: 6,
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              flexDirection: 'row',
-                              gap: 4,
-                            }}>
-                            {React.cloneElement(opt.icon as React.ReactElement<{ color: string }>, {
-                              color: '#FFFFFF',
-                            })}
-                            <Text
-                              style={{ color: '#fff' }}
-                              numberOfLines={1}
-                              adjustsFontSizeToFit
-                              className="text-[10px] font-black">
-                              {opt.label}
-                            </Text>
-                          </LinearGradient>
-                        ) : (
-                          <View
-                            style={{
-                              borderRadius: 999,
-                              paddingVertical: 8,
-                              paddingHorizontal: 6,
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              flexDirection: 'row',
-                              gap: 4,
-                            }}>
-                            {React.cloneElement(opt.icon as React.ReactElement<{ color: string }>, {
-                              color: isDark ? '#94A3B8' : '#64748B',
-                            })}
-                            <Text
-                              style={{ color: isDark ? '#94A3B8' : '#64748B' }}
-                              numberOfLines={1}
-                              adjustsFontSizeToFit
-                              className="text-[10px] font-bold">
-                              {opt.label}
-                            </Text>
-                          </View>
-                        )}
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              </View>
-
-              {/* Comment Canvas */}
-              <View
-                className={`overflow-hidden rounded-[24px] border bg-white shadow-sm dark:bg-slate-900 ${
-                  updateText &&
-                  updateText
-                    .trim()
-                    .split(/\s+/)
-                    .filter((word) => word.length > 0).length < 5
-                    ? 'border-amber-300 dark:border-amber-900/60'
-                    : 'border-slate-200 dark:border-slate-800'
-                }`}>
-                <View className="flex-row items-center justify-between border-b border-slate-100 bg-slate-50/80 px-4 py-3.5 dark:border-slate-800/80 dark:bg-slate-800/40">
-                  <View className="flex-row items-center gap-2.5">
-                    <View className="h-8 w-8 items-center justify-center rounded-xl bg-amber-100 dark:bg-amber-900/40">
-                      <Notebook
-                        color={isDark ? '#FBBF24' : '#F59E0B'}
-                        size={15}
-                        strokeWidth={2.5}
-                      />
-                    </View>
-                    <Text className="text-[14px] font-black tracking-tight text-slate-800 dark:text-slate-100">
-                      Comment
-                    </Text>
-                  </View>
-
-                  <View
-                    className={`rounded-lg px-2.5 py-1.5 ${
-                      updateText
-                        .trim()
-                        .split(/\s+/)
-                        .filter((word) => word.length > 0).length >= 5
-                        ? 'bg-emerald-100 dark:bg-emerald-900/40'
-                        : 'bg-amber-100 dark:bg-amber-900/40'
-                    }`}>
-                    <Text
-                      className={`text-[10px] font-black ${
-                        updateText
-                          .trim()
-                          .split(/\s+/)
-                          .filter((word) => word.length > 0).length >= 5
-                          ? 'text-emerald-700 dark:text-emerald-400'
-                          : 'text-amber-700 dark:text-amber-400'
-                      }`}>
-                      {
-                        updateText
-                          .trim()
-                          .split(/\s+/)
-                          .filter((word) => word.length > 0).length
-                      }{' '}
-                      WORDS{' '}
-                      {updateText
-                        .trim()
-                        .split(/\s+/)
-                        .filter((word) => word.length > 0).length < 5 && '(MIN 5)'}
-                    </Text>
-                  </View>
-                </View>
-
-                <View className="max-h-[220px] px-1 py-1">
-                  <ScrollView
-                    showsVerticalScrollIndicator={false}
-                    contentContainerStyle={{ flexGrow: 1 }}
-                    nestedScrollEnabled={true}
-                    keyboardShouldPersistTaps="handled">
-                    <TextInput
-                      className="min-h-[110px] bg-transparent px-4 py-3"
-                      placeholder="Record a secure update (minimum 5 words)..."
-                      placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
-                      value={updateText}
-                      onChangeText={setUpdateText}
-                      multiline
-                      scrollEnabled={false}
+                    {/* Bottom Navigation Ribbon (Status Colored) */}
+                    <View
+                      className="flex-row items-center justify-between border-t border-slate-200/50 px-6 py-4 dark:border-white/5"
                       style={{
-                        fontSize: 15,
-                        lineHeight: 24,
-                        textAlignVertical: 'top',
-                        color: isDark ? '#F1F5F9' : '#1F2937',
-                        fontWeight: '500',
-                      }}
-                    />
-                  </ScrollView>
-                </View>
-              </View>
-
-              {/* Attachment previews */}
-              {updateAttachments.length > 0 && (
-                <View>
-                  <Text className="mb-2 text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
-                    Attachments ({updateAttachments.length})
-                  </Text>
-                  <View className="flex-row flex-wrap gap-2">
-                    {updateAttachments.map((att, i) => (
-                      <View key={i} style={styles.attachmentPreviewWrap}>
-                        {att.type === 'image' ? (
-                          <Image
-                            source={{ uri: att.uri }}
-                            style={styles.attachmentPreview}
-                            resizeMode="cover"
-                          />
-                        ) : att.type === 'video' ? (
-                          <View
-                            style={[styles.attachmentPreview, styles.attachmentMediaPlaceholder]}>
-                            <Video color="#fff" size={22} strokeWidth={2} />
-                            <Text style={styles.attachmentMediaLabel} numberOfLines={1}>
-                              {att.name}
-                            </Text>
-                          </View>
-                        ) : (
-                          <View style={[styles.attachmentPreview, styles.attachmentPdfPlaceholder]}>
-                            <Text style={styles.attachmentPdfIcon}>PDF</Text>
-                            <Text style={styles.attachmentMediaLabel} numberOfLines={1}>
-                              {att.name}
-                            </Text>
-                          </View>
-                        )}
-                        <TouchableOpacity
-                          onPress={() =>
-                            setUpdateAttachments(updateAttachments.filter((_, idx) => idx !== i))
-                          }
-                          activeOpacity={0.8}
-                          style={styles.attachmentRemove}>
-                          <X color="#fff" size={10} strokeWidth={3} />
-                        </TouchableOpacity>
+                        backgroundColor: isDark ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.5)',
+                      }}>
+                      <View className="flex-row items-center gap-3">
+                        <Navigation size={14} color={statusStyle.hex} strokeWidth={2.5} />
+                        <Text
+                          style={{ color: statusStyle.hex }}
+                          className="text-[10px] font-black tracking-[0.15em]">
+                          NAVIGATE VIA GOOGLE MAPS
+                        </Text>
                       </View>
-                    ))}
-                  </View>
-                </View>
-              )}
-
-              {/* Action row */}
-              <View className="flex-row gap-3">
-                <TouchableOpacity
-                  onPress={handleShowAttachMenu}
-                  activeOpacity={0.75}
-                  className="flex-row items-center gap-2 rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 dark:border-slate-600/50 dark:bg-slate-700">
-                  <Paperclip color={isDark ? '#94A3B8' : '#64748B'} size={15} strokeWidth={2.5} />
-                  <Text className="text-[13px] font-semibold text-slate-600 dark:text-slate-300">
-                    Attach
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  onPress={handlePostUpdate}
-                  activeOpacity={0.85}
-                  style={[styles.actionBtn, { flex: 1 }]}>
-                  <LinearGradient
-                    colors={['#0D9488', '#0891B2']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.actionBtnGradient}>
-                    <Send color="#FFFFFF" size={16} strokeWidth={2.5} />
-                    <Text className="text-[14px] font-bold text-white">Post Update</Text>
+                      <ChevronRight size={14} color={statusStyle.hex} strokeWidth={3} />
+                    </View>
                   </LinearGradient>
                 </TouchableOpacity>
               </View>
+            </LinearGradient>
+          </View>
+
+          {/* DESCRIPTION */}
+          <View
+            style={{
+              shadowColor: statusStyle.hex,
+              shadowOffset: { width: 0, height: 20 },
+              shadowOpacity: isDark ? 0.35 : 0.1,
+              shadowRadius: 30,
+              elevation: 15,
+              marginBottom: 32,
+            }}>
+            <LinearGradient
+              colors={isDark ? statusStyle.gradientDark : statusStyle.gradientLight}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={{
+                borderColor: statusStyle.border,
+                borderWidth: 1.5,
+                borderRadius: 40,
+                overflow: 'hidden',
+                position: 'relative',
+              }}>
+              {/* Cinematic Watermark Layer */}
+              <View style={{ position: 'absolute', right: -40, bottom: -40, opacity: 0.04 }}>
+                <FileText size={220} color={statusStyle.hex} strokeWidth={1} />
+              </View>
+
+              <View className="py-9 pe-7 ps-7">
+                {/* Header Section */}
+                <View className="mb-8 flex-row items-center gap-4">
+                  <LinearGradient
+                    colors={[statusStyle.hex, statusStyle.hex]}
+                    style={{
+                      height: 50,
+                      width: 50,
+                      borderRadius: 18,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}>
+                    <FileText size={24} color="#FFFFFF" strokeWidth={2.5} />
+                  </LinearGradient>
+                  <View className="flex-1">
+                    <Text className="text-[20px] font-black tracking-tight text-slate-900 dark:text-white">
+                      Description
+                    </Text>
+                    <Text
+                      className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500"
+                      style={{ color: statusStyle.hex }}>
+                      REPORTED DETAILS
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Intelligence Content Field */}
+                <View className="flex-row overflow-hidden rounded-[28px] border border-slate-100/50 bg-slate-50/50 dark:border-white/5 dark:bg-white/5">
+                  {/* Status Vertical Accent */}
+                  <View style={{ width: 6, backgroundColor: statusStyle.hex }} />
+
+                  <View className="flex-1 p-6">
+                    <Text
+                      style={{ lineHeight: 28, letterSpacing: 0.3 }}
+                      className="text-[15px] font-medium text-slate-700 dark:text-slate-300">
+                      {mappedIssue.description ||
+                        'No detailed description provided by the citizen.'}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            </LinearGradient>
+          </View>
+
+          {/* PHOTO EVIDENCE (Evidence Intelligence Pod) */}
+          {hasPhotos && (
+            <View
+              style={{
+                shadowColor: statusStyle.hex,
+                shadowOffset: { width: 0, height: 20 },
+                shadowOpacity: isDark ? 0.35 : 0.1,
+                shadowRadius: 30,
+                elevation: 15,
+                marginBottom: 32,
+              }}>
+              <LinearGradient
+                colors={isDark ? statusStyle.gradientDark : statusStyle.gradientLight}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={{
+                  borderColor: statusStyle.border,
+                  borderWidth: 1.5,
+                  borderRadius: 40,
+                  overflow: 'hidden',
+                  position: 'relative',
+                  paddingBottom: 20,
+                }}>
+                {/* Cinematic Watermark Layer */}
+                <View style={{ position: 'absolute', right: -40, bottom: -40, opacity: 0.04 }}>
+                  <Camera size={220} color={statusStyle.hex} strokeWidth={1} />
+                </View>
+
+                <View className="py-9 pe-7 ps-7">
+                  {/* Header Section */}
+                  <View className="mb-8 flex-row items-center justify-between">
+                    <View className="flex-1 flex-row items-center gap-4">
+                      <LinearGradient
+                        colors={[statusStyle.hex, statusStyle.hex]}
+                        style={{
+                          height: 50,
+                          width: 50,
+                          borderRadius: 18,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}>
+                        <Camera size={24} color="#FFFFFF" strokeWidth={2.5} />
+                      </LinearGradient>
+                      <View className="flex-1">
+                        <Text className="text-[20px] font-black tracking-tight text-slate-900 dark:text-white">
+                          Evidence Photos
+                        </Text>
+                        <View className="flex-row items-center gap-2">
+                          <Text
+                            className="text-[10px] font-black uppercase tracking-[0.2em]"
+                            style={{ color: statusStyle.hex }}>
+                            VISUAL VERIFICATION
+                          </Text>
+                          <View
+                            style={{ backgroundColor: statusStyle.bg }}
+                            className="rounded-full px-2.5 py-0.5">
+                            <Text
+                              className="text-[9px] font-black tracking-widest"
+                              style={{ color: statusStyle.hex }}>
+                              {mappedIssue.images.length +
+                                allBeforePhotos.length +
+                                allAfterPhotos.length}{' '}
+                              FILES
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+                    </View>
+                  </View>
+
+                  <View className="gap-8">
+                    {mappedIssue.images.length > 0 && (
+                      <View>
+                        <Text className="mb-4 text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500">
+                          PHOTOS BY CITIZEN
+                        </Text>
+                        <PhotoCarousel
+                          photos={mappedIssue.images}
+                          label="PHOTOS"
+                          isDark={isDark}
+                          statusHex={statusStyle.hex}
+                          onPressImage={setFullScreenImage}
+                        />
+                      </View>
+                    )}
+
+                    {allBeforePhotos.length > 0 && (
+                      <View>
+                        <Text className="mb-4 text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500">
+                          BEFORE PHOTOS
+                        </Text>
+                        <PhotoCarousel
+                          photos={allBeforePhotos}
+                          label="BEFORE"
+                          isDark={isDark}
+                          statusHex={statusStyle.hex}
+                          onPressImage={setFullScreenImage}
+                        />
+                      </View>
+                    )}
+
+                    {allAfterPhotos.length > 0 && (
+                      <View>
+                        <View className="mb-8 h-px bg-slate-100 dark:bg-white/5" />
+                        <Text className="mb-4 text-[10px] font-black uppercase tracking-[0.15em] text-emerald-500 dark:text-emerald-400">
+                          AFTER PHOTOS
+                        </Text>
+                        <PhotoCarousel
+                          photos={allAfterPhotos}
+                          label="AFTER"
+                          isDark={isDark}
+                          statusHex={statusStyle.hex}
+                          onPressImage={setFullScreenImage}
+                        />
+                      </View>
+                    )}
+                  </View>
+                </View>
+              </LinearGradient>
             </View>
-          </SectionCard>
+          )}
+
+          {/* VIDEO EVIDENCE (Multimedia Intelligence Pod) */}
+          {hasVideo && (
+            <View
+              style={{
+                shadowColor: statusStyle.hex,
+                shadowOffset: { width: 0, height: 20 },
+                shadowOpacity: isDark ? 0.35 : 0.1,
+                shadowRadius: 30,
+                elevation: 15,
+                marginBottom: 32,
+              }}>
+              <LinearGradient
+                colors={isDark ? statusStyle.gradientDark : statusStyle.gradientLight}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={{
+                  borderColor: statusStyle.border,
+                  borderWidth: 1.5,
+                  borderRadius: 40,
+                  overflow: 'hidden',
+                  position: 'relative',
+                  paddingBottom: 24,
+                }}>
+                {/* Cinematic Watermark Layer */}
+                <View style={{ position: 'absolute', right: -40, bottom: -40, opacity: 0.04 }}>
+                  <Video size={220} color={statusStyle.hex} strokeWidth={1} />
+                </View>
+
+                <View className="py-9 pe-7 ps-7">
+                  {/* Header Section */}
+                  <View className="mb-8 flex-row items-center justify-between">
+                    <View className="flex-1 flex-row items-center gap-4">
+                      <LinearGradient
+                        colors={[statusStyle.hex, statusStyle.hex]}
+                        style={{
+                          height: 50,
+                          width: 50,
+                          borderRadius: 18,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}>
+                        <Video size={24} color="#FFFFFF" strokeWidth={2.5} />
+                      </LinearGradient>
+                      <View className="flex-1">
+                        <Text className="text-[20px] font-black tracking-tight text-slate-900 dark:text-white">
+                          Multimedia Feed
+                        </Text>
+                        <View className="flex-row items-center gap-2">
+                          <Text
+                            className="text-[10px] font-black uppercase tracking-[0.2em]"
+                            style={{ color: statusStyle.hex }}>
+                            DYNAMIC EVIDENCE
+                          </Text>
+                          <View
+                            style={{ backgroundColor: statusStyle.bg }}
+                            className="rounded-full px-2.5 py-0.5">
+                            <Text
+                              className="text-[9px] font-black tracking-widest"
+                              style={{ color: statusStyle.hex }}>
+                              {mappedIssue.videoEvidence!.length} CLIPS
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* Cinematic Tabs */}
+                  {mappedIssue.videoEvidence!.length > 1 && (
+                    <View className="mb-6 flex-row flex-wrap gap-2">
+                      {mappedIssue.videoEvidence!.map((_, i) => (
+                        <TouchableOpacity
+                          key={i}
+                          onPress={() => {
+                            setActiveVideoIndex(i);
+                            setPlayingVideo(null);
+                          }}
+                          className={`items-center justify-center rounded-xl border px-4 py-2 ${
+                            i === activeVideoIndex
+                              ? 'bg-black/80 dark:bg-white/10'
+                              : 'bg-transparent'
+                          }`}
+                          style={{ borderColor: statusStyle.border }}
+                          activeOpacity={0.8}>
+                          <Text
+                            className={`text-[11px] uppercase tracking-[0.15em] ${
+                              i === activeVideoIndex
+                                ? 'font-black text-white'
+                                : 'font-bold text-slate-500 dark:text-slate-400'
+                            }`}>
+                            CLIP {i + 1}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
+
+                  {/* Refined Multimedia Player */}
+                  <View
+                    className="overflow-hidden rounded-[24px] border"
+                    style={{
+                      height: 240,
+                      borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+                      backgroundColor: '#000000',
+                    }}>
+                    {playingVideo === activeVideoIndex ? (
+                      <View style={{ flex: 1 }}>
+                        <WebView
+                          source={{ uri: mappedIssue.videoEvidence![activeVideoIndex] }}
+                          style={{ flex: 1, backgroundColor: 'transparent' }}
+                          allowsInlineMediaPlayback
+                          mediaPlaybackRequiresUserAction={true}
+                          allowsFullscreenVideo={true}
+                          javaScriptEnabled
+                        />
+
+                        {/* Controls Overlay */}
+                        <View className="absolute bottom-4 right-4 flex-row gap-3">
+                          <TouchableOpacity
+                            className="h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-white/20 bg-black/40"
+                            onPress={() =>
+                              setFullScreenVideo(mappedIssue.videoEvidence![activeVideoIndex])
+                            }
+                            activeOpacity={0.8}>
+                            <BlurView intensity={30} style={StyleSheet.absoluteFill} tint="dark" />
+                            <Maximize2 size={16} color="#FFFFFF" strokeWidth={2.5} />
+                          </TouchableOpacity>
+
+                          <TouchableOpacity
+                            className="h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-white/20 bg-black/40"
+                            onPress={() => setPlayingVideo(null)}
+                            activeOpacity={0.8}>
+                            <BlurView intensity={30} style={StyleSheet.absoluteFill} tint="dark" />
+                            <X size={16} color="#FFFFFF" strokeWidth={2.5} />
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    ) : (
+                      <View style={{ flex: 1, position: 'relative' }}>
+                        <LinearGradient
+                          colors={
+                            isDark
+                              ? ['#1E1B4B', statusStyle.hex, '#0F172A']
+                              : [statusStyle.hex, '#0891B2', '#075985']
+                          }
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                          style={{ flex: 1, opacity: 0.8 }}
+                        />
+                        <View className="absolute inset-0 items-center justify-center">
+                          <TouchableOpacity
+                            onPress={() => setPlayingVideo(activeVideoIndex)}
+                            className="items-center justify-center"
+                            activeOpacity={0.85}>
+                            <View className="absolute h-20 w-20 rounded-full border border-white/30 bg-white/10" />
+                            <Play size={44} color="#FFFFFF" strokeWidth={2.5} fill="#FFFFFF" />
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    )}
+                  </View>
+                </View>
+              </LinearGradient>
+            </View>
+          )}
+
+          {/* ISSUE UPDATES (Issue Updates Intelligence Pod) */}
+          <View
+            style={{
+              shadowColor: statusStyle.hex,
+              shadowOffset: { width: 0, height: 20 },
+              shadowOpacity: isDark ? 0.35 : 0.1,
+              shadowRadius: 30,
+              elevation: 15,
+              marginBottom: 32,
+            }}>
+            <LinearGradient
+              colors={isDark ? statusStyle.gradientDark : statusStyle.gradientLight}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={{
+                borderColor: statusStyle.border,
+                borderWidth: 1.5,
+                borderRadius: 40,
+                overflow: 'hidden',
+                position: 'relative',
+                paddingBottom: 24,
+              }}>
+              {/* Cinematic Watermark Layer */}
+              <View style={{ position: 'absolute', right: -40, bottom: -40, opacity: 0.04 }}>
+                <MessageSquarePlus size={220} color={statusStyle.hex} strokeWidth={1} />
+              </View>
+
+              <View className="py-9 pe-7 ps-7">
+                {/* Header Section */}
+                <View className="mb-8 flex-row items-center gap-4">
+                  <LinearGradient
+                    colors={[statusStyle.hex, statusStyle.hex]}
+                    style={{
+                      height: 50,
+                      width: 50,
+                      borderRadius: 18,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}>
+                    <MessageSquarePlus size={24} color="#FFFFFF" strokeWidth={2.5} />
+                  </LinearGradient>
+                  <View className="flex-1">
+                    <Text className="text-[20px] font-black tracking-tight text-slate-900 dark:text-white">
+                      Issue Updates
+                    </Text>
+                    <Text
+                      className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500"
+                      style={{ color: statusStyle.hex }}>
+                      ISSUE LIFECYCLE TIMELINE
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Timeline Content */}
+                <View className="mt-2">
+                  {issueUpdates?.length === 0 ? (
+                    <View className="items-center py-12">
+                      <View
+                        style={{ backgroundColor: statusStyle.bg }}
+                        className="mb-4 h-16 w-16 items-center justify-center rounded-2xl border border-slate-200/50 dark:border-white/5">
+                        <MessageSquarePlus color={statusStyle.hex} size={28} strokeWidth={1.5} />
+                      </View>
+                      <Text
+                        style={{ color: statusStyle.hex }}
+                        className="text-[10px] font-black uppercase tracking-[0.15em] opacity-80">
+                        NO OPERATIONAL UPDATES DETECTED
+                      </Text>
+                    </View>
+                  ) : (
+                    (issueUpdates ?? []).map((upd, index: number) => {
+                      const updDotColor = STATUS_DOT_COLORS[upd.status] ?? '#94A3B8';
+                      const isLatest = index === 0;
+                      const isLast = index === (issueUpdates?.length ?? 0) - 1;
+
+                      const roleMeta =
+                        upd.role === 'unit_officer'
+                          ? {
+                              label: 'Unit Officer',
+                              icon: <ShieldCheck size={10} color="#0EA5A4" />,
+                              color: '#0EA5A4',
+                            }
+                          : upd.role === 'field_officer'
+                            ? {
+                                label: 'Field Officer',
+                                icon: <User size={10} color="#F59E0B" />,
+                                color: '#F59E0B',
+                              }
+                            : {
+                                label: 'Administrator',
+                                icon: <ShieldAlert size={10} color="#EF4444" />,
+                                color: '#EF4444',
+                              };
+
+                      return (
+                        <View key={upd._id} className="flex-row">
+                          {/* Cinematic Timeline Track */}
+                          <View className="w-12 items-center">
+                            <View
+                              style={{
+                                width: 14,
+                                height: 14,
+                                borderRadius: 7,
+                                backgroundColor: updDotColor,
+                                borderWidth: 3,
+                                borderColor: isDark ? '#0F172A' : '#FFFFFF',
+                                shadowColor: updDotColor,
+                                shadowOffset: { width: 0, height: 0 },
+                                shadowOpacity: isLatest ? 0.8 : 0.4,
+                                shadowRadius: isLatest ? 8 : 4,
+                                elevation: 5,
+                                zIndex: 10,
+                                marginTop: 4,
+                              }}>
+                              {isLatest && (
+                                <View
+                                  style={{
+                                    position: 'absolute',
+                                    inset: -4,
+                                    borderRadius: 10,
+                                    backgroundColor: updDotColor,
+                                    opacity: 0.3,
+                                  }}
+                                />
+                              )}
+                            </View>
+                            {!isLast && (
+                              <LinearGradient
+                                colors={[updDotColor, 'rgba(148,163,184,0.1)']}
+                                style={{ flex: 1, width: 2, marginTop: 4, marginBottom: 4 }}
+                              />
+                            )}
+                          </View>
+
+                          {/* Intelligence Payload Card */}
+                          <View
+                            className="mb-6 flex-1 overflow-hidden rounded-[20px] border-t-2 shadow-sm"
+                            style={{
+                              borderTopColor: updDotColor,
+                              backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
+                              borderLeftWidth: 1,
+                              borderRightWidth: 1,
+                              borderBottomWidth: 1,
+                              borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+                            }}>
+                            <LinearGradient
+                              colors={isDark ? ['#1E293B', '#0F172A'] : ['#FFFFFF', '#F8FAFC']}
+                              style={StyleSheet.absoluteFill}
+                            />
+
+                            {/* Payload Header */}
+                            <View className="flex-row items-start justify-between border-b border-slate-100/50 p-4 dark:border-white/5">
+                              <View className="flex-1 pr-2">
+                                <Text className="mb-1 text-[15px] font-black tracking-tight text-slate-800 dark:text-white">
+                                  {STATUS_LABELS[upd.status] || upd.status}
+                                </Text>
+                                <View className="flex-row flex-wrap items-center gap-2">
+                                  <View
+                                    className="flex-row items-center gap-1 rounded-full border px-2 py-0.5"
+                                    style={{
+                                      borderColor: roleMeta.color + '40',
+                                      backgroundColor: roleMeta.color + '10',
+                                    }}>
+                                    {roleMeta.icon}
+                                    <Text
+                                      className="text-[9px] font-black uppercase tracking-wider"
+                                      style={{ color: roleMeta.color }}>
+                                      {roleMeta.label}
+                                    </Text>
+                                  </View>
+                                  <Text className="text-[10px] font-bold text-slate-400 dark:text-slate-500">
+                                    •
+                                  </Text>
+                                  <Text className="text-[11px] font-bold tracking-tight text-slate-500 dark:text-slate-400">
+                                    {upd.updater?.fullName || 'Anonymous'}
+                                  </Text>
+                                </View>
+                              </View>
+
+                              <View className="items-end gap-2">
+                                <Text className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                                  {formatTimestamp(upd.createdAt)}
+                                </Text>
+                                <View
+                                  className="flex-row items-center gap-1 rounded-lg px-2 py-1"
+                                  style={{
+                                    backgroundColor: isDark
+                                      ? 'rgba(255,255,255,0.06)'
+                                      : 'rgba(0,0,0,0.04)',
+                                  }}>
+                                  {upd.scope === 'citizen' ? (
+                                    <Eye size={9} color="#64748B" />
+                                  ) : (
+                                    <Users size={9} color="#64748B" />
+                                  )}
+                                  <Text className="text-[8px] font-black uppercase tracking-widest text-slate-500">
+                                    {upd.scope === 'officer_and_citizen' ? 'PUBLIC' : 'INTERNAL'}
+                                  </Text>
+                                </View>
+                              </View>
+                            </View>
+
+                            {/* Comment Payload */}
+                            {upd.comment && (
+                              <View className="p-4">
+                                <Text className="text-[14px] font-medium leading-[24px] text-slate-600 dark:text-slate-300">
+                                  {upd.comment}
+                                </Text>
+                              </View>
+                            )}
+
+                            {/* Attachments Module */}
+                            {upd.attachments?.length > 0 && (
+                              <View className="border-t border-slate-100/50 bg-slate-50/50 p-4 dark:border-white/5 dark:bg-black/20">
+                                <View className="mb-3 flex-row items-center gap-1.5">
+                                  <Paperclip
+                                    color={isDark ? '#64748B' : '#94A3B8'}
+                                    size={12}
+                                    strokeWidth={2.5}
+                                  />
+                                  <Text className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                                    SECURED ASSETS ({upd.attachments.length})
+                                  </Text>
+                                </View>
+
+                                <ScrollView
+                                  horizontal
+                                  showsHorizontalScrollIndicator={false}
+                                  contentContainerStyle={{ gap: 10 }}>
+                                  {upd.attachments.map((att: any, ai: number) => {
+                                    const isImage = att.contentType?.startsWith('image');
+                                    const isVideo = att.contentType?.startsWith('video');
+                                    const isPDF = att.contentType?.includes('pdf');
+
+                                    if (isImage) {
+                                      return (
+                                        <TouchableOpacity
+                                          key={ai}
+                                          activeOpacity={0.8}
+                                          onPress={() =>
+                                            setPreviewAttachment({ ...att, type: 'image' })
+                                          }>
+                                          <Image
+                                            source={{ uri: att.url }}
+                                            className="h-14 w-16 rounded-xl border border-slate-200 dark:border-white/10"
+                                            resizeMode="cover"
+                                          />
+                                        </TouchableOpacity>
+                                      );
+                                    }
+
+                                    if (isVideo) {
+                                      return (
+                                        <TouchableOpacity
+                                          key={ai}
+                                          activeOpacity={0.8}
+                                          onPress={() =>
+                                            setPreviewAttachment({ ...att, type: 'video' })
+                                          }
+                                          className="h-14 w-16 items-center justify-center rounded-xl border border-slate-200 bg-slate-900 dark:border-white/10">
+                                          <View className="h-6 w-6 items-center justify-center rounded-full bg-white/20">
+                                            <Play color="#fff" size={10} fill="#fff" />
+                                          </View>
+                                        </TouchableOpacity>
+                                      );
+                                    }
+
+                                    if (isPDF) {
+                                      return (
+                                        <TouchableOpacity
+                                          key={ai}
+                                          activeOpacity={0.8}
+                                          onPress={() =>
+                                            setPreviewAttachment({ ...att, type: 'pdf' })
+                                          }
+                                          className="h-14 w-16 items-center justify-center rounded-xl border border-red-200 bg-red-50 dark:border-red-900/30 dark:bg-red-900/20">
+                                          <FileText color="#DC2626" size={18} strokeWidth={2} />
+                                        </TouchableOpacity>
+                                      );
+                                    }
+
+                                    return null;
+                                  })}
+                                </ScrollView>
+                              </View>
+                            )}
+                          </View>
+                        </View>
+                      );
+                    })
+                  )}
+                </View>
+              </View>
+            </LinearGradient>
+          </View>
+
+          {/* POST UPDATE (Action Intelligence Pod) */}
+          <View
+            style={{
+              shadowColor: statusStyle.hex,
+              shadowOffset: { width: 0, height: 20 },
+              shadowOpacity: isDark ? 0.35 : 0.1,
+              shadowRadius: 30,
+              elevation: 15,
+              marginBottom: 32,
+            }}>
+            <LinearGradient
+              colors={isDark ? statusStyle.gradientDark : statusStyle.gradientLight}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={{
+                borderColor: statusStyle.border,
+                borderWidth: 1.5,
+                borderRadius: 40,
+                overflow: 'hidden',
+                position: 'relative',
+              }}>
+              {/* Cinematic Watermark Layer */}
+              <View style={{ position: 'absolute', right: -40, bottom: -40, opacity: 0.04 }}>
+                <Send size={220} color={statusStyle.hex} strokeWidth={1} />
+              </View>
+
+              <View className="py-9 pe-7 ps-7">
+                {/* Header Section */}
+                <View className="mb-8 flex-row items-center justify-between">
+                  <View className="flex-1 flex-row items-center gap-4">
+                    <LinearGradient
+                      colors={[statusStyle.hex, statusStyle.hex]}
+                      style={{
+                        height: 50,
+                        width: 50,
+                        borderRadius: 18,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}>
+                      <Send size={24} color="#FFFFFF" strokeWidth={2.5} />
+                    </LinearGradient>
+                    <View className="flex-1">
+                      <Text className="text-[20px] font-black tracking-tight text-slate-900 dark:text-white">
+                        Post Update
+                      </Text>
+                      <View className="flex-row items-center gap-2">
+                        <Text
+                          className="text-[10px] font-black uppercase tracking-[0.2em]"
+                          style={{ color: statusStyle.hex }}>
+                          Seamless Issue Updates
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                </View>
+
+                {/* Form Content */}
+                <View className="gap-6">
+                  {/* Scope Selector */}
+                  <View>
+                    <Text className="mb-3 ml-1 text-[11px] font-black uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500">
+                      Visibility Scope
+                    </Text>
+                    <View className="flex-row rounded-full border border-slate-200/50 bg-slate-100/50 p-1 dark:border-white/5 dark:bg-slate-900/40">
+                      {(
+                        [
+                          {
+                            value: 'citizen' as UpdateScope,
+                            label: 'Citizen Only',
+                            icon: <Eye size={12} strokeWidth={2.5} />,
+                          },
+                          {
+                            value: 'officer_and_citizen' as UpdateScope,
+                            label: 'FO & Citizen',
+                            icon: <Users size={12} strokeWidth={2.5} />,
+                          },
+                          {
+                            value: 'admin_only' as UpdateScope,
+                            label: 'Admin Only',
+                            icon: <ShieldAlert size={12} strokeWidth={2.5} />,
+                          },
+                        ] as const
+                      ).map((opt) => {
+                        const isActive = updateScope === opt.value;
+                        return (
+                          <TouchableOpacity
+                            key={opt.value}
+                            onPress={() => setUpdateScope(opt.value)}
+                            activeOpacity={0.85}
+                            style={{ flex: 1, borderRadius: 999, marginHorizontal: 2 }}>
+                            {isActive ? (
+                              <View
+                                style={{
+                                  backgroundColor: statusStyle.hex,
+                                  borderRadius: 999,
+                                  paddingVertical: 10,
+                                  paddingHorizontal: 8,
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  flexDirection: 'row',
+                                  gap: 6,
+                                  shadowColor: statusStyle.hex,
+                                  shadowOffset: { width: 0, height: 4 },
+                                  shadowOpacity: 0.3,
+                                  shadowRadius: 8,
+                                  elevation: 5,
+                                }}>
+                                {React.cloneElement(
+                                  opt.icon as React.ReactElement<{ color: string }>,
+                                  {
+                                    color: '#FFFFFF',
+                                  }
+                                )}
+                                <Text
+                                  style={{ color: '#FFFFFF' }}
+                                  numberOfLines={1}
+                                  adjustsFontSizeToFit
+                                  className="text-[11px] font-black tracking-wide">
+                                  {opt.label}
+                                </Text>
+                              </View>
+                            ) : (
+                              <View
+                                style={{
+                                  borderRadius: 999,
+                                  paddingVertical: 10,
+                                  paddingHorizontal: 8,
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  flexDirection: 'row',
+                                  gap: 6,
+                                }}>
+                                {React.cloneElement(
+                                  opt.icon as React.ReactElement<{ color: string }>,
+                                  {
+                                    color: isDark ? '#64748B' : '#94A3B8',
+                                  }
+                                )}
+                                <Text
+                                  style={{ color: isDark ? '#64748B' : '#94A3B8' }}
+                                  numberOfLines={1}
+                                  adjustsFontSizeToFit
+                                  className="text-[11px] font-bold tracking-wide">
+                                  {opt.label}
+                                </Text>
+                              </View>
+                            )}
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </View>
+
+                  {/* Comment Canvas */}
+                  <View>
+                    <Text className="mb-3 ml-1 text-[11px] font-black uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500">
+                      Message Log
+                    </Text>
+                    <View
+                      style={{
+                        borderColor:
+                          updateText &&
+                          updateText
+                            .trim()
+                            .split(/\s+/)
+                            .filter((w) => w.length > 0).length < 5
+                            ? '#F59E0B' // amber
+                            : isDark
+                              ? 'rgba(255,255,255,0.05)'
+                              : 'rgba(0,0,0,0.05)',
+                        borderWidth: 1,
+                      }}
+                      className="overflow-hidden rounded-[24px] bg-white/60 dark:bg-slate-900/40">
+                      <View className="flex-row items-center justify-between border-b border-slate-100 bg-slate-50/80 px-5 py-4 dark:border-white/5 dark:bg-slate-800/40">
+                        <View className="flex-row items-center gap-3">
+                          <View
+                            style={{ backgroundColor: statusStyle.bg }}
+                            className="h-8 w-8 items-center justify-center rounded-xl">
+                            <Notebook color={statusStyle.hex} size={15} strokeWidth={2.5} />
+                          </View>
+                          <Text className="text-[14px] font-black tracking-tight text-slate-800 dark:text-slate-100">
+                            Comments
+                          </Text>
+                        </View>
+
+                        <View
+                          className="rounded-lg px-3 py-1.5"
+                          style={{
+                            backgroundColor:
+                              updateText &&
+                              updateText
+                                .trim()
+                                .split(/\s+/)
+                                .filter((w) => w.length > 0).length >= 5
+                                ? statusStyle.bg
+                                : isDark
+                                  ? 'rgba(245, 158, 11, 0.15)'
+                                  : '#FEF3C7',
+                          }}>
+                          <Text
+                            className="text-[10px] font-black"
+                            style={{
+                              color:
+                                updateText &&
+                                updateText
+                                  .trim()
+                                  .split(/\s+/)
+                                  .filter((w) => w.length > 0).length >= 5
+                                  ? statusStyle.hex
+                                  : '#D97706',
+                            }}>
+                            {
+                              updateText
+                                .trim()
+                                .split(/\s+/)
+                                .filter((word) => word.length > 0).length
+                            }{' '}
+                            WORDS{' '}
+                            {updateText
+                              .trim()
+                              .split(/\s+/)
+                              .filter((word) => word.length > 0).length < 5 && '(MIN 5)'}
+                          </Text>
+                        </View>
+                      </View>
+
+                      <View className="max-h-[220px] px-2 py-2">
+                        <ScrollView
+                          showsVerticalScrollIndicator={false}
+                          contentContainerStyle={{ flexGrow: 1 }}
+                          nestedScrollEnabled={true}
+                          keyboardShouldPersistTaps="handled">
+                          <TextInput
+                            className="min-h-[110px] bg-transparent px-4 py-3"
+                            placeholder="Draft your secure update protocol here..."
+                            placeholderTextColor={isDark ? '#475569' : '#94A3B8'}
+                            value={updateText}
+                            onChangeText={setUpdateText}
+                            multiline
+                            scrollEnabled={false}
+                            style={{
+                              fontSize: 15,
+                              lineHeight: 24,
+                              textAlignVertical: 'top',
+                              color: isDark ? '#F8FAFC' : '#0F172A',
+                              fontWeight: '500',
+                            }}
+                          />
+                        </ScrollView>
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* Attachment previews */}
+                  {updateAttachments.length > 0 && (
+                    <View>
+                      <Text className="mb-3 ml-1 text-[11px] font-black uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500">
+                        Attachments ({updateAttachments.length})
+                      </Text>
+                      <View className="flex-row flex-wrap gap-3">
+                        {updateAttachments.map((att, i) => (
+                          <View
+                            key={i}
+                            className="relative overflow-hidden rounded-[20px] border border-slate-200/50 bg-slate-100/50 dark:border-white/5 dark:bg-slate-900/40"
+                            style={{ height: 100, width: 100 }}>
+                            {att.type === 'image' ? (
+                              <Image
+                                source={{ uri: att.uri }}
+                                style={{ width: '100%', height: '100%' }}
+                                resizeMode="cover"
+                              />
+                            ) : att.type === 'video' ? (
+                              <View className="flex-1 items-center justify-center bg-slate-800 p-2">
+                                <Video color="#FFFFFF" size={24} strokeWidth={2} />
+                                <Text
+                                  className="mt-2 text-center text-[9px] font-bold text-white"
+                                  numberOfLines={1}>
+                                  {att.name}
+                                </Text>
+                              </View>
+                            ) : (
+                              <View className="flex-1 items-center justify-center bg-slate-800 p-2">
+                                <Text className="font-black text-red-500">PDF</Text>
+                                <Text
+                                  className="mt-2 text-center text-[9px] font-bold text-white"
+                                  numberOfLines={1}>
+                                  {att.name}
+                                </Text>
+                              </View>
+                            )}
+                            <TouchableOpacity
+                              onPress={() =>
+                                setUpdateAttachments(
+                                  updateAttachments.filter((_, idx) => idx !== i)
+                                )
+                              }
+                              activeOpacity={0.8}
+                              style={{
+                                position: 'absolute',
+                                top: 6,
+                                right: 6,
+                                backgroundColor: 'rgba(0,0,0,0.6)',
+                                borderRadius: 100,
+                                padding: 4,
+                              }}>
+                              <X color="#fff" size={12} strokeWidth={3} />
+                            </TouchableOpacity>
+                          </View>
+                        ))}
+                      </View>
+                    </View>
+                  )}
+
+                  {/* Action row */}
+                  <View className="mt-2 flex-row gap-3">
+                    <TouchableOpacity
+                      onPress={handleShowAttachMenu}
+                      activeOpacity={0.75}
+                      className="flex-row items-center gap-2 rounded-2xl border border-slate-200/50 bg-white/60 px-5 py-4 dark:border-white/5 dark:bg-slate-900/40">
+                      <Paperclip color={statusStyle.hex} size={18} strokeWidth={2.5} />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      onPress={handlePostUpdate}
+                      activeOpacity={0.85}
+                      style={{ flex: 1 }}>
+                      <LinearGradient
+                        colors={[statusStyle.hex, statusStyle.hex]}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                        style={{
+                          borderRadius: 16,
+                          flex: 1,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexDirection: 'row',
+                          gap: 8,
+                          shadowColor: statusStyle.hex,
+                          shadowOffset: { width: 0, height: 8 },
+                          shadowOpacity: 0.3,
+                          shadowRadius: 12,
+                          elevation: 8,
+                        }}>
+                        <Send color="#FFFFFF" size={18} strokeWidth={2.5} />
+                        <Text className="text-[15px] font-black text-white">Post Update</Text>
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            </LinearGradient>
+          </View>
 
           {/* SLA OVERDUE ACTION PANEL */}
           {/* {isSLAOverdue && (
@@ -2549,6 +3339,7 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
               setPendingReassignMeta(null);
               setAssignModalMode('assign');
             }}
+            // @ts-ignore
             officers={assignedFO}
             onAssign={handleAssign}
             mode={assignModalMode}
@@ -2821,33 +3612,194 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
               )}
 
               {(previewAttachment?.type === 'video' || previewAttachment?.type === 'pdf') && (
-                <View className="items-center px-10">
-                  <View
-                    className={`h-24 w-24 items-center justify-center rounded-3xl ${previewAttachment.type === 'video' ? 'bg-cyan-500/20' : 'bg-red-500/20'} mb-6`}>
-                    {previewAttachment.type === 'video' ? (
-                      <Video color="#22D3EE" size={40} strokeWidth={2} />
-                    ) : (
-                      <FileText color="#EF4444" size={40} strokeWidth={2} />
-                    )}
+                <View
+                  style={{
+                    width: '90%',
+                    height: '75%',
+                    borderRadius: 24,
+                    overflow: 'hidden',
+                    backgroundColor: '#000',
+                    borderWidth: 1,
+                    borderColor: 'rgba(255,255,255,0.1)',
+                  }}>
+                  <WebView
+                    source={
+                      previewAttachment.type === 'pdf' && Platform.OS === 'android'
+                        ? {
+                            html: `
+                              <!DOCTYPE html>
+                              <html lang="en">
+                              <head>
+                                  <meta charset="UTF-8">
+                                  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+                                  <style>
+                                      body { margin: 0; padding: 0; background-color: #000; display: flex; flex-direction: column; align-items: center; overflow-y: auto; overflow-x: hidden; }
+                                      canvas { max-width: 100%; height: auto; margin-bottom: 8px; border-bottom: 1px solid #333; }
+                                  </style>
+                                  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+                              </head>
+                              <body>
+                                  <div id="pdf-container" style="width: 100%; display: flex; flex-direction: column; align-items: center;"></div>
+                                  <script>
+                                      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+                                      
+                                      var loadingTask = pdfjsLib.getDocument('${previewAttachment.url}');
+                                      loadingTask.promise.then(function(pdf) {
+                                          var container = document.getElementById('pdf-container');
+                                          
+                                          // Loop through all pages sequentially to maintain order
+                                          var renderPage = function(pageNum) {
+                                              if (pageNum > pdf.numPages) return;
+                                              
+                                              pdf.getPage(pageNum).then(function(page) {
+                                                  var scale = window.innerWidth / page.getViewport({scale: 1}).width;
+                                                  // Limit max scale to prevent memory issues on large screens
+                                                  scale = Math.min(scale, 1.5);
+                                                  var viewport = page.getViewport({ scale: scale });
+                                                  
+                                                  var canvas = document.createElement('canvas');
+                                                  var context = canvas.getContext('2d');
+                                                  canvas.height = viewport.height;
+                                                  canvas.width = viewport.width;
+                                                  canvas.style.width = '100%';
+                                                  
+                                                  container.appendChild(canvas);
+                                                  
+                                                  var renderContext = {
+                                                      canvasContext: context,
+                                                      viewport: viewport
+                                                  };
+                                                  
+                                                  page.render(renderContext).promise.then(function() {
+                                                      renderPage(pageNum + 1);
+                                                  });
+                                              });
+                                          };
+                                          
+                                          renderPage(1);
+                                          
+                                      }).catch(function(error) {
+                                          console.error('PDF.js Error:', error);
+                                      });
+                                  </script>
+                              </body>
+                              </html>
+                            `,
+                          }
+                        : { uri: previewAttachment.url }
+                    }
+                    originWhitelist={['*']}
+                    style={{ flex: 1, backgroundColor: 'transparent' }}
+                    allowsInlineMediaPlayback={true}
+                    mediaPlaybackRequiresUserAction={true}
+                    allowsFullscreenVideo={true}
+                    javaScriptEnabled
+                    domStorageEnabled={true}
+                    startInLoadingState={true}
+                  />
+                  {/* Cinematic Overlay Badge */}
+                  <View className="absolute bottom-4 left-4 rounded-xl border border-white/20 bg-black/60 px-4 py-2 backdrop-blur-md">
+                    <View className="flex-row items-center gap-2">
+                      {previewAttachment.type === 'video' ? (
+                        <Play size={12} color="#FFFFFF" strokeWidth={3} />
+                      ) : (
+                        <FileText size={12} color="#EF4444" strokeWidth={3} />
+                      )}
+                      <Text className="text-[10px] font-black uppercase tracking-[0.2em] text-white/90">
+                        {previewAttachment.type === 'video'
+                          ? 'SECURE_STREAM_PREVIEW'
+                          : 'SECURE_DOC_PREVIEW'}
+                      </Text>
+                    </View>
                   </View>
-                  <Text className="mb-2 text-center text-[20px] font-black tracking-tight text-white">
-                    {previewAttachment.type === 'video' ? 'Video Evidence' : 'Document Evidence'}
-                  </Text>
-                  <Text className="mb-8 text-center text-[13px] font-medium text-slate-400">
-                    Due to native platform requirements, please open this file in your system's
-                    default viewer.
-                  </Text>
-                  <TouchableOpacity
-                    onPress={() => Linking.openURL(previewAttachment.url)}
-                    className="w-full flex-row items-center justify-center gap-2 rounded-2xl bg-white px-6 py-4">
-                    <Text className="text-[15px] font-black text-slate-900">
-                      Open External Viewer
-                    </Text>
-                  </TouchableOpacity>
                 </View>
               )}
             </TouchableOpacity>
           </TouchableOpacity>
+        </Modal>
+        {/* ── Full Screen Image Preview ── */}
+        <Modal
+          visible={fullScreenImage !== null}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setFullScreenImage(null)}>
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: 'rgba(0,0,0,0.95)',
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}>
+            <BlurView intensity={20} style={StyleSheet.absoluteFill} tint="dark" />
+
+            <TouchableOpacity
+              style={{
+                position: 'absolute',
+                top: 50,
+                right: 20,
+                zIndex: 50,
+                padding: 10,
+                backgroundColor: 'rgba(0,0,0,0.5)',
+                borderRadius: 20,
+              }}
+              onPress={() => setFullScreenImage(null)}
+              activeOpacity={0.7}>
+              <X size={32} color="#FFFFFF" strokeWidth={2.5} />
+            </TouchableOpacity>
+
+            {fullScreenImage && (
+              <Image
+                source={{ uri: fullScreenImage }}
+                style={{ width: '100%', height: '80%' }}
+                resizeMode="contain"
+              />
+            )}
+          </View>
+        </Modal>
+
+        {/* ── Full Screen Video Preview ── */}
+        <Modal
+          visible={fullScreenVideo !== null}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setFullScreenVideo(null)}>
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: 'rgba(0,0,0,0.95)',
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}>
+            <BlurView intensity={40} style={StyleSheet.absoluteFill} tint="dark" />
+
+            <TouchableOpacity
+              style={{
+                position: 'absolute',
+                top: 50,
+                right: 20,
+                zIndex: 50,
+                padding: 10,
+                backgroundColor: 'rgba(0,0,0,0.5)',
+                borderRadius: 20,
+              }}
+              onPress={() => setFullScreenVideo(null)}
+              activeOpacity={0.7}>
+              <X size={32} color="#FFFFFF" strokeWidth={2.5} />
+            </TouchableOpacity>
+
+            {fullScreenVideo && (
+              <View
+                style={{ width: '100%', height: 300, backgroundColor: '#000', overflow: 'hidden' }}>
+                <WebView
+                  source={{ uri: fullScreenVideo }}
+                  style={{ flex: 1 }}
+                  allowsInlineMediaPlayback={false}
+                  allowsFullscreenVideo={true}
+                  javaScriptEnabled
+                />
+              </View>
+            )}
+          </View>
         </Modal>
       </KeyboardAvoidingView>
     </SafeAreaView>

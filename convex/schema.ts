@@ -158,7 +158,20 @@ export default defineSchema({
 
     // Field Officer Reports
     beforePhotos: v.optional(v.array(v.id('_storage'))),
+    beforeLocation: v.optional(
+      v.object({
+        latitude: v.number(),
+        longitude: v.number(),
+      })
+    ),
     afterPhotos: v.optional(v.array(v.id('_storage'))),
+    afterLocation: v.optional(
+      v.object({
+        latitude: v.number(),
+        longitude: v.number(),
+      })
+    ),
+    notes: v.optional(v.string()),
 
     // Workflow
     status: v.string(),
@@ -234,7 +247,12 @@ export default defineSchema({
     // Who performed the update
     updatedBy: v.optional(v.id('users')),
 
-    role: v.union(v.literal('citizen'), v.literal('unit_officer'), v.literal('field_officer'), v.literal('admin')),
+    role: v.union(
+      v.literal('citizen'),
+      v.literal('unit_officer'),
+      v.literal('field_officer'),
+      v.literal('admin')
+    ),
 
     // Attachments (photos/videos/documents)
     attachments: v.optional(v.array(v.id('_storage'))),

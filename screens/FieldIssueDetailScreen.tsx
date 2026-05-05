@@ -355,10 +355,12 @@ export default function FieldIssueDetailScreen() {
   const generateUploadUrl = useMutation(api.issuesMedia.generateUploadUrl);
 
   // @ts-ignore
+  // For getting the Issue data by ID
   const rawIssue = useQuery(api.fieldOfficers.getIssueById, { issueId: issueId });
 
   const issue = mapIssueToUI(rawIssue);
 
+  // For fetching all the Issue updates
   const issueUpdates = useQuery(
     api.issueUpdates.getByIssueId,
     // @ts-ignore
@@ -366,10 +368,14 @@ export default function FieldIssueDetailScreen() {
   );
 
   // @ts-ignore
+  // For creating an update on an issue by a Field Officer
   const createIssueUpdate = useMutation(api.issueUpdates.createIssueUpdate);
 
   // For marking the issue to In Progress
   const startWorkMutation = useMutation(api.fieldOfficers.startWork);
+
+  // For sending the work to the Unit Officer for verification
+  const submitFieldOfficerWork = useMutation(api.fieldOfficers.submitFieldOfficerWork);
 
   const issueMessages = useMemo(
     () => (issue ? mockCitizenMessages.filter((m) => m.issueId === issue.id) : []),
@@ -636,18 +642,31 @@ export default function FieldIssueDetailScreen() {
     afterLocation: { latitude: number; longitude: number } | null;
     notes: string;
   }) => {
+    if (!issue) return;
+
     try {
-      console.log('--- Resolution Protocol Submission ---');
-      console.log(data);
+      // Upload images first to ConvexDB
+      const beforePhotoId = data.beforeImage ? await uploadImageToConvex(data.beforeImage) : null;
 
-      // const beforePhotoId = await uploadImageToConvex(data.beforeImage);
-      // const afterPhotoId = await uploadImageToConvex(data.afterImage);
+      const afterPhotoId = data.afterImage ? await uploadImageToConvex(data.afterImage) : null;
 
-      // console.log(beforePhotoId, afterPhotoId);
+      await submitFieldOfficerWork({
+        issueId: issue.id,
 
-      setTimeout(() => {
+        beforePhotos: beforePhotoId ? [beforePhotoId] : [],
+        afterPhotos: afterPhotoId ? [afterPhotoId] : [],
+
+        beforeLocation: data.beforeLocation || undefined,
+        afterLocation: data.afterLocation || undefined,
+
+        notes: data.notes,
+        fieldOfficerId: user?.id as Id<'users'>,
+      });
+
+      // Safe Close for iOS devices
+      requestAnimationFrame(() => {
         setShowWorkFlow(false);
-      }, 50);
+      });
     } catch (err) {
       console.error(err);
     }
@@ -1023,7 +1042,7 @@ export default function FieldIssueDetailScreen() {
           />
         )}
 
-        {/* ── Ultra-Premium Classification Intelligence Card ── */}
+        {/* ── Category Card ── */}
         <View style={styles.descriptionContainer}>
           <LinearGradient
             colors={isDark ? ['#1E1B4B', '#0F172A', '#020617'] : ['#FFFFFF', '#F0FDFA', '#F8FAFC']}
@@ -1165,7 +1184,7 @@ export default function FieldIssueDetailScreen() {
           </LinearGradient>
         </View>
 
-        {/* ── Ultra-Premium Intelligence Description Card ── */}
+        {/* ── Description Card ── */}
         <View style={styles.descriptionContainer}>
           <LinearGradient
             colors={isDark ? ['#1E1B4B', '#0F172A', '#020617'] : ['#FFFFFF', '#F0FDFA', '#F8FAFC']}
@@ -1583,7 +1602,7 @@ export default function FieldIssueDetailScreen() {
           </View>
         )}
 
-        {/* ── Ultra-Premium Geospatial Intelligence Card ── */}
+        {/* ── Location Card ── */}
         <View style={styles.descriptionContainer}>
           <LinearGradient
             colors={isDark ? ['#1E1B4B', '#0F172A', '#020617'] : ['#FFFFFF', '#F0FDFA', '#F8FAFC']}
@@ -1855,6 +1874,7 @@ export default function FieldIssueDetailScreen() {
                 <Text style={styles.emptyLogText}>NO OPERATIONAL UPDATES DETECTED</Text>
               </View>
             ) : (
+              // @ts-ignore
               (issueUpdates ?? []).map((upd, index: number) => {
                 const statusColor = STATUS_DOT_COLORS[upd.status] ?? '#94A3B8';
                 const isLatest = index === 0;
@@ -2417,6 +2437,7 @@ export default function FieldIssueDetailScreen() {
       <CitizenMessagingInterface
         visible={showMessaging}
         onClose={() => setShowMessaging(false)}
+        // @ts-ignore
         issue={issue}
         initialMessages={issueMessages}
       />

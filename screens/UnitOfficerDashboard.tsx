@@ -9,6 +9,7 @@ import {
   Modal,
   useColorScheme,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -30,6 +31,7 @@ import {
   Calendar,
   UserCheck,
   X,
+  XCircle,
   Tag,
   Layers,
   TriangleAlert as AlertTriangle,
@@ -41,6 +43,15 @@ import {
   Package,
   HeartPulse,
   MoreHorizontal,
+  Hash,
+  RefreshCw,
+  Star,
+  Activity,
+  Mail,
+  Phone,
+  Award,
+  PieChart,
+  ShieldCheck,
 } from 'lucide-react-native';
 import {
   Issue,
@@ -56,6 +67,7 @@ import {
   Meta,
   SLAKey,
   SLAMeta,
+  MappedIssue,
 } from '../lib/types';
 import { mockDashboardStats as mockStats, mockDuplicateGroups } from '../lib/mockData';
 import { useNavigation } from '@react-navigation/native';
@@ -100,6 +112,7 @@ const STATUS_LABEL_MAP: Record<StatusKey | 'all', string> = {
   closed: 'Closed',
   rejected: 'Rejected',
   resolved: 'Resolved',
+  withdrawn: 'Withdrawn',
 };
 
 export const CATEGORY_OPTIONS: (string | 'all')[] = [
@@ -177,12 +190,12 @@ const SLA_OPTIONS: SLAFilter[] = ['all', 'overdue', 'due_soon', 'on_track'];
 
 const STATUS_META: Record<StatusKey, StatusMeta> = {
   all: {
-    bg: 'bg-blue-100',
-    darkBg: 'dark:bg-blue-900/40',
-    text: 'text-blue-700',
-    darkText: 'dark:text-blue-300',
-    dot: '#3B82F6',
-    border: 'border-blue-200 dark:border-blue-800',
+    bg: 'bg-slate-100',
+    darkBg: 'dark:bg-slate-800/40',
+    text: 'text-slate-700',
+    darkText: 'dark:text-slate-300',
+    dot: '#64748B',
+    border: 'border-slate-200 dark:border-slate-800',
   },
   pending: {
     bg: 'bg-amber-100',
@@ -193,20 +206,20 @@ const STATUS_META: Record<StatusKey, StatusMeta> = {
     border: 'border-amber-200 dark:border-amber-800',
   },
   verified: {
-    bg: 'bg-emerald-100',
-    darkBg: 'dark:bg-emerald-900/40',
-    text: 'text-emerald-700',
-    darkText: 'dark:text-emerald-300',
-    dot: '#10B981',
-    border: 'border-emerald-200 dark:border-emerald-800',
+    bg: 'bg-cyan-100',
+    darkBg: 'dark:bg-cyan-900/40',
+    text: 'text-cyan-700',
+    darkText: 'dark:text-cyan-300',
+    dot: '#06B6D4',
+    border: 'border-cyan-200 dark:border-cyan-800',
   },
   assigned: {
-    bg: 'bg-blue-100',
-    darkBg: 'dark:bg-blue-900/40',
-    text: 'text-blue-700',
-    darkText: 'dark:text-blue-300',
-    dot: '#3B82F6',
-    border: 'border-blue-200 dark:border-blue-800',
+    bg: 'bg-indigo-100',
+    darkBg: 'dark:bg-indigo-900/40',
+    text: 'text-indigo-700',
+    darkText: 'dark:text-indigo-300',
+    dot: '#6366F1',
+    border: 'border-indigo-200 dark:border-indigo-800',
   },
   in_progress: {
     bg: 'bg-violet-100',
@@ -217,20 +230,20 @@ const STATUS_META: Record<StatusKey, StatusMeta> = {
     border: 'border-violet-200 dark:border-violet-800',
   },
   pending_uo_verification: {
-    bg: 'bg-amber-500',
-    darkBg: 'dark:bg-amber-800',
-    text: 'text-white',
-    darkText: 'dark:text-white',
-    dot: '#FFFFFF',
-    border: 'border-amber-400 dark:border-amber-500',
+    bg: 'bg-orange-100',
+    darkBg: 'dark:bg-orange-900/40',
+    text: 'text-orange-700',
+    darkText: 'dark:text-orange-300',
+    dot: '#F97316',
+    border: 'border-orange-200 dark:border-orange-800',
   },
   rework_required: {
-    bg: 'bg-red-100',
-    darkBg: 'dark:bg-red-900/40',
-    text: 'text-red-700',
-    darkText: 'dark:text-red-300',
-    dot: '#EF4444',
-    border: 'border-red-200 dark:border-red-800',
+    bg: 'bg-pink-100',
+    darkBg: 'dark:bg-pink-900/40',
+    text: 'text-pink-700',
+    darkText: 'dark:text-pink-300',
+    dot: '#EC4899',
+    border: 'border-pink-200 dark:border-pink-800',
   },
   reopened: {
     bg: 'bg-orange-100',
@@ -243,34 +256,42 @@ const STATUS_META: Record<StatusKey, StatusMeta> = {
   escalated: {
     bg: 'bg-red-100',
     darkBg: 'dark:bg-red-900/40',
-    text: 'text-red-800',
+    text: 'text-red-700',
     darkText: 'dark:text-red-300',
-    dot: '#DC2626',
+    dot: '#EF4444',
     border: 'border-red-200 dark:border-red-800',
   },
   resolved: {
-    bg: 'bg-emerald-500',
-    darkBg: 'dark:bg-emerald-800',
-    text: 'text-white',
-    darkText: 'dark:text-white',
-    dot: '#FFFFFF',
-    border: 'border-emerald-400 dark:border-emerald-600',
+    bg: 'bg-emerald-100',
+    darkBg: 'dark:bg-emerald-900/40',
+    text: 'text-emerald-700',
+    darkText: 'dark:text-emerald-300',
+    dot: '#10B981',
+    border: 'border-emerald-200 dark:border-emerald-800',
   },
   closed: {
     bg: 'bg-slate-100',
     darkBg: 'dark:bg-slate-700/50',
     text: 'text-slate-600',
     darkText: 'dark:text-slate-400',
-    dot: '#94A3B8',
+    dot: '#64748B',
     border: 'border-slate-200 dark:border-slate-600',
   },
   rejected: {
     bg: 'bg-red-100',
     darkBg: 'dark:bg-red-900/40',
-    text: 'text-red-900',
+    text: 'text-red-700',
     darkText: 'dark:text-red-400',
-    dot: '#991B1B',
+    dot: '#EF4444',
     border: 'border-red-200 dark:border-red-800',
+  },
+  withdrawn: {
+    bg: 'bg-slate-100',
+    darkBg: 'dark:bg-slate-800/40',
+    text: 'text-slate-700',
+    darkText: 'dark:text-slate-300',
+    dot: '#64748B',
+    border: 'border-slate-200 dark:border-slate-800',
   },
 };
 
@@ -414,11 +435,108 @@ function formatSlaDeadline(slaDeadline?: string): string | null {
   return deadline.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
 }
 
-function IssueCard({ issue, onPress }: { issue: Issue; onPress: () => void }) {
+function IssueCard({ issue, onPress }: { issue: MappedIssue; onPress: () => void }) {
+  const [showOfficerModal, setShowOfficerModal] = useState(false);
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const sm = STATUS_META[issue?.status as StatusKey] ?? STATUS_META.pending;
   const pm = PRIORITY_META[issue?.priority as PriorityKey] ?? PRIORITY_META.low;
+
+  const getStatusStyle = (statusValue: string) => {
+    switch (statusValue) {
+      case 'pending':
+        return {
+          hex: '#F59E0B',
+          bg: isDark ? 'rgba(245, 158, 11, 0.12)' : '#FFFBEB',
+          border: isDark ? 'rgba(245, 158, 11, 0.4)' : 'rgba(245, 158, 11, 0.3)',
+          glow: 'rgba(245, 158, 11, 0.6)',
+        };
+      case 'verified':
+        return {
+          hex: '#06B6D4',
+          bg: isDark ? 'rgba(6, 182, 212, 0.12)' : '#ECFEFF',
+          border: isDark ? 'rgba(6, 182, 212, 0.4)' : 'rgba(6, 182, 212, 0.3)',
+          glow: 'rgba(6, 182, 212, 0.6)',
+        };
+      case 'assigned':
+        return {
+          hex: '#6366F1',
+          bg: isDark ? 'rgba(99, 102, 241, 0.12)' : '#EEF2FF',
+          border: isDark ? 'rgba(99, 102, 241, 0.4)' : 'rgba(99, 102, 241, 0.3)',
+          glow: 'rgba(99, 102, 241, 0.6)',
+        };
+      case 'in_progress':
+        return {
+          hex: '#8B5CF6', // Violet
+          bg: isDark ? 'rgba(139, 92, 246, 0.12)' : '#F5F3FF',
+          border: isDark ? 'rgba(139, 92, 246, 0.4)' : 'rgba(139, 92, 246, 0.3)',
+          glow: 'rgba(139, 92, 246, 0.6)',
+        };
+      case 'pending_uo_verification':
+        return {
+          hex: '#F97316',
+          bg: isDark ? 'rgba(249, 115, 22, 0.15)' : '#FFF7ED',
+          border: isDark ? 'rgba(249, 115, 22, 0.5)' : 'rgba(249, 115, 22, 0.4)',
+          glow: 'rgba(249, 115, 22, 0.7)',
+        };
+      case 'rework_required':
+        return {
+          hex: '#EC4899',
+          bg: isDark ? 'rgba(236, 72, 153, 0.12)' : '#FDF2F8',
+          border: isDark ? 'rgba(236, 72, 153, 0.4)' : 'rgba(236, 72, 153, 0.3)',
+          glow: 'rgba(236, 72, 153, 0.6)',
+        };
+      case 'reopened':
+        return {
+          hex: '#F97316',
+          bg: isDark ? 'rgba(249, 115, 22, 0.15)' : '#FFF7ED',
+          border: isDark ? 'rgba(249, 115, 22, 0.5)' : 'rgba(249, 115, 22, 0.4)',
+          glow: 'rgba(249, 115, 22, 0.7)',
+        };
+      case 'escalated':
+        return {
+          hex: '#EF4444',
+          bg: isDark ? 'rgba(239, 68, 68, 0.15)' : '#FEF2F2',
+          border: isDark ? 'rgba(239, 68, 68, 0.5)' : 'rgba(239, 68, 68, 0.4)',
+          glow: 'rgba(239, 68, 68, 0.7)',
+        };
+      case 'resolved':
+        return {
+          hex: '#10B981',
+          bg: isDark ? 'rgba(16, 185, 129, 0.15)' : '#F0FDF4',
+          border: isDark ? 'rgba(16, 185, 129, 0.5)' : 'rgba(16, 185, 129, 0.4)',
+          glow: 'rgba(16, 185, 129, 0.7)',
+        };
+      case 'rejected':
+        return {
+          hex: '#EF4444',
+          bg: isDark ? 'rgba(239, 68, 68, 0.12)' : '#FEF2F2',
+          border: isDark ? 'rgba(239, 68, 68, 0.4)' : 'rgba(239, 68, 68, 0.3)',
+          glow: 'rgba(239, 68, 68, 0.6)',
+        };
+      case 'withdrawn':
+        return {
+          hex: '#64748B',
+          bg: isDark ? 'rgba(100, 116, 139, 0.12)' : '#F8FAFC',
+          border: isDark ? 'rgba(100, 116, 139, 0.4)' : 'rgba(100, 116, 139, 0.3)',
+          glow: 'rgba(100, 116, 139, 0.6)',
+        };
+      case 'closed':
+        return {
+          hex: '#64748B',
+          bg: isDark ? 'rgba(100, 116, 139, 0.08)' : '#F8FAFC',
+          border: isDark ? 'rgba(100, 116, 139, 0.3)' : 'rgba(100, 116, 139, 0.2)',
+          glow: 'rgba(100, 116, 139, 0.4)',
+        };
+      default:
+        return {
+          hex: '#3B82F6',
+          bg: isDark ? 'rgba(59, 130, 246, 0.12)' : '#EFF6FF',
+          border: isDark ? 'rgba(59, 130, 246, 0.4)' : 'rgba(59, 130, 246, 0.3)',
+          glow: 'rgba(59, 130, 246, 0.6)',
+        };
+    }
+  };
 
   const getCategoryStyle = (categoryValue: string) => {
     switch (categoryValue) {
@@ -428,6 +546,8 @@ function IssueCard({ issue, onPress }: { issue: Issue; onPress: () => void }) {
           textClass: 'text-blue-600 dark:text-blue-400',
           border: 'border-blue-200/50 dark:border-blue-500/30',
           hex: isDark ? '#60A5FA' : '#2563EB',
+          bg: isDark ? 'rgba(37, 99, 235, 0.05)' : '#EFF6FF',
+          iconBg: isDark ? 'rgba(37, 99, 235, 0.15)' : '#DBEAFE',
         };
       case 'electricity':
         return {
@@ -435,6 +555,8 @@ function IssueCard({ issue, onPress }: { issue: Issue; onPress: () => void }) {
           textClass: 'text-yellow-600 dark:text-yellow-400',
           border: 'border-yellow-200/50 dark:border-yellow-500/30',
           hex: isDark ? '#FACC15' : '#CA8A04',
+          bg: isDark ? 'rgba(202, 138, 4, 0.05)' : '#FEFCE8',
+          iconBg: isDark ? 'rgba(202, 138, 4, 0.15)' : '#FEF9C3',
         };
       case 'water':
         return {
@@ -442,6 +564,8 @@ function IssueCard({ issue, onPress }: { issue: Issue; onPress: () => void }) {
           textClass: 'text-cyan-600 dark:text-cyan-400',
           border: 'border-cyan-200/50 dark:border-cyan-500/30',
           hex: isDark ? '#22D3EE' : '#0891B2',
+          bg: isDark ? 'rgba(8, 145, 178, 0.05)' : '#ECFEFF',
+          iconBg: isDark ? 'rgba(8, 145, 178, 0.15)' : '#CFFAFE',
         };
       case 'sanitation':
         return {
@@ -449,6 +573,8 @@ function IssueCard({ issue, onPress }: { issue: Issue; onPress: () => void }) {
           textClass: 'text-green-600 dark:text-green-400',
           border: 'border-green-200/50 dark:border-green-500/30',
           hex: isDark ? '#4ADE80' : '#16A34A',
+          bg: isDark ? 'rgba(22, 163, 74, 0.05)' : '#F0FDF4',
+          iconBg: isDark ? 'rgba(22, 163, 74, 0.15)' : '#DCFCE7',
         };
       case 'drainage':
         return {
@@ -456,6 +582,8 @@ function IssueCard({ issue, onPress }: { issue: Issue; onPress: () => void }) {
           textClass: 'text-purple-600 dark:text-purple-400',
           border: 'border-purple-200/50 dark:border-purple-500/30',
           hex: isDark ? '#C084FC' : '#9333EA',
+          bg: isDark ? 'rgba(147, 51, 234, 0.05)' : '#FAF5FF',
+          iconBg: isDark ? 'rgba(147, 51, 234, 0.15)' : '#F3E8FF',
         };
       case 'solid_waste':
         return {
@@ -463,6 +591,8 @@ function IssueCard({ issue, onPress }: { issue: Issue; onPress: () => void }) {
           textClass: 'text-orange-600 dark:text-orange-400',
           border: 'border-orange-200/50 dark:border-orange-500/30',
           hex: isDark ? '#FB923C' : '#EA580C',
+          bg: isDark ? 'rgba(234, 88, 12, 0.05)' : '#FFF7ED',
+          iconBg: isDark ? 'rgba(234, 88, 12, 0.15)' : '#FFEDD5',
         };
       case 'public_health':
         return {
@@ -470,6 +600,8 @@ function IssueCard({ issue, onPress }: { issue: Issue; onPress: () => void }) {
           textClass: 'text-red-600 dark:text-red-400',
           border: 'border-red-200/50 dark:border-red-500/30',
           hex: isDark ? '#F87171' : '#DC2626',
+          bg: isDark ? 'rgba(220, 38, 38, 0.05)' : '#FEF2F2',
+          iconBg: isDark ? 'rgba(220, 38, 38, 0.15)' : '#FEE2E2',
         };
       default:
         return {
@@ -477,9 +609,13 @@ function IssueCard({ issue, onPress }: { issue: Issue; onPress: () => void }) {
           textClass: 'text-gray-600 dark:text-gray-400',
           border: 'border-gray-200/50 dark:border-gray-500/30',
           hex: isDark ? '#9CA3AF' : '#4B5563',
+          bg: isDark ? 'rgba(75, 85, 99, 0.05)' : '#F8FAFC',
+          iconBg: isDark ? (isDark ? 'rgba(75, 85, 99, 0.15)' : '#F1F5F9') : '#F1F5F9',
         };
     }
   };
+
+  const statusStyle = getStatusStyle(issue?.status);
   const catStyle = getCategoryStyle(issue?.category);
   const CategoryIcon = catStyle.icon;
 
@@ -496,9 +632,16 @@ function IssueCard({ issue, onPress }: { issue: Issue; onPress: () => void }) {
         return TrendingUp;
       case 'rework_required':
         return AlertTriangle;
+      case 'reopened':
+        return RefreshCw;
+      case 'escalated':
+        return TrendingUp;
       case 'resolved':
       case 'closed':
         return CheckCircle;
+      case 'withdrawn':
+      case 'rejected':
+        return XCircle;
       default:
         return AlertCircle;
     }
@@ -512,229 +655,517 @@ function IssueCard({ issue, onPress }: { issue: Issue; onPress: () => void }) {
   const isDueSoon = slaStatus === 'due_soon';
 
   return (
-    <TouchableOpacity
-      onPress={onPress}
-      activeOpacity={0.8}
+    <View
       style={{
-        shadowColor: isDark ? '#000000' : '#475569',
-        shadowOffset: { width: 0, height: 12 },
-        shadowOpacity: isDark ? 0.7 : 0.1,
-        shadowRadius: 24,
-        elevation: 8,
-      }}
-      className="mb-6 rounded-[30px] border border-white/80 bg-white/95 dark:border-slate-700/80 dark:bg-[#0F172A]">
-      <View className="overflow-hidden rounded-[28px]">
-        {/* EXTREME GLOWING PRIORITY STRIP ON THE LEFT */}
+        shadowColor: statusStyle.hex,
+        shadowOffset: { width: 0, height: 25 },
+        shadowOpacity: isDark ? 0.5 : 0.2,
+        shadowRadius: 40,
+        elevation: 20,
+        marginBottom: 32,
+      }}>
+      <TouchableOpacity
+        onPress={onPress}
+        activeOpacity={0.9}
+        style={{
+          backgroundColor: isDark ? '#020617' : '#FFFFFF',
+          borderColor: statusStyle.border,
+          borderWidth: 2.5,
+          borderRadius: 40,
+          overflow: 'hidden',
+        }}>
+        {/* Status Ambient Tint Layer */}
         <View
-          className="absolute bottom-0 left-0 top-0 z-10 w-[5px]"
-          style={{ backgroundColor: pm.dot, opacity: isDark ? 1 : 1 }}
+          style={{
+            backgroundColor: statusStyle.bg,
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+          }}
         />
 
-        {/* BODY CONTENT */}
-        <View className="px-5 py-5 pl-7">
-          {/* PREMIUM TAG HEADERS */}
-          <View className="mb-4 flex-row items-center justify-between gap-2">
-            <View
-              className={`flex-1 flex-row items-center gap-1.5 rounded-[14px] border px-2.5 py-1.5 shadow-sm ${cm.bg} ${cm.darkBg} ${catStyle.border}`}>
-              <View className="rounded-full bg-white p-1 shadow-sm dark:bg-black/40">
-                <CategoryIcon size={10} strokeWidth={2.5} color={catStyle.hex} />
+        {/* Dynamic Glow Aura (Status Based) */}
+        <View
+          style={{
+            position: 'absolute',
+            top: -120,
+            right: -120,
+            width: 320,
+            height: 320,
+            borderRadius: 160,
+            backgroundColor: statusStyle.hex,
+            opacity: isDark ? 0.15 : 0.08,
+          }}
+        />
+
+        {/* High-Fidelity SLA Banner */}
+        {isOverdue && (
+          <LinearGradient
+            colors={['#EF4444', '#7F1D1D']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0.5 }}
+            className="flex-row items-center gap-3 px-8 py-4">
+            <View className="rounded-full bg-white/25 p-1.5">
+              <AlertCircle color="#FFFFFF" size={14} strokeWidth={3} />
+            </View>
+            <Text className="text-[11px] font-black tracking-[0.2em] text-white">
+              SLA BREACHED — IMMEDIATE ACTION
+            </Text>
+          </LinearGradient>
+        )}
+        {isDueSoon && !isOverdue && (
+          <LinearGradient
+            colors={['#F59E0B', '#92400E']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0.5 }}
+            className="flex-row items-center gap-3 px-8 py-4">
+            <View className="rounded-full bg-white/25 p-1.5">
+              <Clock color="#FFFFFF" size={14} strokeWidth={3} />
+            </View>
+            <Text className="text-[11px] font-black tracking-[0.2em] text-white">
+              SLA DUE SOON — PRIORITY TASK
+            </Text>
+          </LinearGradient>
+        )}
+
+        {/* Priority Level Indicator Strip (Side) */}
+        <View
+          className="absolute bottom-0 left-0 top-0 z-20 w-[10px]"
+          style={{
+            backgroundColor: pm.dot,
+            shadowColor: pm.dot,
+            shadowOpacity: 1,
+            shadowRadius: 15,
+            shadowOffset: { width: 4, height: 0 },
+          }}
+        />
+
+        {/* Card Content */}
+        <View className="py-8 pl-10 pr-6">
+          {/* Header Row */}
+          <View className="mb-7 flex-row items-center justify-between gap-2">
+            <View className="flex-1 flex-row items-center gap-2">
+              <View
+                style={{
+                  backgroundColor: catStyle.iconBg,
+                  borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+                  borderWidth: 1,
+                  borderRadius: 20,
+                }}
+                className={`flex-row items-center gap-2.5 px-3.5 py-2.5 shadow-sm`}>
+                <View className="rounded-full bg-white p-1.5 shadow-sm dark:bg-slate-900">
+                  <CategoryIcon size={12} strokeWidth={3} color={catStyle.hex} />
+                </View>
+                <Text
+                  className={`${Platform.OS === 'ios' ? 'text-[9px]' : 'text-[10px]'} font-black tracking-[0.08em] ${catStyle.textClass}`}
+                  numberOfLines={1}>
+                  {CATEGORY_LABEL_MAP[issue?.category]?.toUpperCase() ??
+                    issue?.category.toUpperCase()}
+                </Text>
               </View>
-              <Text
-                className={`flex-1 text-[10px] font-black tracking-widest ${catStyle.textClass}`}
-                numberOfLines={1}>
-                {CATEGORY_LABEL_MAP[issue?.category]?.toUpperCase() ??
-                  issue?.category.toUpperCase()}
-              </Text>
             </View>
 
             <View
-              className={`flex-row items-center gap-1.5 rounded-[14px] border px-2.5 py-1.5 shadow-sm ${pm.bg} ${pm.darkBg} border-slate-200/50 dark:border-white/10 dark:bg-slate-800`}>
+              style={{ borderRadius: 100 }}
+              className="flex-row items-center gap-2.5 border border-slate-200/50 bg-white/90 px-3.5 py-2.5 shadow-sm dark:border-slate-800/50 dark:bg-slate-900/90">
               <View
-                className="h-2 w-2 rounded-full border border-white/50"
+                className="h-2 w-2 rounded-full"
                 style={{
                   backgroundColor: pm.dot,
                   shadowColor: pm.dot,
-                  shadowOffset: { width: 0, height: 1 },
-                  shadowOpacity: 1,
-                  shadowRadius: 3,
+                  shadowOpacity: 0.9,
+                  shadowRadius: 6,
                 }}
               />
-              <Text className={`text-[10px] font-black tracking-widest ${pm.text} ${pm.darkText}`}>
+              <Text
+                className={`${Platform.OS === 'ios' ? 'text-[9px]' : 'text-[10px]'} font-black tracking-widest ${pm.text} ${pm.darkText}`}>
                 {issue?.priority.toUpperCase()}
               </Text>
             </View>
           </View>
 
-          {/* HERO TITLE */}
-          <Text
-            className={`${isOverdue || isDueSoon ? 'mb-3' : 'mb-4'} text-[17px] font-black leading-[24px] tracking-tight text-slate-900 dark:text-white`}
-            numberOfLines={2}>
-            {issue?.title}
-          </Text>
-
-          {/* IN-BODY SLA ALERTS */}
-          {isOverdue && (
-            <View className="mb-4 overflow-hidden rounded-full border border-red-200 shadow-sm dark:border-red-900/50">
-              <LinearGradient
-                colors={isDark ? ['#B91C1C', '#7F1D1D'] : ['#FEF2F2', '#FEE2E2']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                className="flex-row items-center justify-between px-4 py-2">
-                <View className="flex-row items-center gap-2.5">
-                  <View className="rounded-full bg-red-100 p-2 shadow-sm dark:bg-red-900/50">
-                    <AlertTriangle color="#DC2626" size={13} strokeWidth={3} />
-                  </View>
-                  <View className="flex-row items-center gap-1.5">
-                    <Text className="text-[11px] font-black uppercase tracking-widest text-red-700 dark:text-red-300">
-                      SLA OVERDUE
-                    </Text>
-                    <View className="h-[4px] w-[4px] rounded-full bg-red-700/30 dark:bg-red-300/30" />
-                    <Text className="text-[10px] font-bold text-red-600/80 dark:text-red-400">
-                      Immediate Action
-                    </Text>
-                  </View>
-                </View>
-              </LinearGradient>
+          {/* Title and Tech Tag Row */}
+          <View className="mb-7">
+            <View className="mb-3 flex-row items-center gap-2">
+              <View
+                style={{ borderColor: statusStyle.border, borderWidth: 1, borderRadius: 8 }}
+                className="flex-row items-center gap-2 bg-white/40 px-2.5 py-1 dark:bg-slate-900/40">
+                <Hash size={10} color={statusStyle.hex} strokeWidth={3} />
+                <Text
+                  style={{ color: statusStyle.hex }}
+                  className="text-[9px] font-black tracking-[0.2em]">
+                  {issue?.issueCode || issue?.id?.slice(0, 8).toUpperCase()}
+                </Text>
+              </View>
             </View>
-          )}
-          {isDueSoon && !isOverdue && (
-            <View className="mb-4 overflow-hidden rounded-full border border-amber-200 shadow-sm dark:border-amber-900/50">
-              <LinearGradient
-                colors={isDark ? ['#92400E', '#78350F'] : ['#FFFBEB', '#FEF3C7']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                className="flex-row items-center justify-between px-4 py-2">
-                <View className="flex-row items-center gap-2.5">
-                  <View className="rounded-full bg-amber-100 p-1.5 shadow-sm dark:bg-amber-900/50">
-                    <Clock color="#D97706" size={13} strokeWidth={3} />
-                  </View>
-                  <View className="flex-row items-center gap-1.5">
-                    <Text className="text-[11px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-300">
-                      SLA DUE SOON
-                    </Text>
-                    <View className="h-[4px] w-[4px] rounded-full bg-amber-700/30 dark:bg-amber-300/30" />
-                    <Text className="text-[10px] font-bold text-amber-600/80 dark:text-amber-400">
-                      Priority
-                    </Text>
-                  </View>
-                </View>
-              </LinearGradient>
-            </View>
-          )}
+            <Text
+              className="text-[24px] font-black leading-[34px] tracking-tight text-slate-900 dark:text-white"
+              numberOfLines={2}>
+              {issue?.title}
+            </Text>
+          </View>
 
-          {/* DATES MOVED TO TOP */}
-          <View className="mb-5 flex-row flex-wrap items-center gap-2">
-            <View className="flex-row items-center gap-1.5 rounded-[10px] border border-slate-200/60 bg-slate-50/80 px-2.5 py-1 shadow-sm dark:border-slate-700/60 dark:bg-slate-800/60">
-              <Calendar color={isDark ? '#9CA3AF' : '#64748B'} size={11} strokeWidth={2.5} />
-              <Text className="text-[10px] font-black tracking-widest text-slate-500 dark:text-slate-400">
-                {formatRelativeDate(issue?.dateReported)}
+          {/* Metadata Grid */}
+          <View className="mb-8 flex-row flex-wrap gap-3.5">
+            <View
+              style={{ borderRadius: 16 }}
+              className="flex-row items-center gap-2.5 border border-slate-200/60 bg-white/60 px-4 py-2.5 dark:border-slate-800/60 dark:bg-slate-950/60">
+              <Calendar color={isDark ? '#94A3B8' : '#64748B'} size={14} strokeWidth={2.5} />
+              <Text className="text-[11px] font-black tracking-widest text-slate-500 dark:text-slate-400">
+                {formatRelativeDate(issue?.dateReported).toUpperCase()}
               </Text>
             </View>
             {slaLabel && !isOverdue && !isDueSoon && (
-              <View className="flex-row items-center gap-1.5 rounded-[10px] border border-slate-200/60 bg-slate-50/80 px-2.5 py-1 shadow-sm dark:border-slate-700/60 dark:bg-slate-800/60">
-                <Clock color={isDark ? '#9CA3AF' : '#64748B'} size={11} strokeWidth={2.5} />
-                <Text className="text-[10px] font-black tracking-widest text-slate-500 dark:text-slate-400">
-                  {slaLabel}
+              <View
+                style={{ borderRadius: 16 }}
+                className="flex-row items-center gap-2.5 border border-slate-200/60 bg-white/60 px-4 py-2.5 dark:border-slate-800/60 dark:bg-slate-950/60">
+                <Clock color={isDark ? '#94A3B8' : '#64748B'} size={14} strokeWidth={2.5} />
+                <Text className="text-[11px] font-black tracking-widest text-slate-500 dark:text-slate-400">
+                  DUE: {slaLabel.toUpperCase()}
                 </Text>
               </View>
             )}
           </View>
 
-          {/* ENHANCED METADATA BOX DEFINITE CONTRAST */}
-          <View className="mb-5 overflow-hidden rounded-[18px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900/60">
+          {/* Intelligence Pod (Ultra-Rounded Glass) */}
+          <View
+            style={{
+              borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)',
+              borderWidth: 1.5,
+              borderRadius: 40,
+              overflow: 'hidden',
+            }}
+            className="mb-8 bg-white/95 shadow-sm dark:bg-slate-950/90">
             <View
-              className="absolute bottom-0 left-0 top-0 w-1"
-              style={{ backgroundColor: catStyle.hex }}
+              className="absolute bottom-0 left-0 top-0 w-1.5"
+              style={{ backgroundColor: statusStyle.hex, opacity: 0.7 }}
             />
-            <View className="flex-row items-start gap-3 border-b border-slate-100 p-3 pl-4 dark:border-slate-800">
-              <View className="mt-0.5 rounded-[10px] bg-slate-50 p-1.5 shadow-sm dark:bg-slate-800">
-                <MapPin color={isDark ? '#94A3B8' : '#475569'} size={14} strokeWidth={2.5} />
+            <View className="flex-row items-center gap-6 border-b border-slate-100/50 p-6 pl-7 dark:border-slate-900/50">
+              <View
+                style={{
+                  backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : statusStyle.bg,
+                  borderRadius: 24,
+                }}
+                className="h-12 w-12 items-center justify-center shadow-sm">
+                <MapPin color={statusStyle.hex} size={22} strokeWidth={2.5} />
               </View>
-              <View className="flex-1 justify-center pt-0.5">
+              <View className="flex-1">
+                <Text className="mb-1 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
+                  Location Profile
+                </Text>
                 <Text
-                  className="text-[13px] font-black leading-[18px] text-slate-800 dark:text-slate-100"
+                  className="text-[16px] font-black leading-[24px] text-slate-800 dark:text-slate-100"
                   numberOfLines={2}>
-                  {[issue?.city, issue?.state, issue?.postal].filter(Boolean).join(', ') ||
+                  {[issue?.city, issue?.state].filter(Boolean).join(', ') ||
                     issue?.location ||
-                    issue?.address ||
                     'Location Unspecified'}
                 </Text>
               </View>
             </View>
-            <View className="flex-row items-center gap-3 p-3 pl-4">
-              <View className="rounded-[10px] bg-slate-50 p-1.5 shadow-sm dark:bg-slate-800">
-                <UserIcon color={isDark ? '#94A3B8' : '#475569'} size={14} strokeWidth={2.5} />
+            <View className="flex-row items-center gap-6 p-6 pl-7">
+              <View
+                style={{
+                  backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#F8FAFC',
+                  borderRadius: 24,
+                }}
+                className="h-12 w-12 items-center justify-center shadow-sm">
+                <UserIcon color={statusStyle.hex} size={22} strokeWidth={2.5} />
               </View>
-              <Text className="flex-1 text-[13px] font-black text-slate-800 dark:text-slate-100">
-                {issue?.citizenName}
-              </Text>
+              <View className="flex-1">
+                <Text className="mb-1 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
+                  Reporting Citizen
+                </Text>
+                <Text
+                  className="text-[15px] font-black text-slate-800 dark:text-slate-100"
+                  numberOfLines={1}>
+                  {issue?.citizenName}
+                </Text>
+              </View>
             </View>
           </View>
 
-          {/* DYNAMIC SUBCATEGORIES HIGH CONTRAST */}
-          {issue?.subCategories && issue?.subCategories.length > 0 && (
-            <View className="mb-5 flex-row flex-wrap gap-2">
-              {issue?.subCategories.slice(0, 3).map((sc) => (
-                <View
-                  key={sc}
-                  className="rounded-full border border-slate-200/80 bg-slate-50/80 px-3 py-1.5 dark:border-slate-700/80 dark:bg-slate-800/80">
-                  <Text className="text-[9px] font-black tracking-wider text-slate-600 dark:text-slate-300">
-                    {sc.toUpperCase()}
-                  </Text>
-                </View>
-              ))}
+          {/* Assigned Officer Pod */}
+          {issue?.assignedOfficer && (
+            <View
+              style={{
+                shadowColor: statusStyle.hex,
+                shadowOffset: { width: 0, height: 15 },
+                shadowOpacity: 0.35,
+                shadowRadius: 30,
+                elevation: 12,
+                marginBottom: 32,
+              }}>
+              <TouchableOpacity
+                onPress={() => setShowOfficerModal(true)}
+                activeOpacity={0.95}
+                style={{
+                  borderRadius: 40,
+                  overflow: 'hidden',
+                  borderWidth: 1.5,
+                  borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+                }}>
+                <LinearGradient
+                  colors={
+                    isDark
+                      ? ['rgba(30, 27, 75, 0.7)', 'rgba(15, 23, 42, 0.7)']
+                      : [statusStyle.bg, '#FFFFFF']
+                  }
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}>
+                  <View style={{ paddingVertical: 20, paddingHorizontal: 24 }}>
+                    {/* Status Accent Strip */}
+                    <View
+                      style={{ backgroundColor: statusStyle.hex, opacity: 0.9 }}
+                      className="absolute bottom-0 left-0 top-0 w-1.5"
+                    />
+
+                    <View className="flex-row items-center justify-between pl-2">
+                      <View className="flex-1 flex-row items-center gap-3.5">
+                        <View
+                          style={{
+                            backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#FFFFFF',
+                            borderColor: statusStyle.border,
+                            borderWidth: 1.5,
+                            borderRadius: 18,
+                          }}
+                          className="h-12 w-12 items-center justify-center shadow-sm">
+                          <UserCheck color={statusStyle.hex} size={24} strokeWidth={2.5} />
+                        </View>
+
+                        <View className="flex-1">
+                          <Text
+                            style={{ color: statusStyle.hex }}
+                            className="text-[9px] font-black uppercase tracking-[0.2em]">
+                            Assigned Field Officer
+                          </Text>
+                          <Text
+                            className="mt-0.5 text-[18px] font-black text-slate-950 dark:text-white"
+                            numberOfLines={1}>
+                            {issue?.assignedOfficer?.fullName}
+                          </Text>
+
+                          {/* Intelligence Tags */}
+                          <View className="mt-3 flex-row items-center gap-2">
+                            <View
+                              style={{ borderRadius: 8 }}
+                              className="flex-row items-center gap-1.5 bg-amber-50 px-2 py-1 shadow-sm dark:bg-amber-900/20">
+                              <Star color="#F59E0B" size={10} fill="#F59E0B" />
+                              <Text className="text-[9px] font-black text-amber-700 dark:text-amber-400">
+                                {issue?.assignedOfficer?.rating.toFixed(1)}
+                              </Text>
+                            </View>
+                            <View
+                              style={{ borderRadius: 8 }}
+                              className="flex-row items-center gap-1.5 bg-blue-50 px-2 py-1 shadow-sm dark:bg-blue-900/20">
+                              <Activity color="#3B82F6" size={10} strokeWidth={3} />
+                              <Text className="text-[9px] font-black text-blue-700 dark:text-blue-400">
+                                {issue?.assignedOfficer?.workloadPercentage.toFixed(0)}% LOAD
+                              </Text>
+                            </View>
+                          </View>
+                        </View>
+                      </View>
+
+                      <View
+                        style={{
+                          backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : '#F1F5F9',
+                          borderRadius: 100,
+                        }}
+                        className="ml-4 h-9 w-9 items-center justify-center shadow-sm">
+                        <ChevronRight color={statusStyle.hex} size={20} strokeWidth={4} />
+                      </View>
+                    </View>
+                  </View>
+                </LinearGradient>
+              </TouchableOpacity>
             </View>
           )}
 
-          {/* PREMIUM ASSIGNED OFFICER POD */}
-          {issue?.assignedOfficer && (
-            <LinearGradient
-              colors={isDark ? ['#1E3A8A', '#312E81'] : ['#DBEAFE', '#EFF6FF']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              className="mb-5 flex-row items-center justify-between rounded-[22px] border border-blue-200 p-3.5 shadow-sm dark:border-blue-500/30">
-              <View className="flex-row items-center gap-3.5">
-                <View className="h-[42px] w-[42px] items-center justify-center rounded-2xl bg-white shadow-sm dark:border dark:border-blue-500/40 dark:bg-[#0F172A]">
-                  <UserCheck color={isDark ? '#60A5FA' : '#2563EB'} size={18} strokeWidth={2.5} />
-                </View>
-                <View>
-                  <Text className="text-[9px] font-black uppercase tracking-[0.2em] text-blue-700 dark:text-blue-300">
-                    Assigned Officer
-                  </Text>
-                  <Text
-                    className="mt-0.5 text-[14px] font-black text-blue-950 dark:text-white"
-                    numberOfLines={1}>
-                    {issue?.assignedOfficer}
-                  </Text>
-                </View>
-              </View>
-            </LinearGradient>
-          )}
-
-          {/* ELEGANT DIVIDER */}
-          <View className="mb-4 h-[1px] w-full bg-slate-100 dark:bg-slate-800" />
-
-          {/* BALANCED FOOTER */}
-          <View className="flex-row items-center justify-between">
-            <Text className="text-[10px] font-black tracking-widest text-slate-400 dark:text-slate-500">
-              ID: #{issue?.id ? issue?.id.slice(0, 6).toUpperCase() : 'ISSUE'}
-            </Text>
+          {/* Enhanced Action Footer */}
+          <View className="flex-row items-center justify-end border-t border-slate-100/50 pt-7 dark:border-slate-900/50">
             <View
-              className={`shrink-0 flex-row items-center gap-1.5 rounded-xl border px-3 py-1.5 shadow-sm ${sm.bg} ${sm.darkBg} ${sm.border}`}>
+              style={{
+                shadowColor: statusStyle.hex,
+                shadowOffset: { width: 0, height: 8 },
+                shadowOpacity: 0.5,
+                shadowRadius: 15,
+                elevation: 10,
+              }}
+              className={`flex-row items-center gap-2.5 rounded-2xl border px-6 py-3 ${sm.bg} ${sm.darkBg} ${sm.border}`}>
               <StatusIcon
-                size={12}
+                size={14}
                 strokeWidth={3}
                 color={sm.text === 'text-white' || sm.bg.includes('500') ? '#FFFFFF' : sm.dot}
               />
-              <Text className={`text-[10px] font-black tracking-widest ${sm.text} ${sm.darkText}`}>
+              <Text
+                className={`text-[12px] font-black tracking-[0.06em] ${sm.text} ${sm.darkText}`}>
                 {STATUS_LABEL_MAP[issue?.status as StatusKey]?.toUpperCase() ??
                   issue?.status.toUpperCase()}
               </Text>
             </View>
           </View>
         </View>
+      </TouchableOpacity>
+
+      {issue?.assignedOfficer && (
+        <OfficerDetailModal
+          visible={showOfficerModal}
+          onClose={() => setShowOfficerModal(false)}
+          officer={issue.assignedOfficer}
+          statusColor={statusStyle.hex}
+        />
+      )}
+    </View>
+  );
+}
+
+function OfficerDetailModal({
+  visible,
+  onClose,
+  officer,
+  statusColor,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  officer: any; // Using any for now to match MappedIssue.assignedOfficer
+  statusColor: string;
+}) {
+  const isDark = useColorScheme() === 'dark';
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      statusBarTranslucent
+      onRequestClose={onClose}>
+      <View className="flex-1 items-center justify-center bg-slate-950/60 p-6">
+        <TouchableOpacity
+          activeOpacity={1}
+          style={StyleSheet.absoluteFill}
+          onPress={onClose}
+        />
+        
+        <View 
+          style={{
+            borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+            borderWidth: 1.5,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 20 },
+            shadowOpacity: 0.3,
+            shadowRadius: 40,
+            elevation: 25,
+            width: '100%',
+            maxWidth: 400,
+            borderRadius: 48,
+            overflow: 'hidden',
+            backgroundColor: isDark ? '#0f172a' : '#FFFFFF',
+          }}>
+          
+          <LinearGradient
+            colors={isDark ? ['#1e293b', '#0f172a'] : ['#F8FAFC', '#FFFFFF']}
+            style={{ padding: 32 }}>
+            
+            {/* Modal Header */}
+            <View className="flex-row items-center justify-between mb-8">
+              <View 
+                style={{ backgroundColor: statusColor + '20', borderRadius: 16, paddingHorizontal: 16, paddingVertical: 8 }}
+                className="flex-row items-center gap-2">
+                <ShieldCheck color={statusColor} size={14} strokeWidth={3} />
+                <Text style={{ color: statusColor }} className="text-[10px] font-black tracking-widest uppercase">
+                  Verified Field Agent
+                </Text>
+              </View>
+              <TouchableOpacity 
+                onPress={onClose}
+                className="h-10 w-10 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800">
+                <X color={isDark ? '#94A3B8' : '#64748B'} size={20} strokeWidth={3} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Profile Section */}
+            <View className="items-center mb-10">
+              <View 
+                style={{ borderColor: statusColor, borderWidth: 3, borderRadius: 32 }}
+                className="h-24 w-24 items-center justify-center bg-white shadow-xl dark:bg-slate-800">
+                <UserCheck color={statusColor} size={48} strokeWidth={2.5} />
+              </View>
+              <Text className="mt-5 text-[28px] font-black text-slate-900 dark:text-white text-center">
+                {officer.fullName}
+              </Text>
+              <Text className="text-[12px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.3em] mt-1">
+                Mission Intelligence Profile
+              </Text>
+            </View>
+
+            {/* Stats Grid */}
+            <View className="flex-row gap-4 mb-10">
+              <View className="flex-1 items-center p-4 rounded-3xl bg-amber-50 dark:bg-amber-900/20 border border-amber-100/50 dark:border-amber-500/20">
+                <Star color="#F59E0B" fill="#F59E0B" size={18} />
+                <Text className="mt-2 text-[18px] font-black text-amber-700 dark:text-amber-400">
+                  {officer.rating.toFixed(1)}
+                </Text>
+                <Text className="text-[9px] font-black text-amber-600/60 uppercase tracking-widest mt-0.5">Rating</Text>
+              </View>
+              <View className="flex-1 items-center p-4 rounded-3xl bg-blue-50 dark:bg-blue-900/20 border border-blue-100/50 dark:border-blue-500/20">
+                <Award color="#3B82F6" size={18} strokeWidth={2.5} />
+                <Text className="mt-2 text-[18px] font-black text-blue-700 dark:text-blue-400">
+                  {officer.efficiencyScore}%
+                </Text>
+                <Text className="text-[9px] font-black text-blue-600/60 uppercase tracking-widest mt-0.5">Efficiency</Text>
+              </View>
+              <View className="flex-1 items-center p-4 rounded-3xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100/50 dark:border-emerald-500/20">
+                <PieChart color="#10B981" size={18} strokeWidth={2.5} />
+                <Text className="mt-2 text-[18px] font-black text-emerald-700 dark:text-emerald-400">
+                  {officer.workloadPercentage.toFixed(0)}%
+                </Text>
+                <Text className="text-[9px] font-black text-emerald-600/60 uppercase tracking-widest mt-0.5">Load</Text>
+              </View>
+            </View>
+
+            {/* Contact Intelligence */}
+            <View className="gap-3 mb-10">
+              <View className="flex-row items-center gap-5 p-5 rounded-3xl bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800">
+                <View className="h-10 w-10 items-center justify-center rounded-2xl bg-white dark:bg-slate-900 shadow-sm">
+                  <Mail color={statusColor} size={18} />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">Direct Channel</Text>
+                  <Text className="text-[14px] font-black text-slate-800 dark:text-slate-100">{officer.email}</Text>
+                </View>
+              </View>
+              <View className="flex-row items-center gap-5 p-5 rounded-3xl bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800">
+                <View className="h-10 w-10 items-center justify-center rounded-2xl bg-white dark:bg-slate-900 shadow-sm">
+                  <Phone color={statusColor} size={18} />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">Operational Line</Text>
+                  <Text className="text-[14px] font-black text-slate-800 dark:text-slate-100">{officer.phone}</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Specialisations */}
+            <View>
+              <Text className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-4 pl-1">Sector Specialisations</Text>
+              <View className="flex-row flex-wrap gap-2.5">
+                {officer.specialisations.map((spec: string, idx: number) => (
+                  <View 
+                    key={idx}
+                    style={{ borderColor: statusColor + '40', borderWidth: 1, borderRadius: 100 }}
+                    className="px-4 py-2 bg-white dark:bg-slate-900 shadow-sm">
+                    <Text className="text-[11px] font-black text-slate-700 dark:text-slate-300 capitalize">{spec}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+
+          </LinearGradient>
+        </View>
       </View>
-    </TouchableOpacity>
+    </Modal>
   );
 }
 
@@ -1162,7 +1593,7 @@ export default function UnitOfficerDashboard() {
   const issues = useMemo(() => {
     if (!rawIssues) return [];
 
-    return rawIssues.map((issue) => mapIssueToUI(issue, {}));
+    return rawIssues.map((issue) => mapIssueToUI(issue));
   }, [rawIssues]);
 
   // console.log('USER ID:', user?.id);
@@ -1468,6 +1899,7 @@ export default function UnitOfficerDashboard() {
         onClose={() => setFilterVisible(false)}
         filters={filters}
         onChange={setFilters}
+        // @ts-ignore
         department={unitOfficer?.department}
       />
 
@@ -1475,6 +1907,7 @@ export default function UnitOfficerDashboard() {
         <NotificationPanel
           visible={showNotifications}
           onClose={() => setShowNotifications(false)}
+          // @ts-ignore
           notification={notifications}
           handleMarkAllAsRead={handleMarkAllAsRead}
           role="UnitOfficer"

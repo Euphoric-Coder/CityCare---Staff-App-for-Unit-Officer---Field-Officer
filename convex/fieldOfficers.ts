@@ -230,3 +230,98 @@ export const startWork = mutation({
     return { success: true };
   },
 });
+
+export const submitFieldOfficerWork = mutation({
+  args: {
+    issueId: v.id('issues'),
+
+    beforePhotos: v.optional(v.array(v.id('_storage'))),
+    afterPhotos: v.optional(v.array(v.id('_storage'))),
+
+    beforeLocation: v.optional(
+      v.object({
+        latitude: v.number(),
+        longitude: v.number(),
+      })
+    ),
+
+    afterLocation: v.optional(
+      v.object({
+        latitude: v.number(),
+        longitude: v.number(),
+      })
+    ),
+
+    notes: v.string(),
+
+    fieldOfficerId: v.id('users'),
+  },
+
+  handler: async (ctx, args) => {
+    const issue = await ctx.db.get(args.issueId);
+    if (!issue) throw new Error('Issue not found');
+
+    const fieldOfficer = await ctx.db.get(args.fieldOfficerId);
+    if (!fieldOfficer) throw new Error('Field Officer not found');
+
+    const now = Date.now();
+
+    // Update Issue (FO submission)
+    await ctx.db.patch(args.issueId, {
+      beforePhotos: args.beforePhotos,
+      afterPhotos: args.afterPhotos,
+      beforeLocation: args.beforeLocation,
+      afterLocation: args.afterLocation,
+      notes: args.notes,
+      status: 'pending_uo_verification',
+    });
+
+    // Timeline entry (VERY important for CityCare tracking)
+    await ctx.db.insert('issueUpdates', {
+      issueId: args.issueId,
+      status: issue.status === 'rework_required' ? issue.status : 'pending_uo_verification',
+      updatedBy: args.fieldOfficerId,
+      comment: `Field Officer ${fieldOfficer.fullName} has ${issue.status === 'rework_required' ? 'reworked and resubmitted' : 'submitted'} the resolution for issue "${issue.title}" (${issue.issueCode}).`,
+      role: 'field_officer',
+      scope: 'officer_and_citizen',
+      attachments: [],
+      createdAt: now,
+    });
+
+    // Notify Unit Officer
+    if (issue.assignedUnitOfficer) {
+      await ctx.db.insert('notifications', {
+        userId: issue.assignedUnitOfficer,
+        type: 'submission_success',
+        title:
+          issue.status === 'rework_required'
+            ? `Resolution rework submitted successfully for issue "${issue.title}" (${issue.issueCode})`
+            : `Resolution submitted successfully for issue "${issue.title}" (${issue.issueCode})`,
+        message:
+          issue.status === 'rework_required'
+            ? `Resolution rework submitted successfully by Field Officer ${fieldOfficer.fullName} for issue "${issue.title}" (${issue.issueCode}).`
+            : `Resolution submitted successfully by Field Officer ${fieldOfficer.fullName} for issue "${issue.title}" (${issue.issueCode}).`,
+        read: false,
+        createdAt: now,
+      });
+    }
+
+    // Notify Field Officer (confirmation)
+    await ctx.db.insert('notifications', {
+      userId: args.fieldOfficerId,
+      type: 'submission_success',
+      title:
+        issue.status === 'rework_required'
+          ? `Resolution rework submitted successfully for issue "${issue.title}" (${issue.issueCode})`
+          : `Resolution submitted successfully for issue "${issue.title}" (${issue.issueCode})`,
+      message:
+        issue.status === 'rework_required'
+          ? `Resolution rework submitted successfully by you for issue "${issue.title}" (${issue.issueCode}).`
+          : `Resolution submitted successfully by you for issue "${issue.title}" (${issue.issueCode}).`,
+      read: false,
+      createdAt: now,
+    });
+
+    return { success: true };
+  },
+});

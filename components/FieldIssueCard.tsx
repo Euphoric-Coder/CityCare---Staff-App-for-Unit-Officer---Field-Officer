@@ -520,19 +520,21 @@ export default function FieldIssueCard({ issue, onPress }: FieldIssueCardProps) 
             </View>
 
             {/* Footer */}
-            <View className="flex-row items-center justify-between border-t border-slate-200/60 pt-5 dark:border-slate-700/60">
-              {/* Status Badge */}
-              <View
-                className={`flex-row items-center gap-2 rounded-xl px-4 py-2 ${sm.bg} ${sm.darkBg} border border-white/40 shadow-sm dark:border-white/5`}>
-                <View className="h-2 w-2 rounded-full" style={{ backgroundColor: sm.dot }} />
-                <Text
-                  className={`text-[12px] font-black uppercase tracking-widest ${sm.text} ${sm.darkText}`}>
-                  {issue.status.replace(/_/g, ' ')}
-                </Text>
+            <View className="border-t border-slate-200/60 pt-5 dark:border-slate-700/60">
+              {/* Top Row: Status Badge */}
+              <View className="mb-4 flex-row">
+                <View
+                  className={`flex-row items-center gap-2 rounded-xl px-4 py-2 ${sm.bg} ${sm.darkBg} border border-white/40 shadow-sm dark:border-white/5`}>
+                  <View className="h-2 w-2 rounded-full" style={{ backgroundColor: sm.dot }} />
+                  <Text
+                    className={`text-[12px] font-black uppercase tracking-widest ${sm.text} ${sm.darkText}`}>
+                    {issue.status.replace(/_/g, ' ')}
+                  </Text>
+                </View>
               </View>
 
-              {/* SLA Timer & Arrow */}
-              <View className="flex-row items-center gap-3.5">
+              {/* Bottom Row: SLA Timer & Arrow */}
+              <View className="flex-row items-center justify-between">
                 <View
                   className={`flex-row items-center gap-2 rounded-xl border px-4 py-2 shadow-sm ${
                     isOverdue
@@ -560,7 +562,6 @@ export default function FieldIssueCard({ issue, onPress }: FieldIssueCardProps) 
                   </Text>
                 </View>
 
-                {/* Glassmorphic Arrow Button */}
                 <View className="h-11 w-11 items-center justify-center rounded-full border border-white/50 bg-white/80 shadow-sm dark:border-slate-700/50 dark:bg-slate-800">
                   <ChevronRight color={isDark ? '#F8FAFC' : '#0F172A'} size={20} strokeWidth={3} />
                 </View>

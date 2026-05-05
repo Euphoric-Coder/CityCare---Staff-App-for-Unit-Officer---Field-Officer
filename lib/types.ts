@@ -8,6 +8,8 @@ export type IssueStatus =
   | 'reopened'
   | 'escalated'
   | 'closed'
+  | 'resolved'
+  | 'withdrawn'
   | 'rejected';
 
 export type IssuePriority = 'low' | 'medium' | 'high' | 'critical';
@@ -170,6 +172,7 @@ export type StatusKey =
   | 'escalated'
   | 'closed'
   | 'rejected'
+  | 'withdrawn'
   | 'resolved';
 
 export type PriorityKey = 'critical' | 'high' | 'medium' | 'low';
@@ -345,6 +348,83 @@ export interface Issue {
 
   // ---- Issue Updates ----
   issueUpdates?: IssueUpdate[];
+}
+
+export interface FieldOfficerDetails {
+  _id: string;
+  userId: string;
+  fullName: string;
+  email: string;
+  phone: string;
+
+  rating: number;
+  efficiencyScore: number;
+
+  currentActiveIssues: number;
+  maxIssueCapacity: number;
+  workloadPercentage: number;
+
+  specialisations: string[];
+}
+
+export interface Coordinates {
+  latitude: number;
+  longitude: number;
+}
+
+export interface CitizenDetails {
+  name: string;
+  email: string;
+  phone: string;
+}
+
+export interface MappedIssue {
+  id: string;
+  issueCode: string;
+
+  title: string;
+  description: string;
+
+  category: string;
+  subCategories: string[];
+  tags: string[];
+
+  status: string;
+  priority: string;
+
+  address: string;
+  city: string;
+  state: string;
+  postal: string;
+  location: string;
+
+  ward: string;
+
+  reportedBy: string;
+
+  citizenName: string;
+  citizenEmail: string;
+  citizenPhone: string;
+
+  dateReported: string;
+
+  coordinates: Coordinates;
+
+  beforePhotos: string[];
+  afterPhotos: string[];
+
+  videoEvidence: string[];
+
+  slaDeadline: number | null;
+
+  assignedOfficer: FieldOfficerDetails | null;
+
+  verificationChecklist: any | null; // refine later if structured
+  rejection: any | null;
+
+  images: string[] | string; // based on your mapper (photoUrl can be string or array)
+
+  createdAt: number;
 }
 
 export interface FieldOfficer {

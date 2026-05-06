@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,9 +8,25 @@ import {
   Modal,
   useColorScheme,
   TextInput,
+  Keyboard,
+  KeyboardAvoidingView,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
+import Animated, {
+  FadeInDown,
+  FadeInUp,
+  FadeIn,
+  ZoomIn,
+  ZoomInEasyDown,
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  Layout,
+  interpolateColor,
+} from 'react-native-reanimated';
 import {
   Calendar,
   CircleCheck as CheckCircle2,
@@ -24,6 +40,7 @@ import {
   TriangleAlert as AlertTriangle,
   XCircle,
   Notebook,
+  Sparkles,
 } from 'lucide-react-native';
 import { VerificationChecklist } from '../lib/types';
 
@@ -40,8 +57,8 @@ const CHECKLIST_ITEMS = [
     Icon: MapPin,
     colorLight: '#0EA5E9',
     colorDark: '#38BDF8',
-    bgLight: '#E0F2FE',
-    bgDark: '#0C4A6E',
+    gradLight: ['#E0F2FE', '#F0F9FF'] as const,
+    gradDark: ['rgba(12, 74, 110, 0.8)', 'rgba(8, 47, 73, 0.4)'] as const,
   },
   {
     key: 'hasSufficientEvidence' as keyof VerificationChecklist,
@@ -50,8 +67,8 @@ const CHECKLIST_ITEMS = [
     Icon: Camera,
     colorLight: '#6366F1',
     colorDark: '#818CF8',
-    bgLight: '#EEF2FF',
-    bgDark: '#1E1B4B',
+    gradLight: ['#EEF2FF', '#F5F3FF'] as const,
+    gradDark: ['rgba(30, 27, 75, 0.8)', 'rgba(17, 24, 39, 0.4)'] as const,
   },
   {
     key: 'notDuplicate' as keyof VerificationChecklist,
@@ -60,8 +77,8 @@ const CHECKLIST_ITEMS = [
     Icon: Copy,
     colorLight: '#F59E0B',
     colorDark: '#FCD34D',
-    bgLight: '#FEF3C7',
-    bgDark: '#451A03',
+    gradLight: ['#FEF3C7', '#FFFBEB'] as const,
+    gradDark: ['rgba(69, 26, 3, 0.8)', 'rgba(30, 41, 59, 0.4)'] as const,
     hint: 'Search for similar issues before proceeding',
   },
   {
@@ -71,8 +88,8 @@ const CHECKLIST_ITEMS = [
     Icon: Building2,
     colorLight: '#10B981',
     colorDark: '#34D399',
-    bgLight: '#D1FAE5',
-    bgDark: '#064E3B',
+    gradLight: ['#D1FAE5', '#ECFDF5'] as const,
+    gradDark: ['rgba(6, 78, 59, 0.8)', 'rgba(15, 23, 42, 0.4)'] as const,
   },
 ];
 
@@ -93,6 +110,42 @@ function formatTime(date: Date) {
   });
 }
 
+const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
+
+function AnimatedProgressBar({
+  progressPct,
+  canVerify,
+}: {
+  progressPct: number;
+  canVerify: boolean;
+}) {
+  const width = useSharedValue(0);
+
+  useEffect(() => {
+    // Used withTiming instead of withSpring to prevent the width percentage from springing below 0% or above 100%, which causes rendering glitches
+    width.value = withTiming(progressPct, { duration: 400 });
+  }, [progressPct]);
+
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      width: `${Math.max(0, Math.min(100, width.value))}%`,
+    };
+  });
+
+  return (
+    <View className="shadow-inner h-2.5 overflow-hidden rounded-full bg-slate-200/80 dark:bg-slate-700/80">
+      <Animated.View style={[{ height: '100%', borderRadius: 99 }, animatedStyle]}>
+        <LinearGradient
+          colors={canVerify ? ['#10B981', '#059669'] : ['#38BDF8', '#0284C7']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={StyleSheet.absoluteFillObject}
+        />
+      </Animated.View>
+    </View>
+  );
+}
+
 export default function VerificationFlow({ onVerify, onReject }: VerificationFlowProps) {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
@@ -105,6 +158,7 @@ export default function VerificationFlow({ onVerify, onReject }: VerificationFlo
   });
 
   const [notes, setNotes] = useState<string>('');
+  const [isFocused, setIsFocused] = useState(false);
 
   const defaultSla = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
   const [slaDate, setSlaDate] = useState<Date>(defaultSla);
@@ -124,6 +178,7 @@ export default function VerificationFlow({ onVerify, onReject }: VerificationFlo
   };
 
   const openDatePicker = () => {
+    Keyboard.dismiss();
     if (Platform.OS === 'ios') {
       setTempDate(slaDate);
       setShowDateModal(true);
@@ -133,60 +188,93 @@ export default function VerificationFlow({ onVerify, onReject }: VerificationFlo
   };
 
   return (
-    <View className="p-5">
+    <Animated.View entering={FadeInDown.springify().damping(24)} className="px-5 pb-8 pt-3">
       {/* Header */}
-      <View className="mb-5">
-        <View className="mb-1 flex-row items-center gap-3">
-          <View className="h-9 w-9 items-center justify-center rounded-xl bg-emerald-100 dark:bg-emerald-900/60">
-            <CheckCheck color={isDark ? '#34D399' : '#10B981'} size={18} strokeWidth={2.5} />
-          </View>
-          <View>
-            <Text className="text-[19px] font-extrabold tracking-tight text-slate-900 dark:text-slate-100">
+      <View className="mb-6 mt-2">
+        <View className="flex-row items-center gap-3.5">
+          <Animated.View
+            entering={ZoomIn.delay(100).springify().damping(15)}
+            className="h-12 w-12 items-center justify-center rounded-[18px] shadow-sm"
+            style={{
+              backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : '#D1FAE5',
+              borderWidth: 1,
+              borderColor: isDark ? 'rgba(52, 211, 153, 0.2)' : 'rgba(16, 185, 129, 0.2)',
+            }}>
+            <CheckCheck color={isDark ? '#34D399' : '#059669'} size={24} strokeWidth={2.5} />
+          </Animated.View>
+          <View className="flex-1">
+            <Text className="text-[24px] font-extrabold tracking-tight text-slate-900 dark:text-white">
               Issue Verification
             </Text>
-            <Text className="mt-0.5 text-[12px] font-medium text-slate-400 dark:text-slate-500">
-              Confirm all criteria before approving
+            <Text className="mt-0.5 text-[13.5px] font-medium text-slate-500 dark:text-slate-400">
+              Confirm all criteria before final approval
             </Text>
           </View>
         </View>
       </View>
 
       {/* Progress */}
-      <View className="mb-5 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 dark:border-slate-700 dark:bg-slate-800/70">
-        <View className="mb-2.5 flex-row items-center justify-between">
-          <Text className="text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
-            Checklist Progress
+      <Animated.View
+        entering={FadeInUp.delay(150).springify().damping(22)}
+        className="mb-6 rounded-[22px] border bg-white px-5 py-4 shadow-sm dark:bg-slate-900"
+        style={{
+          borderColor: canVerify
+            ? isDark
+              ? 'rgba(52, 211, 153, 0.4)'
+              : 'rgba(16, 185, 129, 0.3)'
+            : isDark
+              ? 'rgba(255,255,255,0.08)'
+              : 'rgba(0,0,0,0.04)',
+          shadowColor: canVerify ? '#10B981' : '#000',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: canVerify ? 0.1 : 0.03,
+          shadowRadius: 10,
+          elevation: 2,
+        }}>
+        {canVerify && (
+          <LinearGradient
+            colors={
+              isDark
+                ? ['rgba(16, 185, 129, 0.08)', 'transparent']
+                : ['rgba(209, 250, 229, 0.5)', 'transparent']
+            }
+            style={StyleSheet.absoluteFillObject}
+          />
+        )}
+
+        <View className="mb-3.5 flex-row items-center justify-between">
+          <Text className="text-[12px] font-extrabold uppercase tracking-[0.1em] text-slate-400 dark:text-slate-500">
+            Approval Checklist
           </Text>
           <View
-            className={`rounded-full px-2.5 py-1 ${
-              canVerify ? 'bg-emerald-100 dark:bg-emerald-900/50' : 'bg-slate-200 dark:bg-slate-700'
+            className={`rounded-full px-3 py-1.5 ${
+              canVerify ? 'bg-emerald-100 dark:bg-emerald-900/50' : 'bg-slate-100 dark:bg-slate-800'
             }`}>
             <Text
-              className={`text-[12px] font-bold ${
+              className={`text-[12px] font-black ${
                 canVerify
                   ? 'text-emerald-600 dark:text-emerald-400'
-                  : 'text-slate-400 dark:text-slate-500'
+                  : 'text-slate-500 dark:text-slate-400'
               }`}>
               {checkedCount}/{totalCount}
             </Text>
           </View>
         </View>
-        <View className="h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
-          <View
-            className={`h-full rounded-full ${canVerify ? 'bg-emerald-500 dark:bg-emerald-400' : 'bg-sky-500 dark:bg-sky-400'}`}
-            style={{ width: `${progressPct}%` }}
-          />
-        </View>
+
+        <AnimatedProgressBar progressPct={progressPct} canVerify={canVerify} />
+
         {canVerify && (
-          <Text className="mt-2 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
-            All criteria verified — ready to approve
-          </Text>
+          <Animated.Text
+            entering={FadeIn.duration(400)}
+            className="mt-3.5 text-[12px] font-extrabold tracking-tight text-emerald-600 dark:text-emerald-400">
+            ✨ All criteria verified — ready for final approval
+          </Animated.Text>
         )}
-      </View>
+      </Animated.View>
 
       {/* Checklist items */}
-      <View className="mb-5 gap-2.5">
-        {CHECKLIST_ITEMS.map((item) => {
+      <View className="mb-6 gap-3">
+        {CHECKLIST_ITEMS.map((item, index) => {
           const checked = checklist[item.key];
           const iconColor = checked
             ? isDark
@@ -195,88 +283,119 @@ export default function VerificationFlow({ onVerify, onReject }: VerificationFlo
             : isDark
               ? item.colorDark
               : item.colorLight;
-          const iconBg = checked
-            ? isDark
-              ? '#064E3B'
-              : '#D1FAE5'
-            : isDark
-              ? item.bgDark
-              : item.bgLight;
 
           return (
-            <TouchableOpacity
+            <AnimatedTouchableOpacity
+              entering={FadeInUp.delay(200 + index * 50)
+                .springify()
+                .damping(22)}
               key={item.key}
               onPress={() => setChecklist({ ...checklist, [item.key]: !checked })}
-              activeOpacity={0.75}
-              className={`flex-row items-center gap-3 rounded-2xl border-[1.5px] p-3.5 ${
+              activeOpacity={0.7}
+              className={`flex-row items-center gap-3.5 rounded-[22px] border-[1.5px] p-4 shadow-sm ${
                 checked
-                  ? 'border-emerald-300 bg-emerald-50 dark:border-emerald-700/70 dark:bg-emerald-950/30'
-                  : 'border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800'
-              }`}>
-              <View
-                className="h-10 w-10 items-center justify-center rounded-xl"
-                style={{ backgroundColor: iconBg }}>
-                <item.Icon color={iconColor} size={18} strokeWidth={2} />
+                  ? 'border-emerald-300 bg-emerald-50 dark:border-emerald-700/60 dark:bg-emerald-900/20'
+                  : 'border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900/60'
+              }`}
+              style={{
+                shadowColor: checked ? '#10B981' : '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: checked ? 0.05 : 0.02,
+                shadowRadius: 6,
+                elevation: 1,
+              }}>
+              <View className="h-11 w-11 items-center justify-center overflow-hidden rounded-[14px]">
+                <LinearGradient
+                  colors={
+                    checked
+                      ? isDark
+                        ? ['rgba(6, 78, 59, 0.8)', 'rgba(6, 78, 59, 0.3)']
+                        : ['#D1FAE5', '#ECFDF5']
+                      : isDark
+                        ? item.gradDark
+                        : item.gradLight
+                  }
+                  style={StyleSheet.absoluteFillObject}
+                />
+                <item.Icon color={iconColor} size={20} strokeWidth={2.2} />
               </View>
 
               <View className="flex-1">
                 <Text
-                  className={`mb-0.5 text-[14px] font-bold ${
+                  className={`mb-1 text-[15px] font-extrabold tracking-tight ${
                     checked
                       ? 'text-emerald-700 dark:text-emerald-400'
-                      : 'text-slate-800 dark:text-slate-200'
+                      : 'text-slate-800 dark:text-slate-100'
                   }`}>
                   {item.label}
                 </Text>
                 {!checked && item.hint ? (
-                  <Text className="text-[11px] font-semibold text-amber-600 dark:text-amber-400">
+                  <Text className="text-[12px] font-bold text-amber-600 dark:text-amber-400">
                     {item.hint}
                   </Text>
                 ) : (
-                  <Text className="text-[11px] leading-4 text-slate-400 dark:text-slate-500">
+                  <Text className="text-[12.5px] font-medium leading-4 text-slate-500 dark:text-slate-400">
                     {item.description}
                   </Text>
                 )}
               </View>
 
               <View
-                className={`h-6 w-6 items-center justify-center rounded-lg border-2 ${
+                className={`h-[28px] w-[28px] items-center justify-center rounded-[10px] border-[2px] ${
                   checked
-                    ? 'border-emerald-500 bg-emerald-500 dark:border-emerald-500 dark:bg-emerald-500'
-                    : 'border-slate-300 bg-slate-50 dark:border-slate-600 dark:bg-slate-900'
+                    ? 'border-emerald-500 bg-emerald-500 dark:border-emerald-400 dark:bg-emerald-400'
+                    : 'border-slate-300 bg-slate-50 dark:border-slate-600 dark:bg-slate-800'
                 }`}>
-                {checked && <CheckCircle2 color="#fff" size={14} strokeWidth={3} />}
+                {checked && (
+                  <Animated.View entering={ZoomIn.springify().damping(15)}>
+                    <CheckCircle2
+                      color={isDark ? '#064E3B' : '#FFFFFF'}
+                      size={18}
+                      strokeWidth={3}
+                    />
+                  </Animated.View>
+                )}
               </View>
-            </TouchableOpacity>
+            </AnimatedTouchableOpacity>
           );
         })}
       </View>
 
       {/* Notes Section */}
-      <View
-        className={`mb-5 overflow-hidden rounded-[24px] border bg-white shadow-sm dark:bg-slate-900 ${
-          notes && wordCount < 10
-            ? 'border-amber-300 dark:border-amber-900/60'
-            : 'border-slate-200 dark:border-slate-800'
-        }`}>
+      <Animated.View
+        entering={FadeInUp.delay(400).springify().damping(22)}
+        className={`mb-6 overflow-hidden rounded-[24px] border-[1.5px] bg-white shadow-sm dark:bg-slate-900 ${
+          isFocused
+            ? 'border-amber-400 dark:border-amber-500'
+            : notes && wordCount < 10
+              ? 'border-amber-300 dark:border-amber-700'
+              : 'border-slate-200 dark:border-slate-800'
+        }`}
+        style={{
+          shadowColor: isFocused ? '#F59E0B' : '#000',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: isFocused ? 0.1 : 0.03,
+          shadowRadius: 10,
+          elevation: isFocused ? 4 : 1,
+        }}>
         <View className="flex-row items-center justify-between border-b border-slate-100 bg-slate-50/80 px-4 py-3.5 dark:border-slate-800/80 dark:bg-slate-800/40">
-          <View className="flex-row items-center gap-2.5">
-            <View className="h-8 w-8 items-center justify-center rounded-xl bg-amber-100 dark:bg-amber-900/40">
-              <Notebook color={isDark ? '#FBBF24' : '#F59E0B'} size={15} strokeWidth={2.5} />
+          <View className="flex-row items-center gap-3">
+            <View className="h-9 w-9 items-center justify-center rounded-[12px] bg-amber-100 dark:bg-amber-900/50">
+              <Notebook color={isDark ? '#FCD34D' : '#D97706'} size={16} strokeWidth={2.5} />
             </View>
-            <Text className="text-[14px] font-black tracking-tight text-slate-800 dark:text-slate-100">
+            <Text className="text-[15px] font-extrabold tracking-tight text-slate-800 dark:text-slate-100">
               Field Notes
             </Text>
           </View>
 
           <View
-            className={`rounded-lg px-2.5 py-1.5 ${
+            className={`rounded-[10px] px-3 py-1.5 ${
               wordCount >= 10
                 ? 'bg-emerald-100 dark:bg-emerald-900/40'
                 : 'bg-amber-100 dark:bg-amber-900/40'
             }`}>
             <Text
-              className={`text-[10px] font-black ${
+              className={`text-[11px] font-black tracking-wider ${
                 wordCount >= 10
                   ? 'text-emerald-700 dark:text-emerald-400'
                   : 'text-amber-700 dark:text-amber-400'
@@ -286,58 +405,82 @@ export default function VerificationFlow({ onVerify, onReject }: VerificationFlo
           </View>
         </View>
 
-        <View className="px-1 py-1">
+        <View className="relative px-1 py-1">
+          {isFocused && (
+            <LinearGradient
+              colors={
+                isDark
+                  ? ['rgba(245, 158, 11, 0.03)', 'transparent']
+                  : ['rgba(253, 230, 138, 0.2)', 'transparent']
+              }
+              style={StyleSheet.absoluteFillObject}
+              pointerEvents="none"
+            />
+          )}
           <TextInput
-            className="min-h-[110px] bg-transparent px-4 py-3"
-            placeholder="Document verification details here. Be specific about observations..."
+            className="min-h-[120px] bg-transparent px-4 py-4"
+            placeholder="Document verification details here. Be specific about observations, environmental conditions, and severity..."
             value={notes}
             onChangeText={setNotes}
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => setIsFocused(false)}
             multiline
             placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
             style={{
               fontSize: 15,
               lineHeight: 24,
               textAlignVertical: 'top',
-              color: isDark ? '#F1F5F9' : '#1F2937',
+              color: isDark ? '#F8FAFC' : '#0F172A',
               fontWeight: '500',
             }}
           />
         </View>
-      </View>
+      </Animated.View>
 
       {/* SLA Deadline */}
-      <View className="mb-1 rounded-2xl border-[1.5px] border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/70">
-        <View className="mb-3 flex-row items-center gap-2">
-          <View className="h-7 w-7 items-center justify-center rounded-lg bg-sky-100 dark:bg-sky-900/50">
-            <Clock color={isDark ? '#38BDF8' : '#0EA5E9'} size={14} strokeWidth={2.5} />
+      <Animated.View
+        entering={FadeInUp.delay(500).springify().damping(22)}
+        className="mb-8 rounded-[24px] border-[1.5px] border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+        style={{
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.03,
+          shadowRadius: 8,
+          elevation: 1,
+        }}>
+        <View className="mb-3.5 flex-row items-center gap-3">
+          <View className="h-9 w-9 items-center justify-center rounded-[12px] bg-sky-100 dark:bg-sky-900/50">
+            <Clock color={isDark ? '#38BDF8' : '#0284C7'} size={16} strokeWidth={2.5} />
           </View>
-          <Text className="text-[14px] font-bold text-slate-800 dark:text-slate-200">
-            SLA Deadline
+          <Text className="text-[15px] font-extrabold tracking-tight text-slate-800 dark:text-slate-100">
+            SLA Resolution Deadline
           </Text>
         </View>
 
         <TouchableOpacity
           onPress={openDatePicker}
           activeOpacity={0.75}
-          className="mb-2.5 flex-row items-center rounded-xl border-[1.5px] border-sky-400 bg-white px-3.5 py-3 dark:border-sky-600 dark:bg-slate-900">
-          <View className="flex-1 flex-row items-center gap-2">
-            <Calendar color={isDark ? '#38BDF8' : '#0EA5E9'} size={15} strokeWidth={2} />
+          className="mb-3 flex-row items-center rounded-[16px] border-[1.5px] border-sky-400 bg-sky-50 px-4 py-3.5 dark:border-sky-700/80 dark:bg-slate-800">
+          <View className="flex-1 flex-row items-center gap-3">
+            <Calendar color={isDark ? '#38BDF8' : '#0284C7'} size={18} strokeWidth={2.5} />
             <View>
-              <Text className="mb-0.5 text-[14px] font-bold text-slate-900 dark:text-slate-100">
+              <Text className="mb-0.5 text-[15px] font-extrabold tracking-tight text-slate-900 dark:text-slate-100">
                 {formatDate(slaDate)}
               </Text>
-              <Text className="text-[12px] font-semibold text-sky-500 dark:text-sky-400">
+              <Text className="text-[13px] font-bold text-sky-600 dark:text-sky-400">
                 {formatTime(slaDate)}
               </Text>
             </View>
           </View>
-          <ChevronRight color={isDark ? '#38BDF8' : '#0EA5E9'} size={16} strokeWidth={2.5} />
+          <View className="h-8 w-8 items-center justify-center rounded-full bg-sky-200/50 dark:bg-sky-900/50">
+            <ChevronRight color={isDark ? '#38BDF8' : '#0284C7'} size={16} strokeWidth={3} />
+          </View>
         </TouchableOpacity>
 
-        <Text className="text-[11px] italic text-slate-400 dark:text-slate-500">
-          Determines escalation timing and priority rank
+        <Text className="px-1 text-[12px] font-medium italic text-slate-500 dark:text-slate-400">
+          Determines escalation timing and priority rank for the assigned officer.
         </Text>
-      </View>
+      </Animated.View>
 
       {/* Android native pickers */}
       {showAndroidDate && (
@@ -379,18 +522,26 @@ export default function VerificationFlow({ onVerify, onReject }: VerificationFlo
         <Modal
           visible={showDateModal}
           transparent
-          animationType="slide"
+          animationType="fade"
           onRequestClose={() => setShowDateModal(false)}>
-          <TouchableOpacity
-            style={styles.iosModalOverlay}
-            activeOpacity={1}
-            onPress={() => setShowDateModal(false)}>
-            <View
-              className="rounded-t-3xl bg-white pb-9 pt-3 dark:bg-slate-900"
+          <KeyboardAvoidingView behavior="padding" style={styles.iosModalOverlay}>
+            <BlurView
+              intensity={isDark ? 40 : 25}
+              tint={isDark ? 'dark' : 'light'}
+              style={StyleSheet.absoluteFillObject}
+            />
+            <TouchableOpacity
+              style={StyleSheet.absoluteFillObject}
+              activeOpacity={1}
+              onPress={() => setShowDateModal(false)}
+            />
+            <Animated.View
+              entering={FadeInDown.springify().damping(25).stiffness(200)}
+              className="rounded-t-[32px] border-t border-slate-200 bg-white pb-10 pt-3 dark:border-slate-800 dark:bg-slate-900"
               style={styles.iosSheetShadow}>
-              <View className="mb-3 h-1 w-10 self-center rounded-full bg-slate-300 dark:bg-slate-600" />
-              <View className="flex-row items-center justify-between px-5 pb-3 pt-1">
-                <Text className="text-[17px] font-extrabold text-slate-900 dark:text-slate-100">
+              <View className="mb-4 h-1.5 w-12 self-center rounded-full bg-slate-300 dark:bg-slate-700" />
+              <View className="flex-row items-center justify-between border-b border-slate-100 px-6 pb-4 pt-1 dark:border-slate-800/80">
+                <Text className="text-[18px] font-extrabold tracking-tight text-slate-900 dark:text-slate-100">
                   Set SLA Deadline
                 </Text>
                 <TouchableOpacity
@@ -398,8 +549,10 @@ export default function VerificationFlow({ onVerify, onReject }: VerificationFlo
                     setSlaDate(tempDate);
                     setShowDateModal(false);
                   }}
-                  className="rounded-xl bg-sky-100 px-4 py-1.5 dark:bg-sky-900/60">
-                  <Text className="text-[14px] font-bold text-sky-600 dark:text-sky-400">Done</Text>
+                  className="rounded-[12px] border border-sky-200 bg-sky-100 px-4 py-2 dark:border-sky-800 dark:bg-sky-900/60">
+                  <Text className="text-[14px] font-extrabold text-sky-700 dark:text-sky-300">
+                    Done
+                  </Text>
                 </TouchableOpacity>
               </View>
 
@@ -412,81 +565,96 @@ export default function VerificationFlow({ onVerify, onReject }: VerificationFlo
                 onChange={(_, selected) => {
                   if (selected) setTempDate(selected);
                 }}
-                style={{ height: 200 }}
+                style={{ height: 220, marginTop: 10 }}
                 textColor={isDark ? '#F1F5F9' : '#0F172A'}
               />
-
-              <TouchableOpacity
-                onPress={() => setShowDateModal(false)}
-                className="mx-5 mt-2 items-center border-t border-slate-100 pt-4 dark:border-slate-800">
-                <Text className="text-[14px] font-semibold text-slate-400 dark:text-slate-500">
-                  Cancel
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </TouchableOpacity>
+            </Animated.View>
+          </KeyboardAvoidingView>
         </Modal>
       )}
 
       {/* Action buttons */}
-      <View className="mt-5 flex-row gap-3">
+      <Animated.View
+        entering={FadeInUp.delay(600).springify().damping(22)}
+        className="mt-2 flex-row gap-3">
         <TouchableOpacity
           onPress={onReject}
           activeOpacity={0.8}
-          className="flex-row items-center justify-center gap-2 rounded-2xl border-[1.5px] border-red-200 bg-red-50 px-5 py-3.5 dark:border-red-800/60 dark:bg-red-950/30">
-          <XCircle color="#EF4444" size={17} strokeWidth={2.5} />
-          <Text className="text-[14px] font-bold text-red-500 dark:text-red-400">Reject</Text>
+          className="flex-row items-center justify-center gap-2 rounded-[20px] border-[1.5px] border-red-200 bg-red-50 px-6 py-4 shadow-sm dark:border-red-800/60 dark:bg-red-950/30"
+          style={{
+            shadowColor: '#EF4444',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 4,
+            elevation: 1,
+          }}>
+          <XCircle color="#EF4444" size={18} strokeWidth={2.5} />
+          <Text className="text-[15px] font-extrabold text-red-600 dark:text-red-400">Reject</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           onPress={handleVerify}
           disabled={!canVerify}
           activeOpacity={canVerify ? 0.85 : 1}
-          className="flex-1 overflow-hidden rounded-2xl">
+          className="flex-1 overflow-hidden rounded-[20px]"
+          style={{
+            shadowColor: canVerify ? '#059669' : '#000',
+            shadowOffset: { width: 0, height: canVerify ? 6 : 2 },
+            shadowOpacity: canVerify ? 0.3 : 0.05,
+            shadowRadius: canVerify ? 12 : 4,
+            elevation: canVerify ? 8 : 1,
+          }}>
           {canVerify ? (
             <LinearGradient
-              colors={['#059669', '#0D9488']}
+              colors={['#10B981', '#047857']}
               start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
+              end={{ x: 1, y: 1 }}
               style={styles.verifyBtnGradient}>
-              <CheckCircle2 color="#fff" size={17} strokeWidth={2.5} />
-              <Text className="text-[14px] font-extrabold text-white">Verify & Approve</Text>
+              <LinearGradient
+                colors={['rgba(255,255,255,0.25)', 'transparent']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 0, y: 1 }}
+                style={StyleSheet.absoluteFillObject}
+              />
+              <Sparkles color="#fff" size={18} strokeWidth={2.5} />
+              <Text className="text-[16px] font-extrabold tracking-tight text-white shadow-sm">
+                Verify & Approve
+              </Text>
             </LinearGradient>
           ) : (
             <View
-              className="flex-row items-center justify-center gap-2 bg-slate-100 px-5 py-3.5 dark:bg-slate-800"
+              className="flex-row items-center justify-center gap-2 border-[1.5px] border-slate-200 bg-slate-100 px-5 py-4 dark:border-slate-700/50 dark:bg-slate-800"
               style={styles.verifyBtnGradient}>
-              <AlertTriangle color={isDark ? '#475569' : '#CBD5E1'} size={17} strokeWidth={2} />
-              <Text className="text-[14px] font-extrabold text-slate-300 dark:text-slate-600">
+              <AlertTriangle color={isDark ? '#64748B' : '#94A3B8'} size={18} strokeWidth={2.5} />
+              <Text className="text-[14px] font-extrabold tracking-tight text-slate-400 dark:text-slate-500">
                 Complete Checklist
               </Text>
             </View>
           )}
         </TouchableOpacity>
-      </View>
-    </View>
+      </Animated.View>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
   iosModalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.55)',
     justifyContent: 'flex-end',
   },
   iosSheetShadow: {
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
+    shadowOffset: { width: 0, height: -10 },
     shadowOpacity: 0.15,
-    shadowRadius: 20,
-    elevation: 12,
+    shadowRadius: 30,
+    elevation: 20,
   },
   verifyBtnGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    paddingVertical: 14,
+    paddingVertical: 16,
     paddingHorizontal: 20,
   },
 });

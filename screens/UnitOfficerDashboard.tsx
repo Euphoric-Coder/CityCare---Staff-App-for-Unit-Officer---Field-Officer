@@ -11,9 +11,21 @@ import {
   ActivityIndicator,
   Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
+import Animated, {
+  FadeIn,
+  FadeOut,
+  FadeInDown,
+  FadeInUp,
+  ZoomIn,
+  LinearTransition,
+  SlideInDown,
+  SlideOutDown,
+} from 'react-native-reanimated';
+import { BlurView } from 'expo-blur';
+import { KeyboardAvoidingView } from 'react-native';
 import {
   Bell,
   Search,
@@ -735,9 +747,6 @@ function IssueCard({ issue, onPress }: { issue: MappedIssue; onPress: () => void
           className="absolute bottom-0 left-0 top-0 z-20 w-[10px]"
           style={{
             backgroundColor: pm.dot,
-            shadowColor: pm.dot,
-            shadowOpacity: 1,
-            shadowRadius: 15,
             shadowOffset: { width: 4, height: 0 },
           }}
         />
@@ -1042,13 +1051,9 @@ function OfficerDetailModal({
       statusBarTranslucent
       onRequestClose={onClose}>
       <View className="flex-1 items-center justify-center bg-slate-950/60 p-6">
-        <TouchableOpacity
-          activeOpacity={1}
-          style={StyleSheet.absoluteFill}
-          onPress={onClose}
-        />
-        
-        <View 
+        <TouchableOpacity activeOpacity={1} style={StyleSheet.absoluteFill} onPress={onClose} />
+
+        <View
           style={{
             borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
             borderWidth: 1.5,
@@ -1063,22 +1068,27 @@ function OfficerDetailModal({
             overflow: 'hidden',
             backgroundColor: isDark ? '#0f172a' : '#FFFFFF',
           }}>
-          
           <LinearGradient
             colors={isDark ? ['#1e293b', '#0f172a'] : ['#F8FAFC', '#FFFFFF']}
             style={{ padding: 32 }}>
-            
             {/* Modal Header */}
-            <View className="flex-row items-center justify-between mb-8">
-              <View 
-                style={{ backgroundColor: statusColor + '20', borderRadius: 16, paddingHorizontal: 16, paddingVertical: 8 }}
+            <View className="mb-8 flex-row items-center justify-between">
+              <View
+                style={{
+                  backgroundColor: statusColor + '20',
+                  borderRadius: 16,
+                  paddingHorizontal: 16,
+                  paddingVertical: 8,
+                }}
                 className="flex-row items-center gap-2">
                 <ShieldCheck color={statusColor} size={14} strokeWidth={3} />
-                <Text style={{ color: statusColor }} className="text-[10px] font-black tracking-widest uppercase">
+                <Text
+                  style={{ color: statusColor }}
+                  className="text-[10px] font-black uppercase tracking-widest">
                   Verified Field Agent
                 </Text>
               </View>
-              <TouchableOpacity 
+              <TouchableOpacity
                 onPress={onClose}
                 className="h-10 w-10 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800">
                 <X color={isDark ? '#94A3B8' : '#64748B'} size={20} strokeWidth={3} />
@@ -1086,82 +1096,99 @@ function OfficerDetailModal({
             </View>
 
             {/* Profile Section */}
-            <View className="items-center mb-10">
-              <View 
+            <View className="mb-10 items-center">
+              <View
                 style={{ borderColor: statusColor, borderWidth: 3, borderRadius: 32 }}
                 className="h-24 w-24 items-center justify-center bg-white shadow-xl dark:bg-slate-800">
                 <UserCheck color={statusColor} size={48} strokeWidth={2.5} />
               </View>
-              <Text className="mt-5 text-[28px] font-black text-slate-900 dark:text-white text-center">
+              <Text className="mt-5 text-center text-[28px] font-black text-slate-900 dark:text-white">
                 {officer.fullName}
               </Text>
-              <Text className="text-[12px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.3em] mt-1">
+              <Text className="mt-1 text-[12px] font-black uppercase tracking-[0.3em] text-slate-400 dark:text-slate-500">
                 Mission Intelligence Profile
               </Text>
             </View>
 
             {/* Stats Grid */}
-            <View className="flex-row gap-4 mb-10">
-              <View className="flex-1 items-center p-4 rounded-3xl bg-amber-50 dark:bg-amber-900/20 border border-amber-100/50 dark:border-amber-500/20">
+            <View className="mb-10 flex-row gap-4">
+              <View className="flex-1 items-center rounded-3xl border border-amber-100/50 bg-amber-50 p-4 dark:border-amber-500/20 dark:bg-amber-900/20">
                 <Star color="#F59E0B" fill="#F59E0B" size={18} />
                 <Text className="mt-2 text-[18px] font-black text-amber-700 dark:text-amber-400">
                   {officer.rating.toFixed(1)}
                 </Text>
-                <Text className="text-[9px] font-black text-amber-600/60 uppercase tracking-widest mt-0.5">Rating</Text>
+                <Text className="mt-0.5 text-[9px] font-black uppercase tracking-widest text-amber-600/60">
+                  Rating
+                </Text>
               </View>
-              <View className="flex-1 items-center p-4 rounded-3xl bg-blue-50 dark:bg-blue-900/20 border border-blue-100/50 dark:border-blue-500/20">
+              <View className="flex-1 items-center rounded-3xl border border-blue-100/50 bg-blue-50 p-4 dark:border-blue-500/20 dark:bg-blue-900/20">
                 <Award color="#3B82F6" size={18} strokeWidth={2.5} />
                 <Text className="mt-2 text-[18px] font-black text-blue-700 dark:text-blue-400">
                   {officer.efficiencyScore}%
                 </Text>
-                <Text className="text-[9px] font-black text-blue-600/60 uppercase tracking-widest mt-0.5">Efficiency</Text>
+                <Text className="mt-0.5 text-[9px] font-black uppercase tracking-widest text-blue-600/60">
+                  Efficiency
+                </Text>
               </View>
-              <View className="flex-1 items-center p-4 rounded-3xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100/50 dark:border-emerald-500/20">
+              <View className="flex-1 items-center rounded-3xl border border-emerald-100/50 bg-emerald-50 p-4 dark:border-emerald-500/20 dark:bg-emerald-900/20">
                 <PieChart color="#10B981" size={18} strokeWidth={2.5} />
                 <Text className="mt-2 text-[18px] font-black text-emerald-700 dark:text-emerald-400">
                   {officer.workloadPercentage.toFixed(0)}%
                 </Text>
-                <Text className="text-[9px] font-black text-emerald-600/60 uppercase tracking-widest mt-0.5">Load</Text>
+                <Text className="mt-0.5 text-[9px] font-black uppercase tracking-widest text-emerald-600/60">
+                  Load
+                </Text>
               </View>
             </View>
 
             {/* Contact Intelligence */}
-            <View className="gap-3 mb-10">
-              <View className="flex-row items-center gap-5 p-5 rounded-3xl bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800">
-                <View className="h-10 w-10 items-center justify-center rounded-2xl bg-white dark:bg-slate-900 shadow-sm">
+            <View className="mb-10 gap-3">
+              <View className="flex-row items-center gap-5 rounded-3xl border border-slate-100 bg-slate-50 p-5 dark:border-slate-800 dark:bg-slate-950">
+                <View className="h-10 w-10 items-center justify-center rounded-2xl bg-white shadow-sm dark:bg-slate-900">
                   <Mail color={statusColor} size={18} />
                 </View>
                 <View className="flex-1">
-                  <Text className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">Direct Channel</Text>
-                  <Text className="text-[14px] font-black text-slate-800 dark:text-slate-100">{officer.email}</Text>
+                  <Text className="mb-0.5 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                    Direct Channel
+                  </Text>
+                  <Text className="text-[14px] font-black text-slate-800 dark:text-slate-100">
+                    {officer.email}
+                  </Text>
                 </View>
               </View>
-              <View className="flex-row items-center gap-5 p-5 rounded-3xl bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800">
-                <View className="h-10 w-10 items-center justify-center rounded-2xl bg-white dark:bg-slate-900 shadow-sm">
+              <View className="flex-row items-center gap-5 rounded-3xl border border-slate-100 bg-slate-50 p-5 dark:border-slate-800 dark:bg-slate-950">
+                <View className="h-10 w-10 items-center justify-center rounded-2xl bg-white shadow-sm dark:bg-slate-900">
                   <Phone color={statusColor} size={18} />
                 </View>
                 <View className="flex-1">
-                  <Text className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">Operational Line</Text>
-                  <Text className="text-[14px] font-black text-slate-800 dark:text-slate-100">{officer.phone}</Text>
+                  <Text className="mb-0.5 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                    Operational Line
+                  </Text>
+                  <Text className="text-[14px] font-black text-slate-800 dark:text-slate-100">
+                    {officer.phone}
+                  </Text>
                 </View>
               </View>
             </View>
 
             {/* Specialisations */}
             <View>
-              <Text className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-4 pl-1">Sector Specialisations</Text>
+              <Text className="mb-4 pl-1 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
+                Sector Specialisations
+              </Text>
               <View className="flex-row flex-wrap gap-2.5">
                 {officer.specialisations.map((spec: string, idx: number) => (
-                  <View 
+                  <View
                     key={idx}
                     style={{ borderColor: statusColor + '40', borderWidth: 1, borderRadius: 100 }}
-                    className="px-4 py-2 bg-white dark:bg-slate-900 shadow-sm">
-                    <Text className="text-[11px] font-black text-slate-700 dark:text-slate-300 capitalize">{spec}</Text>
+                    className="bg-white px-4 py-2 shadow-sm dark:bg-slate-900">
+                    <Text className="text-[11px] font-black capitalize text-slate-700 dark:text-slate-300">
+                      {spec}
+                    </Text>
                   </View>
                 ))}
               </View>
             </View>
-
           </LinearGradient>
         </View>
       </View>
@@ -1173,7 +1200,7 @@ interface FilterState {
   status: StatusKey | 'all';
   sla: SLAFilter;
   category: CategoryKey | 'all';
-  subCategory: IssueSubCategory | 'all';
+  subCategories: IssueSubCategory[];
   priority: IssuePriority | 'all';
 }
 
@@ -1192,18 +1219,27 @@ function FilterModal({
   onChange: (f: FilterState) => void;
   department: string;
 }) {
+  const insets = useSafeAreaInsets();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
   const [local, setLocal] = useState<FilterState>(filters);
   const [openSection, setOpenSection] = useState<FilterSection | null>('status');
+  const [isClosing, setIsClosing] = useState(false);
 
   useEffect(() => {
-    if (
-      local.category !== 'all' &&
-      !SUBCATEGORY_MAP[local.category]?.includes(local.subCategory as IssueSubCategory)
-    ) {
-      setLocal((prev) => ({
-        ...prev,
-        subCategory: 'all',
-      }));
+    if (visible) setIsClosing(false);
+  }, [visible]);
+
+  useEffect(() => {
+    if (local.category !== 'all') {
+      const validSubcats = SUBCATEGORY_MAP[local.category] || [];
+      const newSubs = local.subCategories.filter((sc) => validSubcats.includes(sc));
+      if (newSubs.length !== local.subCategories.length) {
+        setLocal((prev) => ({
+          ...prev,
+          subCategories: newSubs,
+        }));
+      }
     }
   }, [local.category]);
 
@@ -1211,22 +1247,28 @@ function FilterModal({
     setLocal(filters);
   }, [filters]);
 
-  const availableSubcats: (IssueSubCategory | 'all')[] = useMemo(() => {
-    if (!local.category || local.category === 'all') return ['all'];
+  const availableSubcats: IssueSubCategory[] = useMemo(() => {
+    if (!local.category || local.category === 'all') return [];
 
-    return ['all', ...(SUBCATEGORY_MAP[local.category] || [])];
+    return SUBCATEGORY_MAP[local.category] || [];
   }, [local.category]);
 
   const activeCount = [
     local.status !== 'all',
     local.sla !== 'all',
-    local.subCategory !== 'all',
     local.priority !== 'all',
-  ].filter(Boolean).length;
+  ].filter(Boolean).length + local.subCategories.length;
+
+  const handleCloseAnim = () => {
+    setIsClosing(true);
+    setTimeout(() => {
+      onClose();
+    }, 300);
+  };
 
   const handleApply = () => {
     onChange(local);
-    onClose();
+    handleCloseAnim();
   };
 
   const handleReset = () => {
@@ -1234,11 +1276,12 @@ function FilterModal({
       status: 'all',
       sla: 'all',
       category: department as CategoryKey,
-      subCategory: 'all',
+      subCategories: [],
       priority: 'all',
     };
     setLocal(reset);
     onChange(reset);
+    handleCloseAnim();
   };
 
   const toggleSection = (s: FilterSection) => setOpenSection(openSection === s ? null : s);
@@ -1247,229 +1290,417 @@ function FilterModal({
     <Modal
       visible={visible}
       transparent
-      animationType="slide"
+      animationType="none"
       statusBarTranslucent
-      onRequestClose={onClose}>
-      <View className="flex-1 justify-end bg-black/60">
-        <TouchableOpacity style={StyleSheet.absoluteFillObject} onPress={onClose} />
-        <View
-          className="overflow-hidden rounded-t-3xl bg-white dark:bg-slate-900"
-          style={styles.filterSheet}>
-          {/* Header */}
-          <View className="flex-row items-center justify-between border-b border-slate-100 px-5 pb-4 pt-5 dark:border-slate-800">
-            <View className="flex-row items-center gap-2.5">
-              <View className="h-9 w-9 items-center justify-center rounded-xl bg-teal-50 dark:bg-teal-900/40">
-                <SlidersHorizontal size={17} color="#0D9488" strokeWidth={2.5} />
-              </View>
-              <View>
-                <Text className="text-[17px] font-extrabold text-slate-900 dark:text-slate-100">
-                  Filters
-                </Text>
-                {activeCount > 0 && (
-                  <Text className="text-[11px] font-semibold text-teal-600 dark:text-teal-400">
-                    {activeCount} active
-                  </Text>
-                )}
-              </View>
-            </View>
-            <View className="flex-row items-center gap-2">
-              {activeCount > 0 && (
-                <TouchableOpacity
-                  onPress={handleReset}
-                  className="rounded-xl bg-slate-100 px-3 py-1.5 dark:bg-slate-800">
-                  <Text className="text-[12px] font-bold text-slate-500 dark:text-slate-400">
-                    Reset
-                  </Text>
-                </TouchableOpacity>
-              )}
+      onRequestClose={handleCloseAnim}>
+      <View style={{ flex: 1 }}>
+        {!isClosing && (
+          <>
+            {/* Animated backdrop */}
+            <Animated.View
+              entering={FadeIn.duration(400)}
+              exiting={FadeOut.duration(300)}
+              style={StyleSheet.absoluteFillObject}>
+              <BlurView
+                intensity={isDark ? 40 : 25}
+                tint={isDark ? 'dark' : 'light'}
+                style={StyleSheet.absoluteFillObject}
+              />
               <TouchableOpacity
-                onPress={onClose}
-                className="h-8 w-8 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800">
-                <X size={14} color="#6B7280" />
-              </TouchableOpacity>
-            </View>
-          </View>
+                style={StyleSheet.absoluteFillObject}
+                onPress={handleCloseAnim}
+                activeOpacity={1}
+              />
+            </Animated.View>
 
-          <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
-            {/* STATUS */}
-            <FilterAccordion
-              title="Status"
-              icon={<CheckCircle size={15} color="#0D9488" strokeWidth={2.5} />}
-              isOpen={openSection === 'status'}
-              onToggle={() => toggleSection('status')}
-              activeValue={local.status !== 'all' ? local.status : undefined}
-              activeMeta={local.status !== 'all' ? STATUS_META[local.status] : undefined}>
-              <View className="flex-row flex-wrap gap-2 px-5 pb-4">
-                {STATUS_OPTIONS.map((s) => {
-                  const key = s === 'all' ? 'pending' : s; // fallback meta
-                  const m = STATUS_META[key];
-                  const isActive = local.status === s;
+            <Animated.View
+              entering={SlideInDown.springify().damping(100).stiffness(200)}
+              exiting={SlideOutDown.duration(300)}
+              layout={LinearTransition}
+              style={[
+                styles.filterSheet,
+                { width: '100%', position: 'absolute', bottom: 0, backgroundColor: 'transparent' },
+              ]}>
+              <BlurView
+                intensity={isDark ? 80 : 100}
+                tint={isDark ? 'dark' : 'light'}
+                style={{
+                  width: '100%',
+                  flexShrink: 1,
+                  paddingBottom: insets.bottom,
+                  borderTopLeftRadius: 36,
+                  borderTopRightRadius: 36,
+                  overflow: 'hidden',
+                  backgroundColor: isDark ? 'rgba(15, 23, 42, 0.75)' : 'rgba(255, 255, 255, 0.85)',
+                  borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+                  borderWidth: 1,
+                }}>
+                <LinearGradient
+                  colors={
+                    isDark
+                      ? ['rgba(20, 184, 166, 0.05)', 'transparent']
+                      : ['rgba(20, 184, 166, 0.05)', 'transparent']
+                  }
+                  style={StyleSheet.absoluteFillObject}
+                  start={{ x: 0.5, y: 0 }}
+                  end={{ x: 0.5, y: 0.2 }}
+                  pointerEvents="none"
+                />
 
-                  return (
-                    <TouchableOpacity
-                      key={s}
-                      onPress={() => setLocal({ ...local, status: s })}
-                      className={`flex-row items-center gap-1.5 rounded-xl border px-3 py-1.5 ${
-                        isActive
-                          ? `${m.bg} ${m.darkBg} border-transparent`
-                          : 'border-slate-200 bg-transparent dark:border-slate-700'
-                      }`}>
-                      <View className="h-2 w-2 rounded-full" style={{ backgroundColor: m.dot }} />
+                {/* Drag handle */}
+                <View
+                  className="mb-2 mt-4 h-1.5 w-12 self-center rounded-full opacity-50"
+                  style={{ backgroundColor: isDark ? '#475569' : '#CBD5E1' }}
+                />
 
-                      <Text
-                        className={`text-[12px] font-semibold ${
-                          isActive
-                            ? `${m.text} ${m.darkText}`
-                            : 'text-slate-500 dark:text-slate-400'
-                        }`}>
-                        {STATUS_LABEL_MAP[s]}
+                {/* Header */}
+                <View
+                  className="flex-row items-center justify-between border-b px-6 pb-4 pt-2"
+                  style={{
+                    borderBottomColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+                  }}>
+                  <View className="flex-row items-center gap-3">
+                    <View
+                      className="h-10 w-10 items-center justify-center rounded-2xl"
+                      style={{
+                        backgroundColor: isDark ? 'rgba(20, 184, 166, 0.2)' : '#CCFBF1',
+                        borderWidth: 1,
+                        borderColor: isDark ? 'rgba(20, 184, 166, 0.3)' : '#99F6E4',
+                      }}>
+                      <SlidersHorizontal
+                        size={18}
+                        color={isDark ? '#5EEAD4' : '#0D9488'}
+                        strokeWidth={2.5}
+                      />
+                    </View>
+                    <View>
+                      <Text className="text-[19px] font-extrabold tracking-tight text-slate-900 dark:text-slate-100">
+                        Filters
                       </Text>
-
-                      {isActive && <Check size={11} color={m.dot} strokeWidth={3} />}
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </FilterAccordion>
-
-            {/* SLA */}
-            <FilterAccordion
-              title="SLA Status"
-              icon={<Clock size={15} color="#F59E0B" strokeWidth={2.5} />}
-              isOpen={openSection === 'sla'}
-              onToggle={() => toggleSection('sla')}
-              activeValue={local.sla !== 'all' ? local.sla : undefined}
-              activeMeta={
-                local.status !== 'all' ? STATUS_META[local.status as StatusKey] : undefined
-              }>
-              <View className="flex-row flex-wrap gap-2 px-5 pb-4">
-                {SLA_OPTIONS.map((s) => {
-                  const m = SLA_META[s];
-                  const isActive = local.sla === s;
-                  return (
-                    <TouchableOpacity
-                      key={s}
-                      onPress={() => setLocal({ ...local, sla: s })}
-                      className={`flex-row items-center gap-1.5 rounded-xl border px-3 py-1.5 ${
-                        isActive
-                          ? `${m.bg} ${m.darkBg} border-transparent`
-                          : 'border-slate-200 bg-transparent dark:border-slate-700'
-                      }`}>
-                      <View className="h-2 w-2 rounded-full" style={{ backgroundColor: m.dot }} />
-                      <Text
-                        className={`text-[12px] font-semibold ${isActive ? `${m.text} ${m.darkText}` : 'text-slate-500 dark:text-slate-400'}`}>
-                        {s}
-                      </Text>
-                      {isActive && <Check size={11} color={m.dot} strokeWidth={3} />}
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </FilterAccordion>
-
-            {/* PRIORITY */}
-            <FilterAccordion
-              title="Priority"
-              icon={<AlertTriangle size={15} color="#DC2626" strokeWidth={2.5} />}
-              isOpen={openSection === 'priority'}
-              onToggle={() => toggleSection('priority')}
-              activeValue={local.priority !== 'all' ? local.priority : undefined}
-              activeMeta={local.priority !== 'all' ? PRIORITY_META[local.priority] : undefined}>
-              <View className="flex-row flex-wrap gap-2 px-5 pb-4">
-                {PRIORITY_OPTIONS.map((p) => {
-                  const m =
-                    p !== 'all'
-                      ? PRIORITY_META[p]
-                      : {
-                          bg: 'bg-slate-100',
-                          darkBg: 'dark:bg-slate-700/50',
-                          text: 'text-slate-600',
-                          darkText: 'dark:text-slate-300',
-                          dot: '#94A3B8',
-                        };
-                  const isActive = local.priority === p;
-                  return (
-                    <TouchableOpacity
-                      key={p}
-                      onPress={() => setLocal({ ...local, priority: p })}
-                      className={`flex-row items-center gap-1.5 rounded-xl border px-3 py-1.5 ${
-                        isActive
-                          ? `${m.bg} ${m.darkBg} border-transparent`
-                          : 'border-slate-200 bg-transparent dark:border-slate-700'
-                      }`}>
-                      <View className="h-2 w-2 rounded-full" style={{ backgroundColor: m?.dot }} />
-                      <Text
-                        className={`text-[12px] font-semibold ${isActive ? `${m.text} ${m.darkText}` : 'text-slate-500 dark:text-slate-400'}`}>
-                        {p}
-                      </Text>
-                      {isActive && <Check size={11} color={m.dot} strokeWidth={3} />}
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </FilterAccordion>
-
-            {/* SUBCATEGORY - only shown when category is selected */}
-            {local.category !== 'all' && (
-              <FilterAccordion
-                title="Sub-Category"
-                icon={<Layers size={15} color="#8B5CF6" strokeWidth={2.5} />}
-                isOpen={openSection === 'subcategory'}
-                onToggle={() => toggleSection('subcategory')}
-                activeValue={local.subCategory !== 'all' ? local.subCategory : undefined}>
-                <View className="flex-row flex-wrap gap-2 px-5 pb-4">
-                  {availableSubcats.map((sc) => {
-                    const isActive = local.subCategory === sc;
-                    return (
+                      {activeCount > 0 && (
+                        <Animated.Text
+                          entering={FadeInUp.springify()}
+                          className="text-[12px] font-bold text-teal-600 dark:text-teal-400">
+                          {activeCount} active {activeCount === 1 ? 'filter' : 'filters'}
+                        </Animated.Text>
+                      )}
+                    </View>
+                  </View>
+                  <View className="flex-row items-center gap-2">
+                    {activeCount > 0 && (
                       <TouchableOpacity
-                        key={sc}
-                        onPress={() => setLocal({ ...local, subCategory: sc })}
-                        className={`rounded-xl border px-3 py-1.5 ${
-                          isActive
-                            ? 'border-transparent bg-violet-100 dark:bg-violet-900/40'
-                            : 'border-slate-200 bg-transparent dark:border-slate-700'
-                        }`}>
-                        <Text
-                          className={`text-[12px] font-semibold ${isActive ? 'text-violet-700 dark:text-violet-300' : 'text-slate-500 dark:text-slate-400'}`}>
-                          {sc}
+                        onPress={handleReset}
+                        className="rounded-full px-3.5 py-2"
+                        style={{
+                          backgroundColor: isDark
+                            ? 'rgba(30, 41, 59, 0.8)'
+                            : 'rgba(241, 245, 249, 0.8)',
+                        }}>
+                        <Text className="text-[13px] font-extrabold text-slate-500 dark:text-slate-400">
+                          Reset
                         </Text>
                       </TouchableOpacity>
-                    );
-                  })}
+                    )}
+                    <TouchableOpacity
+                      onPress={handleCloseAnim}
+                      className="h-9 w-9 items-center justify-center rounded-full"
+                      style={{
+                        backgroundColor: isDark
+                          ? 'rgba(30, 41, 59, 0.8)'
+                          : 'rgba(241, 245, 249, 0.8)',
+                      }}>
+                      <X size={16} color={isDark ? '#94A3B8' : '#64748B'} strokeWidth={2.5} />
+                    </TouchableOpacity>
+                  </View>
                 </View>
-              </FilterAccordion>
-            )}
 
-            <View className="h-5" />
-          </ScrollView>
+                <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
+                  {/* STATUS */}
+                  <FilterAccordion
+                    title="Status"
+                    icon={
+                      <CheckCircle
+                        size={16}
+                        color={isDark ? '#5EEAD4' : '#0D9488'}
+                        strokeWidth={2.5}
+                      />
+                    }
+                    isOpen={openSection === 'status'}
+                    onToggle={() => toggleSection('status')}
+                    activeValue={local.status !== 'all' ? local.status : undefined}
+                    activeMeta={local.status !== 'all' ? STATUS_META[local.status] : undefined}
+                    isDark={isDark}>
+                    <View className="flex-row flex-wrap gap-2.5 px-6 pb-5 pt-1">
+                      {STATUS_OPTIONS.map((s, idx) => {
+                        const key = s === 'all' ? 'pending' : s; // fallback meta
+                        const m = STATUS_META[key];
+                        const isActive = local.status === s;
 
-          {/* Apply button */}
-          <View className="mb-12 border-t border-slate-100 px-5 pb-6 pt-3 dark:border-slate-800">
-            <TouchableOpacity
-              onPress={handleApply}
-              activeOpacity={0.85}
-              className="overflow-hidden rounded-2xl">
-              <LinearGradient
-                colors={['#0D9488', '#0891B2']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={{
-                  paddingVertical: 15,
-                  alignItems: 'center',
-                  flexDirection: 'row',
-                  justifyContent: 'center',
-                  gap: 8,
-                }}>
-                <Filter size={16} color="#FFFFFF" strokeWidth={2.5} />
-                <Text className="text-[15px] font-extrabold text-white">
-                  Apply Filters{activeCount > 0 ? ` (${activeCount})` : ''}
-                </Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
-        </View>
+                        return (
+                          <FilterOption
+                            key={s}
+                            label={STATUS_LABEL_MAP[s]}
+                            isActive={isActive}
+                            dotColor={m.dot}
+                            onPress={() => setLocal({ ...local, status: s })}
+                            isDark={isDark}
+                            delay={idx * 50}
+                          />
+                        );
+                      })}
+                    </View>
+                  </FilterAccordion>
+
+                  {/* SLA */}
+                  <FilterAccordion
+                    title="SLA Status"
+                    icon={
+                      <Clock size={16} color={isDark ? '#FCD34D' : '#F59E0B'} strokeWidth={2.5} />
+                    }
+                    isOpen={openSection === 'sla'}
+                    onToggle={() => toggleSection('sla')}
+                    activeValue={local.sla !== 'all' ? local.sla : undefined}
+                    activeMeta={
+                      local.status !== 'all' ? STATUS_META[local.status as StatusKey] : undefined
+                    }
+                    isDark={isDark}>
+                    <View className="flex-row flex-wrap gap-2.5 px-6 pb-5 pt-1">
+                      {SLA_OPTIONS.map((s, idx) => {
+                        const m = SLA_META[s];
+                        const isActive = local.sla === s;
+                        return (
+                          <FilterOption
+                            key={s}
+                            label={s}
+                            isActive={isActive}
+                            dotColor={m.dot}
+                            onPress={() => setLocal({ ...local, sla: s })}
+                            isDark={isDark}
+                            delay={idx * 50}
+                          />
+                        );
+                      })}
+                    </View>
+                  </FilterAccordion>
+
+                  {/* PRIORITY */}
+                  <FilterAccordion
+                    title="Priority"
+                    icon={
+                      <AlertTriangle
+                        size={16}
+                        color={isDark ? '#FCA5A5' : '#EF4444'}
+                        strokeWidth={2.5}
+                      />
+                    }
+                    isOpen={openSection === 'priority'}
+                    onToggle={() => toggleSection('priority')}
+                    activeValue={local.priority !== 'all' ? local.priority : undefined}
+                    activeMeta={
+                      local.priority !== 'all' ? PRIORITY_META[local.priority] : undefined
+                    }
+                    isDark={isDark}>
+                    <View className="flex-row flex-wrap gap-2.5 px-6 pb-5 pt-1">
+                      {PRIORITY_OPTIONS.map((p, idx) => {
+                        const m = p !== 'all' ? PRIORITY_META[p] : { dot: '#94A3B8' };
+                        const isActive = local.priority === p;
+                        return (
+                          <FilterOption
+                            key={p}
+                            label={p}
+                            isActive={isActive}
+                            dotColor={m.dot}
+                            onPress={() => setLocal({ ...local, priority: p })}
+                            isDark={isDark}
+                            delay={idx * 50}
+                          />
+                        );
+                      })}
+                    </View>
+                  </FilterAccordion>
+
+                  {/* SUBCATEGORY */}
+                  {local.category !== 'all' && (
+                    <Animated.View entering={FadeIn.duration(200)}>
+                      <FilterAccordion
+                        title="Sub-Category"
+                        icon={
+                          <Layers
+                            size={16}
+                            color={isDark ? '#C4B5FD' : '#8B5CF6'}
+                            strokeWidth={2.5}
+                          />
+                        }
+                        isOpen={openSection === 'subcategory'}
+                        onToggle={() => toggleSection('subcategory')}
+                        activeValue={
+                          local.subCategories.length > 0
+                            ? local.subCategories.length === 1
+                              ? local.subCategories[0]
+                              : `${local.subCategories.length} Selected`
+                            : undefined
+                        }
+                        isDark={isDark}>
+                        <View className="flex-row flex-wrap gap-2.5 px-6 pb-5 pt-1">
+                          {availableSubcats.map((sc, idx) => {
+                            const isActive = local.subCategories.includes(sc);
+                            return (
+                              <FilterOption
+                                key={sc}
+                                label={sc}
+                                isActive={isActive}
+                                dotColor={isDark ? '#C4B5FD' : '#8B5CF6'}
+                                onPress={() => {
+                                  if (isActive) {
+                                    setLocal({
+                                      ...local,
+                                      subCategories: local.subCategories.filter((s) => s !== sc),
+                                    });
+                                  } else {
+                                    setLocal({
+                                      ...local,
+                                      subCategories: [...local.subCategories, sc],
+                                    });
+                                  }
+                                }}
+                                isDark={isDark}
+                                delay={idx * 50}
+                              />
+                            );
+                          })}
+                        </View>
+                      </FilterAccordion>
+                    </Animated.View>
+                  )}
+
+                  <View className="h-8" />
+                </ScrollView>
+
+                {/* Apply button */}
+                <View
+                  className="px-6 pb-6 pt-4"
+                  style={{
+                    borderTopWidth: 1,
+                    borderTopColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+                  }}>
+                  <TouchableOpacity
+                    onPress={handleApply}
+                    activeOpacity={0.85}
+                    className="overflow-hidden rounded-2xl"
+                    style={{
+                      height: 56,
+                      shadowColor: activeCount > 0 ? '#0D9488' : '#000',
+                      shadowOffset: { width: 0, height: 4 },
+                      shadowOpacity: activeCount > 0 ? 0.3 : 0.05,
+                      shadowRadius: 12,
+                      elevation: 8,
+                    }}>
+                    <LinearGradient
+                      colors={
+                        activeCount > 0
+                          ? ['#0D9488', '#0F766E']
+                          : isDark
+                            ? ['#334155', '#1E293B']
+                            : ['#F1F5F9', '#E2E8F0']
+                      }
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={StyleSheet.absoluteFillObject}>
+                      {activeCount > 0 && (
+                        <LinearGradient
+                          colors={['rgba(255,255,255,0.25)', 'transparent']}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 0, y: 1 }}
+                          style={StyleSheet.absoluteFillObject}
+                        />
+                      )}
+                      <View className="flex-1 flex-row items-center justify-center gap-2">
+                        <Filter
+                          size={18}
+                          color={activeCount > 0 ? '#FFFFFF' : isDark ? '#94A3B8' : '#64748B'}
+                          strokeWidth={2.5}
+                        />
+                        <Text
+                          className={`text-[16px] font-extrabold tracking-tight ${activeCount > 0 ? 'text-white shadow-sm' : isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                          Apply Filters{activeCount > 0 ? ` (${activeCount})` : ''}
+                        </Text>
+                      </View>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </View>
+              </BlurView>
+            </Animated.View>
+          </>
+        )}
       </View>
     </Modal>
+  );
+}
+
+const AnimatedPressable = Animated.createAnimatedComponent(TouchableOpacity);
+
+function FilterOption({
+  label,
+  isActive,
+  dotColor,
+  onPress,
+  isDark,
+  delay,
+}: {
+  label: string;
+  isActive: boolean;
+  dotColor: string;
+  onPress: () => void;
+  isDark: boolean;
+  delay: number;
+}) {
+  return (
+    <AnimatedPressable
+      onPress={onPress}
+      activeOpacity={0.8}
+      className="flex-row items-center gap-2 rounded-[14px] border-[1.5px] px-3.5 py-2.5"
+      style={{
+        backgroundColor: isActive
+          ? isDark
+            ? 'rgba(30, 41, 59, 0.8)'
+            : '#FFFFFF'
+          : isDark
+            ? 'rgba(30, 41, 59, 0.3)'
+            : 'transparent',
+        borderColor: isActive ? dotColor : isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
+        shadowColor: isActive ? dotColor : '#000',
+        shadowOffset: { width: 0, height: isActive ? 4 : 0 },
+        shadowOpacity: isActive ? 0.2 : 0,
+        shadowRadius: isActive ? 8 : 0,
+        elevation: isActive ? 4 : 0,
+      }}>
+      {isActive && (
+        <LinearGradient
+          colors={isDark ? [`${dotColor}33`, `${dotColor}11`] : [`${dotColor}1A`, `${dotColor}05`]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={StyleSheet.absoluteFillObject}
+          borderRadius={14}
+        />
+      )}
+      <View
+        className="h-2.5 w-2.5 rounded-full"
+        style={{
+          backgroundColor: dotColor,
+          shadowColor: dotColor,
+          shadowOpacity: 0.5,
+          shadowRadius: 4,
+          shadowOffset: { width: 0, height: 0 },
+        }}
+      />
+      <Text
+        className="text-[13.5px] font-extrabold tracking-tight"
+        style={{
+          color: isActive ? (isDark ? '#F8FAFC' : '#0F172A') : isDark ? '#94A3B8' : '#64748B',
+        }}>
+        {label.replace(/_/g, ' ').toUpperCase()}
+      </Text>
+    </AnimatedPressable>
   );
 }
 
@@ -1480,6 +1711,7 @@ function FilterAccordion({
   onToggle,
   activeValue,
   activeMeta,
+  isDark,
   children,
 }: {
   title: string;
@@ -1487,39 +1719,64 @@ function FilterAccordion({
   isOpen: boolean;
   onToggle: () => void;
   activeValue?: string;
-  activeMeta?: { bg: string; darkBg: string; text: string; darkText: string };
+  activeMeta?: { bg: string; darkBg: string; text: string; darkText: string; dot?: string };
+  isDark: boolean;
   children: React.ReactNode;
 }) {
   return (
-    <View className="border-b border-slate-100 dark:border-slate-800">
+    <Animated.View
+      layout={LinearTransition.duration(200)}
+      style={{
+        borderBottomWidth: 1,
+        borderBottomColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
+      }}>
       <TouchableOpacity
         onPress={onToggle}
         activeOpacity={0.7}
-        className="flex-row items-center gap-3 px-5 py-3.5">
-        <View className="h-7 w-7 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800">
+        className="flex-row items-center gap-3.5 px-6 py-4">
+        <View
+          className="h-9 w-9 items-center justify-center rounded-xl"
+          style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)' }}>
           {icon}
         </View>
-        <Text className="flex-1 text-[14px] font-bold text-slate-800 dark:text-slate-200">
+        <Text
+          className="flex-1 text-[16px] font-extrabold tracking-tight"
+          style={{ color: isDark ? '#E2E8F0' : '#1E293B' }}>
           {title}
         </Text>
-        {activeValue && activeMeta && (
-          <View className={`mr-1 rounded-lg px-2 py-0.5 ${activeMeta.bg} ${activeMeta.darkBg}`}>
+        {activeValue && (
+          <Animated.View
+            entering={ZoomIn.springify().damping(18)}
+            className="mr-2 flex-row items-center gap-1.5 rounded-full px-2.5 py-1"
+            style={{
+              backgroundColor: activeMeta?.dot
+                ? `${activeMeta.dot}22`
+                : isDark
+                  ? 'rgba(139, 92, 246, 0.2)'
+                  : 'rgba(139, 92, 246, 0.15)',
+            }}>
+            <View
+              className="h-1.5 w-1.5 rounded-full"
+              style={{ backgroundColor: activeMeta?.dot || '#8B5CF6' }}
+            />
             <Text
-              className={`text-[10px] font-bold ${activeMeta.text} ${activeMeta.darkText}`}
-              numberOfLines={1}>
-              {activeValue}
+              className="text-[11px] font-black uppercase tracking-widest"
+              style={{ color: activeMeta?.dot || (isDark ? '#C4B5FD' : '#7C3AED') }}>
+              {activeValue.replace(/_/g, ' ').toUpperCase()}
             </Text>
-          </View>
+          </Animated.View>
         )}
-        <ChevronRight
-          size={16}
-          color="#9CA3AF"
-          strokeWidth={2.5}
-          style={{ transform: [{ rotate: isOpen ? '90deg' : '0deg' }] }}
-        />
+        <Animated.View layout={LinearTransition.duration(200)}>
+          <ChevronRight
+            size={18}
+            color={isDark ? '#64748B' : '#94A3B8'}
+            strokeWidth={2.5}
+            style={{ transform: [{ rotate: isOpen ? '90deg' : '0deg' }] }}
+          />
+        </Animated.View>
       </TouchableOpacity>
-      {isOpen && children}
-    </View>
+      {isOpen && <Animated.View entering={FadeIn.duration(200)}>{children}</Animated.View>}
+    </Animated.View>
   );
 }
 
@@ -1549,21 +1806,17 @@ export default function UnitOfficerDashboard() {
 
   const unreadNotifCount = notifications?.filter((n) => !n.read).length;
 
-  console.log('Unread Notification Count: ', unreadNotifCount);
   const [filters, setFilters] = useState<FilterState>({
     status: 'all',
     sla: 'all',
     category: 'all',
-    subCategory: 'all',
+    subCategories: [],
     priority: 'all',
   });
 
-  const activeFilterCount = [
-    filters.status !== 'all',
-    filters.sla !== 'all',
-    filters.subCategory !== 'all',
-    filters.priority !== 'all',
-  ].filter(Boolean).length;
+  const activeFilterCount =
+    [filters.status !== 'all', filters.sla !== 'all', filters.priority !== 'all'].filter(Boolean)
+      .length + filters.subCategories.length;
 
   useEffect(() => {
     if (unitOfficer?.department) {
@@ -1572,7 +1825,7 @@ export default function UnitOfficerDashboard() {
       setFilters((prev) => ({
         ...prev,
         category: dept,
-        subCategory: 'all',
+        subCategories: [],
       }));
     }
   }, [unitOfficer]);
@@ -1613,9 +1866,9 @@ export default function UnitOfficerDashboard() {
       if (filters.status !== 'all' && issue?.status !== filters.status) return false;
       if (filters.sla !== 'all' && getSlaStatus(issue?.slaDeadline) !== filters.sla) return false;
       if (filters.category !== 'all' && issue?.category !== filters.category) return false;
-      if (filters.subCategory !== 'all') {
-        const hasSub = issue?.subCategories?.includes(filters.subCategory as IssueSubCategory);
-        if (!hasSub) return false;
+      if (filters.subCategories.length > 0) {
+        const matchesSub = filters.subCategories.some((sc) => issue?.subCategories?.includes(sc));
+        if (!matchesSub) return false;
       }
       if (filters.priority !== 'all' && issue?.priority !== filters.priority) return false;
       return true;
@@ -1776,74 +2029,175 @@ export default function UnitOfficerDashboard() {
 
           {/* Search */}
           <View
-            className="flex-row items-center gap-2.5 rounded-2xl border border-slate-200 bg-white px-3.5 dark:border-slate-700 dark:bg-slate-800"
-            style={styles.shadow}>
-            <Search color="#9CA3AF" size={18} strokeWidth={2} />
+            className="flex-row items-center gap-3 overflow-hidden rounded-[20px] border-[1.5px] px-3"
+            style={{
+              backgroundColor: isDark ? 'rgba(30, 41, 59, 0.7)' : '#FFFFFF',
+              borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.03,
+              shadowRadius: 8,
+              elevation: 2,
+            }}>
+            <View
+              className="ml-1 h-9 w-9 items-center justify-center rounded-[12px]"
+              style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)' }}>
+              <Search color={isDark ? '#94A3B8' : '#64748B'} size={17} strokeWidth={2.5} />
+            </View>
             <TextInput
-              className="flex-1 py-3.5 text-sm text-gray-900 dark:text-slate-100"
+              className="flex-1 py-4 text-[15px] font-bold tracking-tight text-slate-900 dark:text-slate-100"
               placeholder="Search issues, locations, citizens..."
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
               value={searchQuery}
               onChangeText={setSearchQuery}
               returnKeyType="search"
+              style={{ minHeight: 56 }}
             />
             {searchQuery.length > 0 && (
-              <TouchableOpacity
-                onPress={() => setSearchQuery('')}
-                className="h-[22px] w-[22px] items-center justify-center rounded-full bg-gray-200 dark:bg-slate-700">
-                <X size={11} color="#6B7280" />
-              </TouchableOpacity>
+              <Animated.View entering={ZoomIn.springify().damping(15)}>
+                <TouchableOpacity
+                  onPress={() => setSearchQuery('')}
+                  activeOpacity={0.7}
+                  className="mr-1 h-8 w-8 items-center justify-center rounded-full"
+                  style={{
+                    backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)',
+                  }}>
+                  <X size={15} color={isDark ? '#E2E8F0' : '#475569'} strokeWidth={2.5} />
+                </TouchableOpacity>
+              </Animated.View>
             )}
           </View>
 
           {/* Filter trigger */}
-          <TouchableOpacity
+          <AnimatedPressable
             onPress={() => setFilterVisible(true)}
-            activeOpacity={0.8}
-            className="flex-row items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3.5 py-3 dark:border-slate-700 dark:bg-slate-800"
-            style={styles.shadow}>
-            <View className="flex-1 flex-row items-center gap-1.5">
-              <SlidersHorizontal size={15} color="#0D9488" strokeWidth={2.5} />
-              <Text className="text-[13px] font-semibold text-slate-500 dark:text-slate-400">
-                Filters
-              </Text>
-              {activeFilterCount > 0 && (
-                <View className="ml-0.5 h-5 w-5 items-center justify-center rounded-full bg-teal-500">
-                  <Text className="text-[10px] font-extrabold text-white">{activeFilterCount}</Text>
-                </View>
-              )}
+            activeOpacity={0.85}
+            className="flex-row items-center gap-3 overflow-hidden rounded-[20px] border-[1.5px] px-4 py-3.5"
+            style={{
+              backgroundColor:
+                activeFilterCount > 0
+                  ? isDark
+                    ? 'rgba(13, 148, 136, 0.15)'
+                    : '#F0FDFA'
+                  : isDark
+                    ? 'rgba(30, 41, 59, 0.7)'
+                    : '#FFFFFF',
+              borderColor:
+                activeFilterCount > 0
+                  ? isDark
+                    ? 'rgba(45, 212, 191, 0.3)'
+                    : '#99F6E4'
+                  : isDark
+                    ? 'rgba(255,255,255,0.08)'
+                    : 'rgba(0,0,0,0.05)',
+              shadowColor: activeFilterCount > 0 ? '#0D9488' : '#000',
+              shadowOffset: { width: 0, height: activeFilterCount > 0 ? 4 : 2 },
+              shadowOpacity: activeFilterCount > 0 ? 0.2 : 0.03,
+              shadowRadius: activeFilterCount > 0 ? 12 : 8,
+              elevation: activeFilterCount > 0 ? 6 : 2,
+            }}>
+            {activeFilterCount > 0 && (
+              <LinearGradient
+                colors={
+                  isDark
+                    ? ['rgba(20, 184, 166, 0.1)', 'transparent']
+                    : ['rgba(45, 212, 191, 0.1)', 'transparent']
+                }
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={StyleSheet.absoluteFillObject}
+                pointerEvents="none"
+              />
+            )}
+            <View className="flex-row items-center gap-2.5">
+              <View
+                className="h-9 w-9 items-center justify-center rounded-[12px]"
+                style={{
+                  backgroundColor:
+                    activeFilterCount > 0
+                      ? isDark
+                        ? 'rgba(45, 212, 191, 0.15)'
+                        : '#CCFBF1'
+                      : isDark
+                        ? 'rgba(255,255,255,0.06)'
+                        : 'rgba(0,0,0,0.03)',
+                }}>
+                <SlidersHorizontal
+                  size={17}
+                  color={
+                    activeFilterCount > 0
+                      ? isDark
+                        ? '#5EEAD4'
+                        : '#0D9488'
+                      : isDark
+                        ? '#94A3B8'
+                        : '#64748B'
+                  }
+                  strokeWidth={2.5}
+                />
+              </View>
+              <View className="flex-row items-center">
+                <Text
+                  className="text-[15px] font-extrabold tracking-tight"
+                  style={{
+                    color:
+                      activeFilterCount > 0
+                        ? isDark
+                          ? '#CCFBF1'
+                          : '#0F766E'
+                        : isDark
+                          ? '#E2E8F0'
+                          : '#334155',
+                  }}>
+                  Filters
+                </Text>
+                {activeFilterCount > 0 && (
+                  <Animated.View
+                    entering={ZoomIn.springify().damping(15)}
+                    className="ml-2 h-5 w-5 items-center justify-center rounded-full"
+                    style={{
+                      backgroundColor: isDark ? '#14B8A6' : '#0D9488',
+                      shadowColor: '#0D9488',
+                      shadowOpacity: 0.4,
+                      shadowRadius: 4,
+                      shadowOffset: { width: 0, height: 2 },
+                    }}>
+                    <Text className="text-[11px] font-black text-white">{activeFilterCount}</Text>
+                  </Animated.View>
+                )}
+              </View>
             </View>
 
-            {/* Active filter chips preview */}
-            <View className="flex-1 flex-row justify-end gap-1.5">
-              {activeStatus && (
-                <View
-                  className={`rounded-lg px-2 py-0.5 ${activeStatus.bg} ${activeStatus.darkBg}`}>
-                  <Text
-                    className={`text-[10px] font-bold ${activeStatus.text} ${activeStatus.darkText}`}
-                    numberOfLines={1}>
-                    {filters.status}
-                  </Text>
-                </View>
-              )}
-              {activeSla && (
-                <View className={`rounded-lg px-2 py-0.5 ${activeSla.bg} ${activeSla.darkBg}`}>
-                  <Text className={`text-[10px] font-bold ${activeSla.text} ${activeSla.darkText}`}>
-                    {filters.sla}
-                  </Text>
-                </View>
-              )}
-              {activePri && (
-                <View className={`rounded-lg px-2 py-0.5 ${activePri.bg} ${activePri.darkBg}`}>
-                  <Text className={`text-[10px] font-bold ${activePri.text} ${activePri.darkText}`}>
-                    {filters.priority}
-                  </Text>
-                </View>
-              )}
-            </View>
+            {/* Active filter count is shown above, chips removed per request */}
+            <View className="flex-1" />
 
-            <ChevronDown size={15} color="#9CA3AF" strokeWidth={2} />
-          </TouchableOpacity>
+            <View
+              className="ml-0.5 h-7 w-7 items-center justify-center rounded-full"
+              style={{
+                backgroundColor:
+                  activeFilterCount > 0
+                    ? isDark
+                      ? 'rgba(45, 212, 191, 0.15)'
+                      : '#CCFBF1'
+                    : isDark
+                      ? 'rgba(255,255,255,0.06)'
+                      : 'rgba(0,0,0,0.03)',
+              }}>
+              <ChevronDown
+                size={14}
+                color={
+                  activeFilterCount > 0
+                    ? isDark
+                      ? '#5EEAD4'
+                      : '#0D9488'
+                    : isDark
+                      ? '#64748B'
+                      : '#9CA3AF'
+                }
+                strokeWidth={3}
+              />
+            </View>
+          </AnimatedPressable>
 
           {/* Issues header */}
           <View className="mt-1 flex-row items-center justify-between">

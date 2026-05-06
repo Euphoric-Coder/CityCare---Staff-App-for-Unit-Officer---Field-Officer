@@ -1,3 +1,4 @@
+import { Id } from './_generated/dataModel';
 import { internalMutation, mutation, query } from './_generated/server';
 import { v } from 'convex/values';
 
@@ -173,9 +174,60 @@ export const getCitizenDashboardIssues = query({
           photoUrl = await ctx.storage.getUrl(issue.photos[0]);
         }
 
+        // Fetch Field Officer using userId stored in issue
+        let fieldOfficerDetails = null;
+
+        if (issue.assignedFieldOfficer) {
+          const fo = await ctx.db
+            .query('fieldOfficers')
+            .withIndex('by_user', (q) => q.eq('userId', issue.assignedFieldOfficer as Id<'users'>))
+            .unique();
+
+          if (fo) {
+            fieldOfficerDetails = {
+              id: fo._id,
+              userId: fo.userId,
+              fullName: fo.fullName,
+              email: fo.email,
+              phone: fo.phone,
+              rating: fo.rating,
+              efficiencyScore: fo.efficiencyScore,
+              currentActiveIssues: fo.currentActiveIssues,
+              maxIssueCapacity: fo.maxIssueCapacity,
+              workloadPercentage: (fo.currentActiveIssues / fo.maxIssueCapacity) * 100,
+              specialisations: fo.specialisations,
+            };
+          }
+        }
+
+        // Also fetch Unit Officer
+        let unitOfficerDetails = null;
+
+        if (issue.assignedUnitOfficer) {
+          const uo = await ctx.db
+            .query('unitOfficers')
+            .withIndex('by_user', (q) => q.eq('userId', issue.assignedUnitOfficer as Id<'users'>))
+            .unique();
+
+          if (uo) {
+            unitOfficerDetails = {
+              id: uo._id,
+              userId: uo.userId,
+              fullName: uo.fullName,
+              email: uo.email,
+              phone: uo.phone,
+              department: uo.department,
+              rating: uo.rating,
+              efficiencyScore: uo.efficiencyScore,
+            };
+          }
+        }
+
         return {
           ...issue,
           photoUrl,
+          assignedFieldOfficer: fieldOfficerDetails,
+          assignedUnitOfficer: unitOfficerDetails,
         };
       })
     );

@@ -413,6 +413,9 @@ export interface MappedIssue {
   beforePhotos: string[];
   afterPhotos: string[];
 
+  beforeLocation: Coordinates | null;
+  afterLocation: Coordinates | null;
+
   videoEvidence: string[];
 
   slaDeadline: number | null;

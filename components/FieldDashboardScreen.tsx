@@ -44,8 +44,14 @@ export default function FieldDashboardScreen() {
 
   const markAll = useMutation(api.notifications.markAllAsRead);
 
+  const deleteNotification = useMutation(api.notifications.deleteNotification);
+
   async function handleMarkAllAsRead() {
     await markAll({ userId: user?.id as Id<'users'> });
+  }
+
+  async function handleDelete(id: string) {
+    await deleteNotification({ id: id as Id<'notifications'> });
   }
 
   const fieldOfficerIssues = useMemo(() => {
@@ -182,8 +188,10 @@ export default function FieldDashboardScreen() {
         <NotificationPanel
           visible={showNotifications}
           onClose={() => setShowNotifications(false)}
+          // @ts-ignore
           notification={notifications}
           handleMarkAllAsRead={handleMarkAllAsRead}
+          handleDelete={handleDelete}
           role="FieldOfficer"
         />
       )}

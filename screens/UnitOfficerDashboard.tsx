@@ -107,7 +107,7 @@ const STATUS_OPTIONS: (StatusKey | 'all')[] = [
   'rework_required',
   'reopened',
   'escalated',
-  'closed',
+  'resolved',
   'rejected',
 ];
 
@@ -121,7 +121,7 @@ const STATUS_LABEL_MAP: Record<StatusKey | 'all', string> = {
   rework_required: 'Rework Required',
   reopened: 'Reopened',
   escalated: 'Escalated',
-  closed: 'Closed',
+  resolved: 'Closed',
   rejected: 'Rejected',
   resolved: 'Resolved',
   withdrawn: 'Withdrawn',
@@ -281,7 +281,7 @@ const STATUS_META: Record<StatusKey, StatusMeta> = {
     dot: '#10B981',
     border: 'border-emerald-200 dark:border-emerald-800',
   },
-  closed: {
+  resolved: {
     bg: 'bg-slate-100',
     darkBg: 'dark:bg-slate-700/50',
     text: 'text-slate-600',
@@ -533,7 +533,7 @@ function IssueCard({ issue, onPress }: { issue: MappedIssue; onPress: () => void
           border: isDark ? 'rgba(100, 116, 139, 0.4)' : 'rgba(100, 116, 139, 0.3)',
           glow: 'rgba(100, 116, 139, 0.6)',
         };
-      case 'closed':
+      case 'resolved':
         return {
           hex: '#64748B',
           bg: isDark ? 'rgba(100, 116, 139, 0.08)' : '#F8FAFC',
@@ -649,7 +649,6 @@ function IssueCard({ issue, onPress }: { issue: MappedIssue; onPress: () => void
       case 'escalated':
         return TrendingUp;
       case 'resolved':
-      case 'closed':
         return CheckCircle;
       case 'withdrawn':
       case 'rejected':
@@ -1224,11 +1223,6 @@ function FilterModal({
   const isDark = colorScheme === 'dark';
   const [local, setLocal] = useState<FilterState>(filters);
   const [openSection, setOpenSection] = useState<FilterSection | null>('status');
-  const [isClosing, setIsClosing] = useState(false);
-
-  useEffect(() => {
-    if (visible) setIsClosing(false);
-  }, [visible]);
 
   useEffect(() => {
     if (local.category !== 'all') {
@@ -1253,17 +1247,12 @@ function FilterModal({
     return SUBCATEGORY_MAP[local.category] || [];
   }, [local.category]);
 
-  const activeCount = [
-    local.status !== 'all',
-    local.sla !== 'all',
-    local.priority !== 'all',
-  ].filter(Boolean).length + local.subCategories.length;
+  const activeCount =
+    [local.status !== 'all', local.sla !== 'all', local.priority !== 'all'].filter(Boolean).length +
+    local.subCategories.length;
 
   const handleCloseAnim = () => {
-    setIsClosing(true);
-    setTimeout(() => {
-      onClose();
-    }, 300);
+    onClose();
   };
 
   const handleApply = () => {
@@ -1294,8 +1283,6 @@ function FilterModal({
       statusBarTranslucent
       onRequestClose={handleCloseAnim}>
       <View style={{ flex: 1 }}>
-        {!isClosing && (
-          <>
             {/* Animated backdrop */}
             <Animated.View
               entering={FadeIn.duration(400)}
@@ -1431,9 +1418,8 @@ function FilterModal({
                     activeMeta={local.status !== 'all' ? STATUS_META[local.status] : undefined}
                     isDark={isDark}>
                     <View className="flex-row flex-wrap gap-2.5 px-6 pb-5 pt-1">
-                      {STATUS_OPTIONS.map((s, idx) => {
-                        const key = s === 'all' ? 'pending' : s; // fallback meta
-                        const m = STATUS_META[key];
+                      {STATUS_OPTIONS.filter((s) => s !== 'all').map((s, idx) => {
+                        const m = STATUS_META[s];
                         const isActive = local.status === s;
 
                         return (
@@ -1442,7 +1428,7 @@ function FilterModal({
                             label={STATUS_LABEL_MAP[s]}
                             isActive={isActive}
                             dotColor={m.dot}
-                            onPress={() => setLocal({ ...local, status: s })}
+                            onPress={() => setLocal({ ...local, status: local.status === s ? 'all' : s })}
                             isDark={isDark}
                             delay={idx * 50}
                           />
@@ -1465,7 +1451,7 @@ function FilterModal({
                     }
                     isDark={isDark}>
                     <View className="flex-row flex-wrap gap-2.5 px-6 pb-5 pt-1">
-                      {SLA_OPTIONS.map((s, idx) => {
+                      {SLA_OPTIONS.filter((s) => s !== 'all').map((s, idx) => {
                         const m = SLA_META[s];
                         const isActive = local.sla === s;
                         return (
@@ -1474,7 +1460,7 @@ function FilterModal({
                             label={s}
                             isActive={isActive}
                             dotColor={m.dot}
-                            onPress={() => setLocal({ ...local, sla: s })}
+                            onPress={() => setLocal({ ...local, sla: local.sla === s ? 'all' : s })}
                             isDark={isDark}
                             delay={idx * 50}
                           />
@@ -1501,8 +1487,8 @@ function FilterModal({
                     }
                     isDark={isDark}>
                     <View className="flex-row flex-wrap gap-2.5 px-6 pb-5 pt-1">
-                      {PRIORITY_OPTIONS.map((p, idx) => {
-                        const m = p !== 'all' ? PRIORITY_META[p] : { dot: '#94A3B8' };
+                      {PRIORITY_OPTIONS.filter((p) => p !== 'all').map((p, idx) => {
+                        const m = PRIORITY_META[p];
                         const isActive = local.priority === p;
                         return (
                           <FilterOption
@@ -1510,7 +1496,7 @@ function FilterModal({
                             label={p}
                             isActive={isActive}
                             dotColor={m.dot}
-                            onPress={() => setLocal({ ...local, priority: p })}
+                            onPress={() => setLocal({ ...local, priority: local.priority === p ? 'all' : p })}
                             isDark={isDark}
                             delay={idx * 50}
                           />
@@ -1621,8 +1607,13 @@ function FilterModal({
                           strokeWidth={2.5}
                         />
                         <Text
-                          className={`text-[16px] font-extrabold tracking-tight ${activeCount > 0 ? 'text-white shadow-sm' : isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                          Apply Filters{activeCount > 0 ? ` (${activeCount})` : ''}
+                          style={{
+                            fontSize: 16,
+                            fontWeight: '800',
+                            letterSpacing: -0.3,
+                            color: activeCount > 0 ? '#FFFFFF' : isDark ? '#94A3B8' : '#64748B',
+                          }}>
+                          {`Apply Filters${activeCount > 0 ? ` (${activeCount})` : ''}`}
                         </Text>
                       </View>
                     </LinearGradient>
@@ -1630,9 +1621,7 @@ function FilterModal({
                 </View>
               </BlurView>
             </Animated.View>
-          </>
-        )}
-      </View>
+    </View>
     </Modal>
   );
 }
@@ -1799,6 +1788,8 @@ export default function UnitOfficerDashboard() {
 
   const markAll = useMutation(api.notifications.markAllAsRead);
 
+  const deleteNotification = useMutation(api.notifications.deleteNotification);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [filterVisible, setFilterVisible] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -1884,6 +1875,10 @@ export default function UnitOfficerDashboard() {
     await markAll({ userId: user?.id as Id<'users'> });
   }
 
+  async function handleDelete(id: string) {
+    await deleteNotification({ id: id as Id<'notifications'> });
+  }
+
   const stats = [
     {
       label: 'Total',
@@ -1928,190 +1923,256 @@ export default function UnitOfficerDashboard() {
 
   return (
     <SafeAreaView className="flex-1 bg-slate-50 dark:bg-slate-900" edges={['top']}>
-      <StatusBar style="light" />
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <StatusBar style="light" />
 
-      <ScrollView
-        className="flex-1"
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled">
-        {/* ── HEADER ── */}
-        <LinearGradient
-          colors={isDark ? ['#164E63', '#083344', '#0E7490'] : ['#0891B2', '#06B6D4', '#22D3EE']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.header}>
-          <View className="mb-6 flex-row items-start justify-between">
-            <View className="flex-1">
-              <Text className="mb-1 text-[13px] font-medium text-white/70">Welcome back,</Text>
-              <Text className="mb-2.5 text-[26px] font-extrabold tracking-tight text-white">
-                {unitOfficer?.fullName}
-              </Text>
-              <View className="flex-row items-center gap-1 self-start rounded-full bg-white/[0.16] px-2.5 py-1">
-                <MapPin color="rgba(255,255,255,0.85)" size={10} strokeWidth={2.5} />
-                <Text className="text-[11px] font-bold text-white">{unitOfficer?.city}</Text>
+        <ScrollView
+          className="flex-1"
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled">
+          {/* ── HEADER ── */}
+          <LinearGradient
+            colors={isDark ? ['#164E63', '#083344', '#0E7490'] : ['#0891B2', '#06B6D4', '#22D3EE']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.header}>
+            <View className="mb-6 flex-row items-start justify-between">
+              <View className="flex-1">
+                <Text className="mb-1 text-[13px] font-medium text-white/70">Welcome back,</Text>
+                <Text className="mb-2.5 text-[26px] font-extrabold tracking-tight text-white">
+                  {unitOfficer?.fullName}
+                </Text>
+                <View className="flex-row items-center gap-1 self-start rounded-full bg-white/[0.16] px-2.5 py-1">
+                  <MapPin color="rgba(255,255,255,0.85)" size={10} strokeWidth={2.5} />
+                  <Text className="text-[11px] font-bold text-white">{unitOfficer?.city}</Text>
+                </View>
               </View>
-            </View>
-            <View className="items-end gap-2">
-              <TouchableOpacity
-                onPress={() => setShowNotifications(true)}
-                activeOpacity={0.75}
-                className="h-11 w-11 items-center justify-center rounded-[14px] bg-white/[0.16]">
-                <Bell color="#FFFFFF" size={20} strokeWidth={2} />
-                {unreadNotifCount !== undefined && unreadNotifCount > 0 && (
-                  <View style={styles.bellDot}>
-                    {unreadNotifCount <= 99 && (
-                      <Text
-                        style={{
-                          color: '#FFFFFF',
-                          fontSize: 8,
-                          fontWeight: '800',
-                          lineHeight: 10,
-                        }}>
-                        {unreadNotifCount}
-                      </Text>
-                    )}
-                    {unreadNotifCount > 99 && (
-                      <Text
-                        style={{
-                          color: '#FFFFFF',
-                          fontSize: 8,
-                          fontWeight: '800',
-                          lineHeight: 10,
-                        }}>
-                        99+
-                      </Text>
-                    )}
+              <View className="items-end gap-2">
+                <TouchableOpacity
+                  onPress={() => setShowNotifications(true)}
+                  activeOpacity={0.75}
+                  className="h-11 w-11 items-center justify-center rounded-[14px] bg-white/[0.16]">
+                  <Bell color="#FFFFFF" size={20} strokeWidth={2} />
+                  {unreadNotifCount !== undefined && unreadNotifCount > 0 && (
+                    <View style={styles.bellDot}>
+                      {unreadNotifCount <= 99 && (
+                        <Text
+                          style={{
+                            color: '#FFFFFF',
+                            fontSize: 8,
+                            fontWeight: '800',
+                            lineHeight: 10,
+                          }}>
+                          {unreadNotifCount}
+                        </Text>
+                      )}
+                      {unreadNotifCount > 99 && (
+                        <Text
+                          style={{
+                            color: '#FFFFFF',
+                            fontSize: 8,
+                            fontWeight: '800',
+                            lineHeight: 10,
+                          }}>
+                          99+
+                        </Text>
+                      )}
+                    </View>
+                  )}
+                </TouchableOpacity>
+                {overdueCount > 0 && (
+                  <View className="flex-row items-center gap-1 rounded-full bg-red-500/80 px-2.5 py-1">
+                    <AlertTriangle color="#FFFFFF" size={10} strokeWidth={2.5} />
+                    <Text className="text-[11px] font-extrabold text-white">
+                      {overdueCount} Overdue
+                    </Text>
                   </View>
                 )}
-              </TouchableOpacity>
-              {overdueCount > 0 && (
-                <View className="flex-row items-center gap-1 rounded-full bg-red-500/80 px-2.5 py-1">
-                  <AlertTriangle color="#FFFFFF" size={10} strokeWidth={2.5} />
-                  <Text className="text-[11px] font-extrabold text-white">
-                    {overdueCount} Overdue
+                <View className="flex-row items-center gap-1 rounded-full bg-white/[0.14] px-2.5 py-1">
+                  <TrendingUp color="rgba(255,255,255,0.85)" size={10} strokeWidth={2.5} />
+                  <Text className="text-[11px] font-bold text-white">78% SLA</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Stats */}
+            <View className="flex-row gap-2.5">
+              {stats.map((s, i) => (
+                <View key={i} style={styles.statCard}>
+                  <View style={[styles.statIconWrap, { backgroundColor: s.iconBg }]}>{s.icon}</View>
+                  <Text className="text-2xl font-extrabold tracking-tight text-white">
+                    {s.value}
+                  </Text>
+                  <Text className="text-center text-[10px] font-semibold text-white/75">
+                    {s.label}
                   </Text>
                 </View>
-              )}
-              <View className="flex-row items-center gap-1 rounded-full bg-white/[0.14] px-2.5 py-1">
-                <TrendingUp color="rgba(255,255,255,0.85)" size={10} strokeWidth={2.5} />
-                <Text className="text-[11px] font-bold text-white">78% SLA</Text>
-              </View>
+              ))}
             </View>
-          </View>
+          </LinearGradient>
 
-          {/* Stats */}
-          <View className="flex-row gap-2.5">
-            {stats.map((s, i) => (
-              <View key={i} style={styles.statCard}>
-                <View style={[styles.statIconWrap, { backgroundColor: s.iconBg }]}>{s.icon}</View>
-                <Text className="text-2xl font-extrabold tracking-tight text-white">{s.value}</Text>
-                <Text className="text-center text-[10px] font-semibold text-white/75">
-                  {s.label}
-                </Text>
-              </View>
-            ))}
-          </View>
-        </LinearGradient>
-
-        {/* ── BODY ── */}
-        <View className="gap-3 bg-slate-50 px-4 pt-[18px] dark:bg-slate-900">
-          {/* Duplicate Detection Banner */}
-          <DuplicateDetectionBanner
-            groups={duplicateGroups}
-            // @ts-ignore
-            onGroupResolved={(groupId) =>
-              setDuplicateGroups((prev) =>
-                prev.map((g) => (g.id === groupId ? { ...g, resolved: true } : g))
-              )
-            }
-          />
-
-          {/* Search */}
-          <View
-            className="flex-row items-center gap-3 overflow-hidden rounded-[20px] border-[1.5px] px-3"
-            style={{
-              backgroundColor: isDark ? 'rgba(30, 41, 59, 0.7)' : '#FFFFFF',
-              borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.03,
-              shadowRadius: 8,
-              elevation: 2,
-            }}>
-            <View
-              className="ml-1 h-9 w-9 items-center justify-center rounded-[12px]"
-              style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)' }}>
-              <Search color={isDark ? '#94A3B8' : '#64748B'} size={17} strokeWidth={2.5} />
-            </View>
-            <TextInput
-              className="flex-1 py-4 text-[15px] font-bold tracking-tight text-slate-900 dark:text-slate-100"
-              placeholder="Search issues, locations, citizens..."
-              placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              returnKeyType="search"
-              style={{ minHeight: 56 }}
+          {/* ── BODY ── */}
+          <View className="gap-3 bg-slate-50 px-4 pt-[18px] dark:bg-slate-900">
+            {/* Duplicate Detection Banner */}
+            <DuplicateDetectionBanner
+              groups={duplicateGroups}
+              // @ts-ignore
+              onGroupResolved={(groupId) =>
+                setDuplicateGroups((prev) =>
+                  prev.map((g) => (g.id === groupId ? { ...g, resolved: true } : g))
+                )
+              }
             />
-            {searchQuery.length > 0 && (
-              <Animated.View entering={ZoomIn.springify().damping(15)}>
-                <TouchableOpacity
-                  onPress={() => setSearchQuery('')}
-                  activeOpacity={0.7}
-                  className="mr-1 h-8 w-8 items-center justify-center rounded-full"
-                  style={{
-                    backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)',
-                  }}>
-                  <X size={15} color={isDark ? '#E2E8F0' : '#475569'} strokeWidth={2.5} />
-                </TouchableOpacity>
-              </Animated.View>
-            )}
-          </View>
 
-          {/* Filter trigger */}
-          <AnimatedPressable
-            onPress={() => setFilterVisible(true)}
-            activeOpacity={0.85}
-            className="flex-row items-center gap-3 overflow-hidden rounded-[20px] border-[1.5px] px-4 py-3.5"
-            style={{
-              backgroundColor:
-                activeFilterCount > 0
-                  ? isDark
-                    ? 'rgba(13, 148, 136, 0.15)'
-                    : '#F0FDFA'
-                  : isDark
-                    ? 'rgba(30, 41, 59, 0.7)'
-                    : '#FFFFFF',
-              borderColor:
-                activeFilterCount > 0
-                  ? isDark
-                    ? 'rgba(45, 212, 191, 0.3)'
-                    : '#99F6E4'
-                  : isDark
-                    ? 'rgba(255,255,255,0.08)'
-                    : 'rgba(0,0,0,0.05)',
-              shadowColor: activeFilterCount > 0 ? '#0D9488' : '#000',
-              shadowOffset: { width: 0, height: activeFilterCount > 0 ? 4 : 2 },
-              shadowOpacity: activeFilterCount > 0 ? 0.2 : 0.03,
-              shadowRadius: activeFilterCount > 0 ? 12 : 8,
-              elevation: activeFilterCount > 0 ? 6 : 2,
-            }}>
-            {activeFilterCount > 0 && (
-              <LinearGradient
-                colors={
-                  isDark
-                    ? ['rgba(20, 184, 166, 0.1)', 'transparent']
-                    : ['rgba(45, 212, 191, 0.1)', 'transparent']
-                }
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={StyleSheet.absoluteFillObject}
-                pointerEvents="none"
-              />
-            )}
-            <View className="flex-row items-center gap-2.5">
+            {/* Search */}
+            <View
+              className="flex-row items-center gap-3 overflow-hidden rounded-[20px] border-[1.5px] px-3"
+              style={{
+                backgroundColor: isDark ? 'rgba(30, 41, 59, 0.7)' : '#FFFFFF',
+                borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.03,
+                shadowRadius: 8,
+                elevation: 2,
+              }}>
               <View
-                className="h-9 w-9 items-center justify-center rounded-[12px]"
+                className="ml-1 h-9 w-9 items-center justify-center rounded-[12px]"
+                style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)' }}>
+                <Search color={isDark ? '#94A3B8' : '#64748B'} size={17} strokeWidth={2.5} />
+              </View>
+              <TextInput
+                className="flex-1 py-4 text-[15px] font-bold tracking-tight text-slate-900 dark:text-slate-100"
+                placeholder="Search issues, locations, citizens..."
+                placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                returnKeyType="search"
+                style={{ minHeight: 56 }}
+              />
+              {searchQuery.length > 0 && (
+                <Animated.View entering={ZoomIn.springify().damping(15)}>
+                  <TouchableOpacity
+                    onPress={() => setSearchQuery('')}
+                    activeOpacity={0.7}
+                    className="mr-1 h-8 w-8 items-center justify-center rounded-full"
+                    style={{
+                      backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)',
+                    }}>
+                    <X size={15} color={isDark ? '#E2E8F0' : '#475569'} strokeWidth={2.5} />
+                  </TouchableOpacity>
+                </Animated.View>
+              )}
+            </View>
+
+            {/* Filter trigger */}
+            <AnimatedPressable
+              onPress={() => setFilterVisible(true)}
+              activeOpacity={0.85}
+              className="flex-row items-center gap-3 overflow-hidden rounded-[20px] border-[1.5px] px-4 py-3.5"
+              style={{
+                backgroundColor:
+                  activeFilterCount > 0
+                    ? isDark
+                      ? 'rgba(13, 148, 136, 0.15)'
+                      : '#F0FDFA'
+                    : isDark
+                      ? 'rgba(30, 41, 59, 0.7)'
+                      : '#FFFFFF',
+                borderColor:
+                  activeFilterCount > 0
+                    ? isDark
+                      ? 'rgba(45, 212, 191, 0.3)'
+                      : '#99F6E4'
+                    : isDark
+                      ? 'rgba(255,255,255,0.08)'
+                      : 'rgba(0,0,0,0.05)',
+                shadowColor: activeFilterCount > 0 ? '#0D9488' : '#000',
+                shadowOffset: { width: 0, height: activeFilterCount > 0 ? 4 : 2 },
+                shadowOpacity: activeFilterCount > 0 ? 0.2 : 0.03,
+                shadowRadius: activeFilterCount > 0 ? 12 : 8,
+                elevation: activeFilterCount > 0 ? 6 : 2,
+              }}>
+              {activeFilterCount > 0 && (
+                <LinearGradient
+                  colors={
+                    isDark
+                      ? ['rgba(20, 184, 166, 0.1)', 'transparent']
+                      : ['rgba(45, 212, 191, 0.1)', 'transparent']
+                  }
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={StyleSheet.absoluteFillObject}
+                  pointerEvents="none"
+                />
+              )}
+              <View className="flex-row items-center gap-2.5">
+                <View
+                  className="h-9 w-9 items-center justify-center rounded-[12px]"
+                  style={{
+                    backgroundColor:
+                      activeFilterCount > 0
+                        ? isDark
+                          ? 'rgba(45, 212, 191, 0.15)'
+                          : '#CCFBF1'
+                        : isDark
+                          ? 'rgba(255,255,255,0.06)'
+                          : 'rgba(0,0,0,0.03)',
+                  }}>
+                  <SlidersHorizontal
+                    size={17}
+                    color={
+                      activeFilterCount > 0
+                        ? isDark
+                          ? '#5EEAD4'
+                          : '#0D9488'
+                        : isDark
+                          ? '#94A3B8'
+                          : '#64748B'
+                    }
+                    strokeWidth={2.5}
+                  />
+                </View>
+                <View className="flex-row items-center">
+                  <Text
+                    className="text-[15px] font-extrabold tracking-tight"
+                    style={{
+                      color:
+                        activeFilterCount > 0
+                          ? isDark
+                            ? '#CCFBF1'
+                            : '#0F766E'
+                          : isDark
+                            ? '#E2E8F0'
+                            : '#334155',
+                    }}>
+                    Filters
+                  </Text>
+                  {activeFilterCount > 0 && (
+                    <Animated.View
+                      entering={ZoomIn.springify().damping(15)}
+                      className="ml-2 h-5 w-5 items-center justify-center rounded-full"
+                      style={{
+                        backgroundColor: isDark ? '#14B8A6' : '#0D9488',
+                        shadowColor: '#0D9488',
+                        shadowOpacity: 0.4,
+                        shadowRadius: 4,
+                        shadowOffset: { width: 0, height: 2 },
+                      }}>
+                      <Text className="text-[11px] font-black text-white">{activeFilterCount}</Text>
+                    </Animated.View>
+                  )}
+                </View>
+              </View>
+
+              {/* Active filter count is shown above, chips removed per request */}
+              <View className="flex-1" />
+
+              <View
+                className="ml-0.5 h-7 w-7 items-center justify-center rounded-full"
                 style={{
                   backgroundColor:
                     activeFilterCount > 0
@@ -2122,151 +2183,92 @@ export default function UnitOfficerDashboard() {
                         ? 'rgba(255,255,255,0.06)'
                         : 'rgba(0,0,0,0.03)',
                 }}>
-                <SlidersHorizontal
-                  size={17}
+                <ChevronDown
+                  size={14}
                   color={
                     activeFilterCount > 0
                       ? isDark
                         ? '#5EEAD4'
                         : '#0D9488'
                       : isDark
-                        ? '#94A3B8'
-                        : '#64748B'
+                        ? '#64748B'
+                        : '#9CA3AF'
                   }
-                  strokeWidth={2.5}
+                  strokeWidth={3}
                 />
               </View>
-              <View className="flex-row items-center">
-                <Text
-                  className="text-[15px] font-extrabold tracking-tight"
-                  style={{
-                    color:
-                      activeFilterCount > 0
-                        ? isDark
-                          ? '#CCFBF1'
-                          : '#0F766E'
-                        : isDark
-                          ? '#E2E8F0'
-                          : '#334155',
-                  }}>
-                  Filters
+            </AnimatedPressable>
+
+            {/* Issues header */}
+            <View className="mt-1 flex-row items-center justify-between">
+              <Text className="text-[18px] font-extrabold tracking-tight text-slate-900 dark:text-slate-100">
+                {filters.status !== 'all' ? filters.status : 'All Issues'}
+              </Text>
+              <View className="rounded-full bg-blue-100 px-2.5 py-1 dark:bg-blue-900/40">
+                <Text className="text-xs font-bold text-blue-700 dark:text-blue-300">
+                  {filteredIssues.length} {filteredIssues.length === 1 ? 'issue' : 'issues'}
                 </Text>
-                {activeFilterCount > 0 && (
-                  <Animated.View
-                    entering={ZoomIn.springify().damping(15)}
-                    className="ml-2 h-5 w-5 items-center justify-center rounded-full"
-                    style={{
-                      backgroundColor: isDark ? '#14B8A6' : '#0D9488',
-                      shadowColor: '#0D9488',
-                      shadowOpacity: 0.4,
-                      shadowRadius: 4,
-                      shadowOffset: { width: 0, height: 2 },
-                    }}>
-                    <Text className="text-[11px] font-black text-white">{activeFilterCount}</Text>
-                  </Animated.View>
-                )}
               </View>
             </View>
 
-            {/* Active filter count is shown above, chips removed per request */}
-            <View className="flex-1" />
-
-            <View
-              className="ml-0.5 h-7 w-7 items-center justify-center rounded-full"
-              style={{
-                backgroundColor:
-                  activeFilterCount > 0
-                    ? isDark
-                      ? 'rgba(45, 212, 191, 0.15)'
-                      : '#CCFBF1'
-                    : isDark
-                      ? 'rgba(255,255,255,0.06)'
-                      : 'rgba(0,0,0,0.03)',
-              }}>
-              <ChevronDown
-                size={14}
-                color={
-                  activeFilterCount > 0
-                    ? isDark
-                      ? '#5EEAD4'
-                      : '#0D9488'
-                    : isDark
-                      ? '#64748B'
-                      : '#9CA3AF'
-                }
-                strokeWidth={3}
-              />
-            </View>
-          </AnimatedPressable>
-
-          {/* Issues header */}
-          <View className="mt-1 flex-row items-center justify-between">
-            <Text className="text-[18px] font-extrabold tracking-tight text-slate-900 dark:text-slate-100">
-              {filters.status !== 'all' ? filters.status : 'All Issues'}
-            </Text>
-            <View className="rounded-full bg-blue-100 px-2.5 py-1 dark:bg-blue-900/40">
-              <Text className="text-xs font-bold text-blue-700 dark:text-blue-300">
-                {filteredIssues.length} {filteredIssues.length === 1 ? 'issue' : 'issues'}
-              </Text>
-            </View>
-          </View>
-
-          {/* Issue list */}
-          {isLoading ? (
-            <View className="gap-3">
-              {[1, 2, 3].map((i) => (
-                <View
-                  key={i}
-                  className="h-32 animate-pulse rounded-2xl bg-slate-200 dark:bg-slate-700"
+            {/* Issue list */}
+            {isLoading ? (
+              <View className="gap-3">
+                {[1, 2, 3].map((i) => (
+                  <View
+                    key={i}
+                    className="h-32 animate-pulse rounded-2xl bg-slate-200 dark:bg-slate-700"
+                  />
+                ))}
+              </View>
+            ) : filteredIssues.length === 0 ? (
+              <View className="items-center gap-3 py-14">
+                <View className="mb-1 h-20 w-20 items-center justify-center rounded-3xl bg-slate-100 dark:bg-slate-800">
+                  <FileText color="#D1D5DB" size={40} strokeWidth={1.5} />
+                </View>
+                <Text className="text-[17px] font-bold text-slate-500 dark:text-slate-600">
+                  No issues found
+                </Text>
+                <Text className="text-center text-[13px] leading-5 text-slate-400 dark:text-slate-600">
+                  Try adjusting your filters or search query
+                </Text>
+              </View>
+            ) : (
+              filteredIssues.map((issue) => (
+                <IssueCard
+                  key={issue?.id}
+                  // @ts-ignore
+                  issue={issue}
+                  onPress={() =>
+                    navigation.navigate('IssueDetail' as never, { issueId: issue?.id } as never)
+                  }
                 />
-              ))}
-            </View>
-          ) : filteredIssues.length === 0 ? (
-            <View className="items-center gap-3 py-14">
-              <View className="mb-1 h-20 w-20 items-center justify-center rounded-3xl bg-slate-100 dark:bg-slate-800">
-                <FileText color="#D1D5DB" size={40} strokeWidth={1.5} />
-              </View>
-              <Text className="text-[17px] font-bold text-slate-500 dark:text-slate-600">
-                No issues found
-              </Text>
-              <Text className="text-center text-[13px] leading-5 text-slate-400 dark:text-slate-600">
-                Try adjusting your filters or search query
-              </Text>
-            </View>
-          ) : (
-            filteredIssues.map((issue) => (
-              <IssueCard
-                key={issue?.id}
-                // @ts-ignore
-                issue={issue}
-                onPress={() =>
-                  navigation.navigate('IssueDetail' as never, { issueId: issue?.id } as never)
-                }
-              />
-            ))
-          )}
-        </View>
-      </ScrollView>
+              ))
+            )}
+          </View>
+        </ScrollView>
 
-      <FilterModal
-        visible={filterVisible}
-        onClose={() => setFilterVisible(false)}
-        filters={filters}
-        onChange={setFilters}
-        // @ts-ignore
-        department={unitOfficer?.department}
-      />
-
-      {notifications && (
-        <NotificationPanel
-          visible={showNotifications}
-          onClose={() => setShowNotifications(false)}
+        <FilterModal
+          visible={filterVisible}
+          onClose={() => setFilterVisible(false)}
+          filters={filters}
+          onChange={setFilters}
           // @ts-ignore
-          notification={notifications}
-          handleMarkAllAsRead={handleMarkAllAsRead}
-          role="UnitOfficer"
+          department={unitOfficer?.department}
         />
-      )}
+
+        {notifications && (
+          <NotificationPanel
+            visible={showNotifications}
+            onClose={() => setShowNotifications(false)}
+            // @ts-ignore
+            notification={notifications}
+            handleMarkAllAsRead={handleMarkAllAsRead}
+            handleDelete={handleDelete}
+            role="UnitOfficer"
+          />
+        )}
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

@@ -38,6 +38,9 @@ export function mapIssueToUI(issue: any,) {
     beforePhotos: issue.beforePhotos || [],
     afterPhotos: issue.afterPhotos || [],
 
+    beforeLocation: issue.beforeLocation || null,
+    afterLocation: issue.afterLocation || null,
+
     videoEvidence: issue.videos ? [issue.videoUrl] : [],
 
     slaDeadline: issue.slaDeadline,

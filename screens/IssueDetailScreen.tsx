@@ -127,7 +127,7 @@ const STATUS_LABELS: Record<string, string> = {
   verified: 'Verified',
   assigned: 'Assigned',
   in_progress: 'In Progress',
-  pending_uo_verification: 'Pending UO Verification',
+  pending_uo_verification: 'pending_uo_verification',
   rework_required: 'Rework Required',
   closed: 'Closed',
   rejected: 'Rejected',
@@ -1077,7 +1077,7 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
     <SafeAreaView className="flex-1 bg-slate-100 dark:bg-slate-900" edges={['top']}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        behavior="padding">
         <StatusBar style={isDark ? 'light' : 'dark'} />
 
         {/* HEADER */}
@@ -1264,7 +1264,11 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
                         return (
                           <View className="mb-6 flex-row items-center gap-4 rounded-[24px] border border-orange-200/60 bg-orange-50/80 px-6 py-5 shadow-sm dark:border-orange-500/20 dark:bg-orange-900/10">
                             <View className="h-[48px] w-[48px] items-center justify-center rounded-[16px] bg-orange-100/80 dark:bg-orange-500/20">
-                              <Clock color={isDark ? '#FB923C' : '#EA580C'} size={24} strokeWidth={2.5} />
+                              <Clock
+                                color={isDark ? '#FB923C' : '#EA580C'}
+                                size={24}
+                                strokeWidth={2.5}
+                              />
                             </View>
                             <View className="flex-1 justify-center">
                               <Text className="text-[10px] font-black uppercase tracking-[0.2em] text-orange-600 dark:text-orange-500">
@@ -3287,15 +3291,14 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
           )}
 
           {/* PENDING UO VERIFICATION */}
-          {mappedIssue.status === 'Pending UO Verification' && (
-            // <SectionCard>
-            //   <UOVerificationPanel
-            //     issue={mappedIssue}
-            //     onApprove={handleUOApprove}
-            //     onRework={handleUORework}
-            //   />
-            // </SectionCard>
-            <></>
+          {mappedIssue.status === 'pending_uo_verification' && (
+            <SectionCard>
+              <UOVerificationPanel
+                issue={mappedIssue}
+                onApprove={handleUOApprove}
+                onRework={handleUORework}
+              />
+            </SectionCard>
           )}
 
           {/* RESOLVED */}

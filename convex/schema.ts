@@ -208,6 +208,11 @@ export default defineSchema({
       })
     ),
 
+    // Rework Workflow
+    reworkNote: v.optional(v.string()),
+    reworkReasons: v.optional(v.array(v.string())),
+    lastReworkRequestedAt: v.optional(v.number()),
+
     possibleDuplicateIds: v.array(v.id('issues')),
 
     escalatedToAdmin: v.boolean(),

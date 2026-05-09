@@ -1,4 +1,4 @@
-export function mapIssueToUI(issue: any,) {
+export function mapIssueToUI(issue: any) {
   if (!issue) return null;
 
   return {
@@ -41,6 +41,8 @@ export function mapIssueToUI(issue: any,) {
     beforeLocation: issue.beforeLocation || null,
     afterLocation: issue.afterLocation || null,
 
+    foResolutionNotes: issue.notes,
+
     videoEvidence: issue.videos ? [issue.videoUrl] : [],
 
     slaDeadline: issue.slaDeadline,
@@ -49,6 +51,10 @@ export function mapIssueToUI(issue: any,) {
 
     verificationChecklist: issue.verificationChecklist ?? null,
     rejection: issue.rejection ?? null,
+
+    reworkNote: issue.reworkNote ?? null,
+    reworkReasons: issue.reworkReasons || [],
+    lastReworkRequestedAt: issue.lastReworkRequestedAt || 0,
 
     images: issue.photoUrl || [],
 

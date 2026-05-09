@@ -552,3 +552,158 @@ export const assignIssueToFieldOfficer = mutation({
     };
   },
 });
+
+export const approveIssueResolution = mutation({
+  args: {
+    issueId: v.id('issues'),
+    updatedBy: v.id('users'),
+    unitOfficerName: v.string(),
+  },
+
+  handler: async (ctx, args) => {
+    const issue = await ctx.db.get(args.issueId);
+    if (!issue) throw new Error('Issue not found');
+
+    const now = Date.now();
+
+    // Update issue status
+    await ctx.db.patch(args.issueId, {
+      status: 'resolved',
+      resolvedAt: now,
+    });
+
+    // Add issue update
+    await ctx.db.insert('issueUpdates', {
+      issueId: args.issueId,
+      status: 'resolved',
+      comment: `Issue resolution of the issue "${issue.title}" (Issue Code: ${issue.issueCode}) has been verified and approved by Unit Officer ${args.unitOfficerName}.`,
+      updatedBy: args.updatedBy,
+      role: 'unit_officer',
+      attachments: [],
+      scope: 'officer_and_citizen',
+      createdAt: now,
+    });
+
+    // Sending Notifications to the relevant users
+
+    // For Citizen
+    if (issue.reportedBy) {
+      await ctx.db.insert('notifications', {
+        userId: issue.reportedBy,
+        issueId: args.issueId,
+        title: `Issue "${issue.title}" (Issue Code: ${issue.issueCode}) Resolved`,
+        message: `Your reported issue "${issue.title}" (Issue Code: ${issue.issueCode}) has been successfully resolved and closed by the Unit Officer ${args.unitOfficerName}.`,
+        type: 'resolution',
+        read: false,
+        createdAt: now,
+      });
+    }
+
+    // For Field Officer
+    if (issue.assignedFieldOfficer) {
+      await ctx.db.insert('notifications', {
+        userId: issue.assignedFieldOfficer,
+        issueId: args.issueId,
+        title: `Issue "${issue.title}" (Issue Code: ${issue.issueCode}) Resolution Verified`,
+        message: `Your submitted work has been verified by the Unit Officer ${args.unitOfficerName} and marked as resolved.`,
+        type: 'resolution',
+        read: false,
+        createdAt: now,
+      });
+    }
+
+    // For Unit Officer
+    await ctx.db.insert('notifications', {
+      userId: args.updatedBy,
+      issueId: args.issueId,
+      title: `Issue "${issue.title}" (Issue Code: ${issue.issueCode}) Resolved`,
+      message: `You have successfully marked the issue as resolved.`,
+      type: 'resolution',
+      read: false,
+      createdAt: now,
+    });
+
+    return { success: true };
+  },
+});
+
+export const requestRework = mutation({
+  args: {
+    issueId: v.id('issues'),
+    updatedBy: v.id('users'),
+    unitOfficerName: v.string(),
+    note: v.string(),
+    reasons: v.optional(v.array(v.string())),
+  },
+
+  handler: async (ctx, args) => {
+    const issue = await ctx.db.get(args.issueId);
+    if (!issue) throw new Error('Issue not found');
+
+    const now = Date.now();
+
+    const reasonTags =
+      args.reasons && args.reasons.length > 0 ? `[Issues: ${args.reasons.join(', ')}] ` : '';
+
+    const fullNote = `Rework Note: ${args.note.trim()}${reasonTags ? `\nReason(s): ${reasonTags}` : ''}`;
+
+    // Update issue status with rework details
+    await ctx.db.patch(args.issueId, {
+      status: 'rework_required',
+      reworkNote: args.note.trim(),
+      reworkReasons: args.reasons || [],
+      lastReworkRequestedAt: now,
+    });
+
+    // Add issue update in issue timeline
+    await ctx.db.insert('issueUpdates', {
+      issueId: args.issueId,
+      status: 'rework_required',
+      comment: `Rework requested by Unit Officer ${args.unitOfficerName}:\n${fullNote}`,
+      updatedBy: args.updatedBy,
+      role: 'unit_officer',
+      attachments: [],
+      scope: 'officer_and_citizen',
+      createdAt: now,
+    });
+
+    // Notify Field Officer
+    if (issue.assignedFieldOfficer) {
+      await ctx.db.insert('notifications', {
+        userId: issue.assignedFieldOfficer,
+        issueId: args.issueId,
+        title: `Rework Required for Issue "${issue.title}" (Issue Code: ${issue.issueCode})`,
+        message: `Your submitted work requires corrections by Unit Officer ${args.unitOfficerName}.\n\nNote: ${args.note.trim()}\nReason(s): ${reasonTags}`,
+        type: 'rework',
+        read: false,
+        createdAt: now,
+      });
+    }
+
+    // Notify Citizen
+    if (issue.reportedBy) {
+      await ctx.db.insert('notifications', {
+        userId: issue.reportedBy,
+        issueId: args.issueId,
+        title: `Issue Update for Issue "${issue.title}" (Issue Code: ${issue.issueCode})`,
+        message: `Your reported issue "${issue.title}" has been sent back for correction by Unit Officer ${args.unitOfficerName}.\nWe sincerely apologize for any inconvenience caused due to delay in the resolution of this issue.`,
+        type: 'rework',
+        read: false,
+        createdAt: now,
+      });
+    }
+
+    // Notify Unit Officer
+    await ctx.db.insert('notifications', {
+      userId: args.updatedBy,
+      issueId: args.issueId,
+      title: `Rework Requested for Issue "${issue.title}" (Issue Code: ${issue.issueCode})`,
+      message: `You have requested rework for issue "${issue.title}" with Issue Code "${issue.issueCode}".`,
+      type: 'rework',
+      read: false,
+      createdAt: now,
+    });
+
+    return { success: true };
+  },
+});

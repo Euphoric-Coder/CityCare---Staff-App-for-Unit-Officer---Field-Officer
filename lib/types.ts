@@ -532,11 +532,17 @@ export interface CitizenMessage {
 }
 
 export type NotificationType =
-  | 'assignment'
+  | 'status'
+  | 'upvote'
+  | 'comment'
+  | 'assigned'
   | 'sla_alert'
   | 'rework'
   | 'escalation'
-  | 'verification'
+  | 'verified'
+  | 'rejected'
+  | 'in_progress'
+  | 'submitted_for_review'
   | 'resolution'
   | 'reopened'
   | 'message'

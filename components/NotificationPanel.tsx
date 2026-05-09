@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   useColorScheme,
   StyleSheet,
-  Dimensions,
   Platform,
 } from 'react-native';
 import {
@@ -29,6 +28,11 @@ import {
   LayoutGrid,
   Trash2,
   Eye,
+  TrendingUp,
+  AlertCircle,
+  Clock3,
+  SendHorizontal,
+  XCircle,
 } from 'lucide-react-native';
 import { AppNotification, NotificationType } from '../lib/types';
 import { useMutation } from 'convex/react';
@@ -48,7 +52,34 @@ const TYPE_CONFIG: Record<
     label: string;
   }
 > = {
-  assignment: {
+  status: {
+    icon: (c) => <AlertCircle size={16} color={c} strokeWidth={2.5} />,
+    color: '#2563EB',
+    darkColor: '#60A5FA',
+    bg: '#DBEAFE',
+    darkBg: '#1E3A8A',
+    label: 'Status',
+  },
+
+  upvote: {
+    icon: (c) => <TrendingUp size={16} color={c} strokeWidth={2.5} />,
+    color: '#059669',
+    darkColor: '#34D399',
+    bg: '#D1FAE5',
+    darkBg: '#022C22',
+    label: 'Upvote',
+  },
+
+  comment: {
+    icon: (c) => <MessageSquare size={16} color={c} strokeWidth={2.5} />,
+    color: '#D97706',
+    darkColor: '#FBBF24',
+    bg: '#FEF3C7',
+    darkBg: '#451A03',
+    label: 'Comment',
+  },
+
+  assigned: {
     icon: (c) => <UserCheck size={16} color={c} strokeWidth={2.5} />,
     color: '#0891B2',
     darkColor: '#38BDF8',
@@ -56,6 +87,7 @@ const TYPE_CONFIG: Record<
     darkBg: '#082F49',
     label: 'Assignment',
   },
+
   sla_alert: {
     icon: (c) => <AlertTriangle size={16} color={c} strokeWidth={2.5} />,
     color: '#DC2626',
@@ -64,6 +96,7 @@ const TYPE_CONFIG: Record<
     darkBg: '#450A0A',
     label: 'SLA Alert',
   },
+
   rework: {
     icon: (c) => <RotateCcw size={16} color={c} strokeWidth={2.5} />,
     color: '#F97316',
@@ -72,6 +105,7 @@ const TYPE_CONFIG: Record<
     darkBg: '#431407',
     label: 'Rework Required',
   },
+
   escalation: {
     icon: (c) => <ArrowUpCircle size={16} color={c} strokeWidth={2.5} />,
     color: '#7C3AED',
@@ -80,7 +114,8 @@ const TYPE_CONFIG: Record<
     darkBg: '#2E1065',
     label: 'Escalated',
   },
-  verification: {
+
+  verified: {
     icon: (c) => <CheckCircle size={16} color={c} strokeWidth={2.5} />,
     color: '#059669',
     darkColor: '#34D399',
@@ -88,6 +123,7 @@ const TYPE_CONFIG: Record<
     darkBg: '#022C22',
     label: 'Verification',
   },
+
   resolution: {
     icon: (c) => <CheckCheck size={16} color={c} strokeWidth={2.5} />,
     color: '#10B981',
@@ -96,6 +132,7 @@ const TYPE_CONFIG: Record<
     darkBg: '#022C22',
     label: 'Resolution',
   },
+
   reopened: {
     icon: (c) => <RotateCcw size={16} color={c} strokeWidth={2.5} />,
     color: '#EC4899',
@@ -104,6 +141,7 @@ const TYPE_CONFIG: Record<
     darkBg: '#500724',
     label: 'Issue Reopened',
   },
+
   message: {
     icon: (c) => <MessageSquare size={16} color={c} strokeWidth={2.5} />,
     color: '#3B82F6',
@@ -112,6 +150,34 @@ const TYPE_CONFIG: Record<
     darkBg: '#1E3A8A',
     label: 'Citizen Message',
   },
+
+  in_progress: {
+    icon: (c) => <Clock3 size={16} color={c} strokeWidth={2.5} />,
+    color: '#2563EB',
+    darkColor: '#60A5FA',
+    bg: '#DBEAFE',
+    darkBg: '#1E3A8A',
+    label: 'In Progress',
+  },
+
+  submitted_for_review: {
+    icon: (c) => <SendHorizontal size={16} color={c} strokeWidth={2.5} />,
+    color: '#9333EA',
+    darkColor: '#C084FC',
+    bg: '#F3E8FF',
+    darkBg: '#3B0764',
+    label: 'Submitted for Review',
+  },
+
+  rejected: {
+    icon: (c) => <XCircle size={16} color={c} strokeWidth={2.5} />,
+    color: '#DC2626',
+    darkColor: '#F87171',
+    bg: '#FEE2E2',
+    darkBg: '#450A0A',
+    label: 'Rejected',
+  },
+
   system: {
     icon: (c) => <Settings size={16} color={c} strokeWidth={2.5} />,
     color: '#64748B',

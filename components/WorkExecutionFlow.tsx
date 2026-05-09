@@ -46,6 +46,13 @@ interface Coords {
 
 interface WorkExecutionFlowProps {
   issueId: string;
+  previousWork: {
+    beforePhotos: string;
+    afterPhotos: string;
+    beforeLocation: Coords;
+    afterLocation: Coords;
+    notes: string;
+  } | null;
   status: string;
   onClose: () => void;
   onSubmit: (data: {
@@ -169,6 +176,7 @@ function ChecklistItem({ done, label }: { done: boolean; label: string }) {
 
 export default function WorkExecutionFlow({
   issueId,
+  previousWork,
   status,
   onClose,
   onSubmit,
@@ -184,6 +192,8 @@ export default function WorkExecutionFlow({
   const [showImagePicker, setShowImagePicker] = useState<'before' | 'after' | null>(null);
   const [hasLocationPermission, setHasLocationPermission] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+
+  console.log('Previous Work:', previousWork);
 
   const isRework = status === 'rework_required';
 
@@ -274,7 +284,10 @@ export default function WorkExecutionFlow({
     }
   };
 
-  const wordCount = notes.trim().split(/\s+/).filter((w) => w.length > 0).length;
+  const wordCount = notes
+    .trim()
+    .split(/\s+/)
+    .filter((w) => w.length > 0).length;
   const isNotesValid = wordCount >= 10;
 
   const isReady =
@@ -343,7 +356,9 @@ export default function WorkExecutionFlow({
               <Text style={styles.headerSubtitle}>ASSET ID: {issueId.slice(-8).toUpperCase()}</Text>
               {isRework && (
                 <View className="rounded-md bg-amber-500/10 px-1.5 py-0.5">
-                  <Text className="text-[8px] font-black tracking-widest text-amber-500">REWORK MODE</Text>
+                  <Text className="text-[8px] font-black tracking-widest text-amber-500">
+                    REWORK MODE
+                  </Text>
                 </View>
               )}
             </View>
@@ -371,9 +386,11 @@ export default function WorkExecutionFlow({
             const isCurrent =
               !stepDone &&
               (i === 0 ||
-                [!!beforeImage && !!beforeLocation, !!afterImage && !!afterLocation, !!notes.trim()][
-                  i - 1
-                ]);
+                [
+                  !!beforeImage && !!beforeLocation,
+                  !!afterImage && !!afterLocation,
+                  !!notes.trim(),
+                ][i - 1]);
 
             return (
               <View key={i} style={styles.stepItem}>
@@ -530,7 +547,10 @@ export default function WorkExecutionFlow({
               styles.notesContainer,
               isDark ? styles.notesDark : styles.notesLight,
               notes.trim().length > 0 &&
-                !isNotesValid && { borderColor: '#EF4444', backgroundColor: 'rgba(239,68,68,0.02)' },
+                !isNotesValid && {
+                  borderColor: '#EF4444',
+                  backgroundColor: 'rgba(239,68,68,0.02)',
+                },
               isNotesValid && { borderColor: '#10B981', backgroundColor: 'rgba(16,185,129,0.02)' },
             ]}>
             <TextInput
@@ -559,7 +579,10 @@ export default function WorkExecutionFlow({
             <View className="mt-3 flex-row items-center justify-between">
               <View style={styles.wordCountBadge}>
                 <Text
-                  style={[styles.wordCountText, isNotesValid ? { color: '#10B981' } : { color: '#EF4444' }]}>
+                  style={[
+                    styles.wordCountText,
+                    isNotesValid ? { color: '#10B981' } : { color: '#EF4444' },
+                  ]}>
                   {wordCount} WORDS
                 </Text>
               </View>
@@ -580,7 +603,10 @@ export default function WorkExecutionFlow({
           <ChecklistItem done={!!beforeLocation} label="Before location recorded" />
           <ChecklistItem done={!!afterImage} label="After image captured" />
           <ChecklistItem done={!!afterLocation} label="After location recorded" />
-          <ChecklistItem done={!!notes.trim()} label={isRework ? "Rectification notes added" : "Work notes added"} />
+          <ChecklistItem
+            done={!!notes.trim()}
+            label={isRework ? 'Rectification notes added' : 'Work notes added'}
+          />
         </View>
 
         <View className="h-4" />

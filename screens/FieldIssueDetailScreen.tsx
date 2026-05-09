@@ -1031,7 +1031,7 @@ export default function FieldIssueDetailScreen() {
 
         {/* ── Rework Required Banner ── */}
         {issue.status === 'rework_required' && (
-          <ReworkBanner reason={issue.reworkReason} comment={issue.reworkComment} />
+          <ReworkBanner reason={issue.reworkReasons} comment={issue.reworkNote} />
         )}
 
         {/* ── Work Submitted Banner ── */}
@@ -2428,6 +2428,13 @@ export default function FieldIssueDetailScreen() {
         onRequestClose={() => setShowWorkFlow(false)}>
         <WorkExecutionFlow
           issueId={issue.id}
+          previousWork={{
+            afterPhotos: issue.afterPhotos,
+            afterLocation: issue.afterLocation,
+            beforePhotos: issue.beforePhotos,
+            beforeLocation: issue.beforeLocation,
+            notes: issue.foResolutionNotes,
+          }}
           status={issue.status}
           onClose={() => setShowWorkFlow(false)}
           onSubmit={handleWorkFlowSubmit}
@@ -2771,7 +2778,7 @@ export default function FieldIssueDetailScreen() {
   );
 }
 
-function ReworkBanner({ reason, comment }: { reason?: string; comment?: string }) {
+function ReworkBanner({ reason, comment }: { reason?: string[]; comment?: string }) {
   const isDark = useColorScheme() === 'dark';
   return (
     <View style={styles.reworkBannerWrap}>
@@ -2800,16 +2807,21 @@ function ReworkBanner({ reason, comment }: { reason?: string; comment?: string }
         <View style={{ flex: 1 }}>
           <Text style={styles.reworkHeading}>Rework Required</Text>
 
-          {reason ? (
-            <View
-              style={[
-                styles.reworkReasonPill,
-                {
-                  backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.22)',
-                  borderColor: 'rgba(255,255,255,0.25)',
-                },
-              ]}>
-              <Text style={styles.reworkReasonText}>{reason}</Text>
+          {reason && reason.length > 0 ? (
+            <View style={styles.reworkReasonsContainer}>
+              {reason.map((r, i) => (
+                <View
+                  key={i}
+                  style={[
+                    styles.reworkReasonPill,
+                    {
+                      backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.22)',
+                      borderColor: 'rgba(255,255,255,0.25)',
+                    },
+                  ]}>
+                  <Text style={styles.reworkReasonText}>{r}</Text>
+                </View>
+              ))}
             </View>
           ) : null}
 
@@ -4021,15 +4033,19 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#FFFFFF',
     letterSpacing: 0.3,
-    marginBottom: 8,
+    marginBottom: 10,
+  },
+  reworkReasonsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 12,
   },
   reworkReasonPill: {
-    alignSelf: 'flex-start',
     backgroundColor: 'rgba(255,255,255,0.22)',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    marginBottom: 8,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.3)',
   },

@@ -51,6 +51,8 @@ import {
 import { Issue, IssueUpdate, MappedIssue } from '../lib/types';
 import { useUser } from 'context/UserContext';
 import { Id } from 'convex/_generated/dataModel';
+import { api } from 'convex/_generated/api';
+import { useMutation } from 'convex/react';
 
 function haversineDistanceMetres(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371000;
@@ -532,36 +534,28 @@ export default function UOVerificationPanel({
   const afterOk = afterDistance !== null ? afterDistance <= THRESHOLD_METRES : null;
   const bothLocationsPassed = beforeOk !== false && afterOk !== false;
 
+  const approveIssueResolution = useMutation(api.unitOfficers.approveIssueResolution);
+
+  const requestRework = useMutation(api.unitOfficers.requestRework);
+
   const handleApprove = () => {
     setShowVerifyModal(true);
   };
 
-  const performApprove = () => {
-    const newUpdate: IssueUpdate = {
-      id: `upd-${Date.now()}`,
-      issueId: issue.id,
-      status: 'resolved',
-      comment: 'Issue resolution verified and approved by Unit Officer. Issue is now closed.',
-      role: 'unit_officer',
-      attachments: [],
-      updatedBy: user?.id as Id<'users'>,
-      scope: 'officer_and_citizen',
-      createdAt: new Date().toISOString(),
-    };
+  const performApprove = async () => {
+    try {
+      if (!issue.id || !user?.id) return;
 
-    // Actually trigger the approval
-    // onApprove({
-    //   ...issue,
-    //   status: 'resolved',
-    //   issueUpdates: [...issue.issueUpdates, newUpdate],
-    // });
+      await approveIssueResolution({
+        issueId: issue?.id as Id<'issues'>,
+        updatedBy: user?.id as Id<'users'>,
+        unitOfficerName: user?.name,
+      });
 
-    console.log('The new update is : ', newUpdate);
-    console.log({
-      status: 'resolved',
-    });
-
-    setShowVerifyModal(false);
+      setShowVerifyModal(false);
+    } catch (err) {
+      console.error('Approval failed:', err);
+    }
   };
 
   const wordCount = reworkNote.trim().split(/\s+/).filter(Boolean).length;
@@ -575,32 +569,23 @@ export default function UOVerificationPanel({
     setShowReworkModal(true);
   };
 
-  const performRework = () => {
-    const reasonTags = selectedReasons.length > 0 ? `[Issues: ${selectedReasons.join(', ')}] ` : '';
-    const fullNote = `${reasonTags}${reworkNote.trim()}`;
+  const performRework = async () => {
+    try {
+      await requestRework({
+        issueId: issue?.id as Id<'issues'>,
+        updatedBy: user?.id as Id<'users'>,
+        unitOfficerName: user?.name as string,
+        note: reworkNote,
+        reasons: selectedReasons,
+      });
 
-    const newUpdate: IssueUpdate = {
-      id: `upd-${Date.now()}`,
-      issueId: issue.id,
-      status: 'Rework Required',
-      comment: `Rework requested by Unit Officer: ${fullNote}`,
-      role: 'unit_officer',
-      attachments: [],
-      updatedBy: user?.id as Id<'users'>,
-      scope: 'officer_and_citizen',
-      createdAt: new Date().toISOString(),
-    };
-
-    console.log('Rework Update Data:', {
-      fullNote,
-      newUpdate,
-      issueStatus: 'Rework Required',
-    });
-
-    // Reset and Close
-    setReworkNote('');
-    setSelectedReasons([]);
-    setShowReworkModal(false);
+      // Reset UI
+      setReworkNote('');
+      setSelectedReasons([]);
+      setShowReworkModal(false);
+    } catch (err) {
+      console.error('Rework failed:', err);
+    }
   };
 
   const isDark = useColorScheme() === 'dark';
@@ -718,7 +703,7 @@ export default function UOVerificationPanel({
       {activeTab === 'approve' && (
         <Animated.View entering={FadeIn.duration(300)} className="gap-6 p-5">
           {/* Resolution Report */}
-          {issue.foResolutionDescription && (
+          {issue.foResolutionNotes && (
             <Animated.View entering={FadeInUp.duration(400)} className="gap-3">
               <View className="flex-row items-center gap-2.5">
                 <LinearGradient
@@ -753,7 +738,7 @@ export default function UOVerificationPanel({
                   <LinearGradient colors={['#10B981', '#059669']} style={{ width: 4 }} />
                   <View className="flex-1 bg-slate-50 p-4 dark:bg-slate-800/60">
                     <Text className="text-[14px] font-semibold leading-6 text-slate-700 dark:text-slate-200">
-                      {issue.foResolutionDescription}
+                      {issue.foResolutionNotes}
                     </Text>
                   </View>
                 </View>
@@ -1046,284 +1031,279 @@ export default function UOVerificationPanel({
       {/* ─── REWORK TAB ─── */}
       {activeTab === 'rework' && (
         <Animated.View entering={FadeIn.duration(300)} style={{ padding: 20, gap: 20 }}>
-              {/* Directive header */}
+          {/* Directive header */}
+          <LinearGradient
+            colors={['#F97316', '#EA580C']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 14,
+              padding: 16,
+              borderRadius: 20,
+            }}>
+            <View
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 14,
+                backgroundColor: 'rgba(255,255,255,0.2)',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+              <RotateCcw color="#FFF" size={22} strokeWidth={2.5} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text
+                style={{
+                  fontSize: 15,
+                  fontWeight: '900',
+                  color: '#FFFFFF',
+                }}>
+                Rework Directive
+              </Text>
+              <Text
+                style={{
+                  fontSize: 12,
+                  fontWeight: '600',
+                  color: 'rgba(255,255,255,0.7)',
+                  marginTop: 2,
+                }}>
+                Select issues & provide instructions
+              </Text>
+            </View>
+          </LinearGradient>
+
+          {/* ── Checklist Section ── */}
+          <View style={{ gap: 10 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <LinearGradient
                 colors={['#F97316', '#EA580C']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
                 style={{
-                  flexDirection: 'row',
+                  width: 28,
+                  height: 28,
+                  borderRadius: 9,
                   alignItems: 'center',
-                  gap: 14,
-                  padding: 16,
-                  borderRadius: 20,
+                  justifyContent: 'center',
                 }}>
-                <View
-                  style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: 14,
-                    backgroundColor: 'rgba(255,255,255,0.2)',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}>
-                  <RotateCcw color="#FFF" size={22} strokeWidth={2.5} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text
-                    style={{
-                      fontSize: 15,
-                      fontWeight: '900',
-                      color: '#FFFFFF',
-                    }}>
-                    Rework Directive
-                  </Text>
-                  <Text
-                    style={{
-                      fontSize: 12,
-                      fontWeight: '600',
-                      color: 'rgba(255,255,255,0.7)',
-                      marginTop: 2,
-                    }}>
-                    Select issues & provide instructions
-                  </Text>
-                </View>
+                <CheckSquare color="#FFF" size={14} strokeWidth={2.5} />
               </LinearGradient>
+              <Text className="text-[10px] font-black uppercase tracking-[1.5px] text-orange-600 dark:text-orange-400">
+                Issues Found
+              </Text>
+            </View>
 
-              {/* ── Checklist Section ── */}
-              <View style={{ gap: 10 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <LinearGradient
-                    colors={['#F97316', '#EA580C']}
-                    style={{
-                      width: 28,
-                      height: 28,
-                      borderRadius: 9,
-                      alignItems: 'center',
-                      justifyContent: 'center',
+            <View
+              style={{
+                borderRadius: 18,
+                borderWidth: 1,
+                borderColor: isDark ? '#1E293B' : '#E2E8F0',
+                backgroundColor: isDark ? '#0F172A' : '#FFFFFF',
+                overflow: 'hidden',
+              }}>
+              {[
+                {
+                  key: 'photo',
+                  label: 'Photo Quality',
+                  desc: 'Blurry or unclear evidence photos',
+                },
+                {
+                  key: 'location',
+                  label: 'Wrong Location',
+                  desc: 'GPS mismatch with issue site',
+                },
+                {
+                  key: 'incomplete',
+                  label: 'Incomplete Work',
+                  desc: 'Resolution not fully completed',
+                },
+                {
+                  key: 'description',
+                  label: 'Poor Description',
+                  desc: 'Insufficient resolution details',
+                },
+                {
+                  key: 'wrong_issue',
+                  label: 'Wrong Issue Addressed',
+                  desc: 'Different problem was resolved',
+                },
+              ].map((item, idx) => {
+                const isSelected = selectedReasons.includes(item.label);
+                const isLast = idx === 4;
+                return (
+                  <TouchableOpacity
+                    key={item.key}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      setSelectedReasons((prev) =>
+                        prev.includes(item.label)
+                          ? prev.filter((r) => r !== item.label)
+                          : [...prev, item.label]
+                      );
                     }}>
-                    <CheckSquare color="#FFF" size={14} strokeWidth={2.5} />
-                  </LinearGradient>
-                  <Text className="text-[10px] font-black uppercase tracking-[1.5px] text-orange-600 dark:text-orange-400">
-                    Issues Found
-                  </Text>
-                </View>
-
-                <View
-                  style={{
-                    borderRadius: 18,
-                    borderWidth: 1,
-                    borderColor: isDark ? '#1E293B' : '#E2E8F0',
-                    backgroundColor: isDark ? '#0F172A' : '#FFFFFF',
-                    overflow: 'hidden',
-                  }}>
-                  {[
-                    {
-                      key: 'photo',
-                      label: 'Photo Quality',
-                      desc: 'Blurry or unclear evidence photos',
-                    },
-                    {
-                      key: 'location',
-                      label: 'Wrong Location',
-                      desc: 'GPS mismatch with issue site',
-                    },
-                    {
-                      key: 'incomplete',
-                      label: 'Incomplete Work',
-                      desc: 'Resolution not fully completed',
-                    },
-                    {
-                      key: 'description',
-                      label: 'Poor Description',
-                      desc: 'Insufficient resolution details',
-                    },
-                    {
-                      key: 'wrong_issue',
-                      label: 'Wrong Issue Addressed',
-                      desc: 'Different problem was resolved',
-                    },
-                  ].map((item, idx) => {
-                    const isSelected = selectedReasons.includes(item.label);
-                    const isLast = idx === 4;
-                    return (
-                      <TouchableOpacity
-                        key={item.key}
-                        activeOpacity={0.7}
-                        onPress={() => {
-                          setSelectedReasons((prev) =>
-                            prev.includes(item.label)
-                              ? prev.filter((r) => r !== item.label)
-                              : [...prev, item.label]
-                          );
-                        }}>
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 12,
+                        paddingHorizontal: 16,
+                        paddingVertical: 14,
+                        backgroundColor: isSelected
+                          ? isDark
+                            ? 'rgba(249,115,22,0.08)'
+                            : 'rgba(249,115,22,0.04)'
+                          : 'transparent',
+                        borderBottomWidth: isLast ? 0 : 1,
+                        borderBottomColor: isDark ? '#1E293B' : '#F1F5F9',
+                      }}>
+                      {isSelected ? (
+                        <LinearGradient
+                          colors={['#F97316', '#EA580C']}
+                          style={{
+                            width: 24,
+                            height: 24,
+                            borderRadius: 7,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}>
+                          <CheckSquare color="#FFF" size={14} strokeWidth={3} />
+                        </LinearGradient>
+                      ) : (
                         <View
                           style={{
-                            flexDirection: 'row',
+                            width: 24,
+                            height: 24,
+                            borderRadius: 7,
+                            borderWidth: 2,
+                            borderColor: isDark ? '#334155' : '#CBD5E1',
                             alignItems: 'center',
-                            gap: 12,
-                            paddingHorizontal: 16,
-                            paddingVertical: 14,
-                            backgroundColor: isSelected
-                              ? isDark
-                                ? 'rgba(249,115,22,0.08)'
-                                : 'rgba(249,115,22,0.04)'
-                              : 'transparent',
-                            borderBottomWidth: isLast ? 0 : 1,
-                            borderBottomColor: isDark ? '#1E293B' : '#F1F5F9',
+                            justifyContent: 'center',
                           }}>
-                          {isSelected ? (
-                            <LinearGradient
-                              colors={['#F97316', '#EA580C']}
-                              style={{
-                                width: 24,
-                                height: 24,
-                                borderRadius: 7,
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                              }}>
-                              <CheckSquare color="#FFF" size={14} strokeWidth={3} />
-                            </LinearGradient>
-                          ) : (
-                            <View
-                              style={{
-                                width: 24,
-                                height: 24,
-                                borderRadius: 7,
-                                borderWidth: 2,
-                                borderColor: isDark ? '#334155' : '#CBD5E1',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                              }}>
-                              <Square
-                                color={isDark ? '#475569' : '#94A3B8'}
-                                size={12}
-                                strokeWidth={2}
-                              />
-                            </View>
-                          )}
-                          <View style={{ flex: 1 }}>
-                            <Text
-                              className={`text-[13px] font-bold ${
-                                isSelected
-                                  ? 'text-orange-700 dark:text-orange-400'
-                                  : 'text-slate-700 dark:text-slate-200'
-                              }`}>
-                              {item.label}
-                            </Text>
-                            <Text className="text-[11px] font-medium text-slate-400 dark:text-slate-500">
-                              {item.desc}
-                            </Text>
-                          </View>
+                          <Square
+                            color={isDark ? '#475569' : '#94A3B8'}
+                            size={12}
+                            strokeWidth={2}
+                          />
                         </View>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              </View>
-
-              {/* ── Compose area ── */}
-              <View
-                className={`overflow-hidden rounded-[24px] border-[1.5px] bg-white shadow-sm dark:bg-slate-900 ${
-                  reworkNote.length > 0
-                    ? 'border-orange-400 dark:border-orange-500'
-                    : 'border-slate-200 dark:border-slate-800'
-                }`}
-                style={{
-                  shadowColor: reworkNote.length > 0 ? '#F97316' : '#000',
-                  shadowOffset: { width: 0, height: 4 },
-                  shadowOpacity: reworkNote.length > 0 ? 0.15 : 0.03,
-                  shadowRadius: 10,
-                  elevation: reworkNote.length > 0 ? 4 : 1,
-                }}>
-                {/* Compose Header */}
-                <View className="flex-row items-center justify-between border-b border-slate-100 bg-slate-50/80 px-4 py-3.5 dark:border-slate-800/80 dark:bg-slate-800/40">
-                  <View className="flex-row items-center gap-3">
-                    <View className="h-9 w-9 items-center justify-center rounded-[12px] bg-orange-100 dark:bg-orange-900/50">
-                      <FileText
-                        color={isDark ? '#FB923C' : '#F97316'}
-                        size={16}
-                        strokeWidth={2.5}
-                      />
+                      )}
+                      <View style={{ flex: 1 }}>
+                        <Text
+                          className={`text-[13px] font-bold ${
+                            isSelected
+                              ? 'text-orange-700 dark:text-orange-400'
+                              : 'text-slate-700 dark:text-slate-200'
+                          }`}>
+                          {item.label}
+                        </Text>
+                        <Text className="text-[11px] font-medium text-slate-400 dark:text-slate-500">
+                          {item.desc}
+                        </Text>
+                      </View>
                     </View>
-                    <Text className="text-[14px] font-extrabold tracking-tight text-slate-800 dark:text-slate-100">
-                      Instructions <Text className="text-orange-500">*</Text>
-                    </Text>
-                  </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
 
-                  <View
-                    className={`rounded-[10px] px-3 py-1.5 ${
-                      isNoteReady
-                        ? 'bg-emerald-100 dark:bg-emerald-900/40'
-                        : 'bg-orange-100 dark:bg-orange-900/40'
-                    }`}>
-                    <Text
-                      className={`text-[9px] font-black tracking-wider ${
-                        isNoteReady
-                          ? 'text-emerald-700 dark:text-emerald-400'
-                          : 'text-orange-700 dark:text-orange-400'
-                      }`}>
-                      {wordCount} WORDS {wordCount < 10 && '(MIN 10)'}
-                    </Text>
-                  </View>
+          {/* ── Compose area ── */}
+          <View
+            className={`overflow-hidden rounded-[24px] border-[1.5px] bg-white shadow-sm dark:bg-slate-900 ${
+              reworkNote.length > 0
+                ? 'border-orange-400 dark:border-orange-500'
+                : 'border-slate-200 dark:border-slate-800'
+            }`}
+            style={{
+              shadowColor: reworkNote.length > 0 ? '#F97316' : '#000',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: reworkNote.length > 0 ? 0.15 : 0.03,
+              shadowRadius: 10,
+              elevation: reworkNote.length > 0 ? 4 : 1,
+            }}>
+            {/* Compose Header */}
+            <View className="flex-row items-center justify-between border-b border-slate-100 bg-slate-50/80 px-4 py-3.5 dark:border-slate-800/80 dark:bg-slate-800/40">
+              <View className="flex-row items-center gap-3">
+                <View className="h-9 w-9 items-center justify-center rounded-[12px] bg-orange-100 dark:bg-orange-900/50">
+                  <FileText color={isDark ? '#FB923C' : '#F97316'} size={16} strokeWidth={2.5} />
                 </View>
-
-                <View className="relative">
-                  <TextInput
-                    value={reworkNote}
-                    onChangeText={setReworkNote}
-                    placeholder="Explain what needs to be corrected..."
-                    placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
-                    multiline
-                    style={{
-                      fontSize: 15,
-                      lineHeight: 24,
-                      minHeight: 140,
-                      padding: 16,
-                      textAlignVertical: 'top',
-                      color: isDark ? '#F8FAFC' : '#1E293B',
-                      fontWeight: '500',
-                    }}
-                  />
-                </View>
+                <Text className="text-[14px] font-extrabold tracking-tight text-slate-800 dark:text-slate-100">
+                  Instructions <Text className="text-orange-500">*</Text>
+                </Text>
               </View>
 
-              {/* Send Rework Request Button */}
-              <TouchableOpacity
-                onPress={handleRequestRework}
-                disabled={!isNoteReady}
-                activeOpacity={0.9}
+              <View
+                className={`rounded-[10px] px-3 py-1.5 ${
+                  isNoteReady
+                    ? 'bg-emerald-100 dark:bg-emerald-900/40'
+                    : 'bg-orange-100 dark:bg-orange-900/40'
+                }`}>
+                <Text
+                  className={`text-[9px] font-black tracking-wider ${
+                    isNoteReady
+                      ? 'text-emerald-700 dark:text-emerald-400'
+                      : 'text-orange-700 dark:text-orange-400'
+                  }`}>
+                  {wordCount} WORDS {wordCount < 10 && '(MIN 10)'}
+                </Text>
+              </View>
+            </View>
+
+            <View className="relative">
+              <TextInput
+                value={reworkNote}
+                onChangeText={setReworkNote}
+                placeholder="Explain what needs to be corrected..."
+                placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
+                multiline
                 style={{
-                  borderRadius: 20,
-                  overflow: 'hidden',
-                  opacity: isNoteReady ? 1 : 0.6,
-                  shadowColor: '#F97316',
-                  shadowOffset: { width: 0, height: 4 },
-                  shadowOpacity: isNoteReady ? 0.3 : 0,
-                  shadowRadius: 12,
-                  elevation: isNoteReady ? 8 : 0,
-                }}>
-                <LinearGradient
-                  colors={['#FB923C', '#F97316', '#EA580C']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 10,
-                    paddingVertical: 18,
-                  }}>
-                  <Sparkles color="#FFF" size={18} strokeWidth={2.5} />
-                  <Text className="text-[14px] font-black uppercase tracking-wider text-white">
-                    Send Rework Request
-                  </Text>
-                </LinearGradient>
-              </TouchableOpacity>
+                  fontSize: 15,
+                  lineHeight: 24,
+                  minHeight: 140,
+                  padding: 16,
+                  textAlignVertical: 'top',
+                  color: isDark ? '#F8FAFC' : '#1E293B',
+                  fontWeight: '500',
+                }}
+              />
+            </View>
+          </View>
+
+          {/* Send Rework Request Button */}
+          <TouchableOpacity
+            onPress={handleRequestRework}
+            disabled={!isNoteReady}
+            activeOpacity={0.9}
+            style={{
+              borderRadius: 20,
+              overflow: 'hidden',
+              opacity: isNoteReady ? 1 : 0.6,
+              shadowColor: '#F97316',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: isNoteReady ? 0.3 : 0,
+              shadowRadius: 12,
+              elevation: isNoteReady ? 8 : 0,
+            }}>
+            <LinearGradient
+              colors={['#FB923C', '#F97316', '#EA580C']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 10,
+                paddingVertical: 18,
+              }}>
+              <Sparkles color="#FFF" size={18} strokeWidth={2.5} />
+              <Text className="text-[14px] font-black uppercase tracking-wider text-white">
+                Send Rework Request
+              </Text>
+            </LinearGradient>
+          </TouchableOpacity>
         </Animated.View>
       )}
 
-      
       {/* ─── IMAGE PREVIEW MODAL ─── */}
       <Modal
         visible={!!previewImage}

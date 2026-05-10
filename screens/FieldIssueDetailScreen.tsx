@@ -641,24 +641,40 @@ export default function FieldIssueDetailScreen() {
     beforeLocation: { latitude: number; longitude: number } | null;
     afterLocation: { latitude: number; longitude: number } | null;
     notes: string;
+    isBeforeImageReplaced: boolean;
+    isAfterImageReplaced: boolean;
+    isNotesReplaced: boolean;
   }) => {
     if (!issue) return;
 
     try {
-      // Upload images first to ConvexDB
-      const beforePhotoId = data.beforeImage ? await uploadImageToConvex(data.beforeImage) : null;
+      const uploadOrReuse = async (uri: string | null, isReplaced: boolean) => {
+        if (!uri) return null;
+        if (!isReplaced && uri.includes('convex.cloud')) {
+          return uri.split('api/storage/')[1];
+        }
+        return await uploadImageToConvex(uri);
+      };
 
-      const afterPhotoId = data.afterImage ? await uploadImageToConvex(data.afterImage) : null;
+      const beforePhotoId = data.beforeImage
+        ? await uploadOrReuse(data.beforeImage, data.isBeforeImageReplaced)
+        : null;
+      const afterPhotoId = data.afterImage
+        ? await uploadOrReuse(data.afterImage, data.isAfterImageReplaced)
+        : null;
+
+      console.log('beforePhotoId', beforePhotoId);
+      console.log('afterPhotoId', afterPhotoId);
+      console.log('beforeLocation', data.beforeLocation);
+      console.log('afterLocation', data.afterLocation);
+      console.log('notes', data.notes);
 
       await submitFieldOfficerWork({
         issueId: issue.id,
-
         beforePhotos: beforePhotoId ? [beforePhotoId] : [],
         afterPhotos: afterPhotoId ? [afterPhotoId] : [],
-
         beforeLocation: data.beforeLocation || undefined,
         afterLocation: data.afterLocation || undefined,
-
         notes: data.notes,
         fieldOfficerId: user?.id as Id<'users'>,
       });
@@ -2434,6 +2450,8 @@ export default function FieldIssueDetailScreen() {
             beforePhotos: issue.beforePhotos,
             beforeLocation: issue.beforeLocation,
             notes: issue.foResolutionNotes,
+            reworkNote: issue.reworkNote,
+            reworkReasons: issue.reworkReasons,
           }}
           status={issue.status}
           onClose={() => setShowWorkFlow(false)}

@@ -38,6 +38,39 @@ import * as ExpoCamera from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { BlurView } from 'expo-blur';
+import { useMutation } from 'convex/react';
+import { api } from 'convex/_generated/api';
+import { Id } from 'convex/_generated/dataModel';
+import Animated, { FadeInDown } from 'react-native-reanimated';
+import { RotateCcw, AlertTriangle } from 'lucide-react-native';
+
+const REWORK_REASONS_MAP = [
+  {
+    key: 'photo',
+    label: 'Photo Quality',
+    desc: 'Blurry or unclear evidence photos',
+  },
+  {
+    key: 'location',
+    label: 'Wrong Location',
+    desc: 'GPS mismatch with issue site',
+  },
+  {
+    key: 'incomplete',
+    label: 'Incomplete Work',
+    desc: 'Resolution not fully completed',
+  },
+  {
+    key: 'description',
+    label: 'Poor Description',
+    desc: 'Insufficient resolution details',
+  },
+  {
+    key: 'wrong_issue',
+    label: 'Wrong Issue Addressed',
+    desc: 'Different problem was resolved',
+  },
+];
 
 interface Coords {
   latitude: number;
@@ -47,11 +80,13 @@ interface Coords {
 interface WorkExecutionFlowProps {
   issueId: string;
   previousWork: {
-    beforePhotos: string;
-    afterPhotos: string;
+    beforePhotos: string[];
+    afterPhotos: string[];
     beforeLocation: Coords;
     afterLocation: Coords;
     notes: string;
+    reworkNote?: string;
+    reworkReasons?: string[];
   } | null;
   status: string;
   onClose: () => void;
@@ -61,6 +96,9 @@ interface WorkExecutionFlowProps {
     beforeLocation: Coords | null;
     afterLocation: Coords | null;
     notes: string;
+    isBeforeImageReplaced: boolean;
+    isAfterImageReplaced: boolean;
+    isNotesReplaced: boolean;
   }) => void;
 }
 
@@ -193,9 +231,21 @@ export default function WorkExecutionFlow({
   const [hasLocationPermission, setHasLocationPermission] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
-  console.log('Previous Work:', previousWork);
-
   const isRework = status === 'rework_required';
+
+  const deleteImage = useMutation(api.issuesMedia.deleteMedia);
+
+  // Effective data getters (state || previousWork fallback)
+  const effectiveBeforeImage = beforeImage || (isRework ? previousWork?.beforePhotos?.[0] : null);
+  const effectiveAfterImage = afterImage || (isRework ? previousWork?.afterPhotos?.[0] : null);
+  const effectiveBeforeLocation =
+    beforeLocation || (isRework ? previousWork?.beforeLocation : null);
+  const effectiveAfterLocation = afterLocation || (isRework ? previousWork?.afterLocation : null);
+  const effectiveNotes = notes.trim() || (isRework ? previousWork?.notes || '' : '');
+
+  const isBeforeReplaced = !!beforeImage;
+  const isAfterReplaced = !!afterImage;
+  const isNotesReplaced = notes.trim().length > 0;
 
   useEffect(() => {
     requestLocationPermission();
@@ -284,38 +334,38 @@ export default function WorkExecutionFlow({
     }
   };
 
-  const wordCount = notes
+  const wordCount = effectiveNotes
     .trim()
     .split(/\s+/)
     .filter((w) => w.length > 0).length;
   const isNotesValid = wordCount >= 10;
 
   const isReady =
-    !!beforeImage &&
-    !!afterImage &&
-    !!beforeLocation &&
-    !!afterLocation &&
-    !!notes.trim() &&
+    !!effectiveBeforeImage &&
+    !!effectiveAfterImage &&
+    !!effectiveBeforeLocation &&
+    !!effectiveAfterLocation &&
+    !!effectiveNotes.trim() &&
     isNotesValid;
 
   const handleSubmit = () => {
-    if (!beforeImage) {
+    if (!effectiveBeforeImage) {
       Alert.alert('Required', 'Please capture a before image');
       return;
     }
-    if (!beforeLocation) {
-      Alert.alert('Required', 'Before location is still being captured');
+    if (!effectiveBeforeLocation) {
+      Alert.alert('Required', 'Before location is missing');
       return;
     }
-    if (!afterImage) {
+    if (!effectiveAfterImage) {
       Alert.alert('Required', 'Please capture an after image');
       return;
     }
-    if (!afterLocation) {
-      Alert.alert('Required', 'After location is still being captured');
+    if (!effectiveAfterLocation) {
+      Alert.alert('Required', 'After location is missing');
       return;
     }
-    if (!notes.trim()) {
+    if (!effectiveNotes.trim()) {
       Alert.alert('Required', 'Please add work notes');
       return;
     }
@@ -329,9 +379,46 @@ export default function WorkExecutionFlow({
     setShowConfirmModal(true);
   };
 
-  const executeSubmit = () => {
+  const executeSubmit = async () => {
     setShowConfirmModal(false);
-    onSubmit({ beforeImage, afterImage, beforeLocation, afterLocation, notes });
+
+    const finalData = {
+      beforeImage: effectiveBeforeImage,
+      afterImage: effectiveAfterImage,
+      beforeLocation: effectiveBeforeLocation,
+      afterLocation: effectiveAfterLocation,
+      notes: effectiveNotes,
+      isBeforeImageReplaced: isBeforeReplaced,
+      isAfterImageReplaced: isAfterReplaced,
+      isNotesReplaced: isNotesReplaced,
+    };
+
+    console.log('--- REWORK SUBMISSION EXECUTION ---');
+    console.log('Original Issue ID:', issueId);
+    if (isRework) {
+      console.log('Mode: Rework/Rectification');
+      console.log('Before Evidence:', isBeforeReplaced ? 'REPLACED' : 'KEPT PREVIOUS');
+      console.log('After Evidence:', isAfterReplaced ? 'REPLACED' : 'KEPT PREVIOUS');
+      console.log('Notes:', isNotesReplaced ? 'REPLACED' : 'KEPT PREVIOUS');
+
+      if (isBeforeReplaced || isAfterReplaced) {
+        // Schedule deletion of previous storage assets
+        if (isBeforeReplaced && previousWork?.beforePhotos?.[0]) {
+          await deleteImage({
+            storageId: previousWork.beforePhotos[0].split('api/storage/')[1] as Id<'_storage'>,
+          });
+        }
+
+        if (isAfterReplaced && previousWork?.afterPhotos?.[0]) {
+          await deleteImage({
+            storageId: previousWork.afterPhotos[0].split('api/storage/')[1] as Id<'_storage'>,
+          });
+        }
+      }
+    }
+
+    console.log('Final Submission Data:', finalData);
+    onSubmit(finalData as any);
   };
 
   return (
@@ -378,18 +465,18 @@ export default function WorkExecutionFlow({
         <View style={styles.stepperContainer}>
           {['EVIDENCE', 'VERIFICATION', 'REMARKS', 'FINALIZE'].map((step, i) => {
             const stepDone = [
-              !!beforeImage && !!beforeLocation,
-              !!afterImage && !!afterLocation,
-              !!notes.trim(),
+              !!effectiveBeforeImage && !!effectiveBeforeLocation,
+              !!effectiveAfterImage && !!effectiveAfterLocation,
+              !!effectiveNotes.trim(),
               isReady,
             ][i];
             const isCurrent =
               !stepDone &&
               (i === 0 ||
                 [
-                  !!beforeImage && !!beforeLocation,
-                  !!afterImage && !!afterLocation,
-                  !!notes.trim(),
+                  !!effectiveBeforeImage && !!effectiveBeforeLocation,
+                  !!effectiveAfterImage && !!effectiveAfterLocation,
+                  !!effectiveNotes.trim(),
                 ][i - 1]);
 
             return (
@@ -422,32 +509,97 @@ export default function WorkExecutionFlow({
         className="flex-1"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ padding: 16, gap: 12 }}>
+        {/* ── Rework Instructions ── */}
+        {isRework && (previousWork?.reworkNote || (previousWork?.reworkReasons?.length ?? 0) > 0) && (
+          <Animated.View 
+            entering={FadeInDown.duration(400)}
+            className="rounded-3xl bg-amber-50 dark:bg-amber-950/20 p-5 border border-amber-200 dark:border-amber-900/50 shadow-sm"
+          >
+            <View className="flex-row items-center gap-3 mb-4">
+              <View className="w-10 h-10 rounded-xl bg-amber-500 items-center justify-center shadow-md shadow-amber-500/30">
+                <RotateCcw color="#FFF" size={20} strokeWidth={2.5} />
+              </View>
+              <View>
+                <Text className="text-[16px] font-black text-amber-900 dark:text-amber-100 uppercase tracking-tight">
+                  Rework Directive
+                </Text>
+                <Text className="text-[11px] font-bold text-amber-600 dark:text-amber-500 uppercase tracking-widest">
+                  Corrections required by Unit Officer
+                </Text>
+              </View>
+            </View>
+
+            {previousWork?.reworkReasons && previousWork.reworkReasons.length > 0 && (
+              <View className="gap-3 mb-4">
+                {previousWork.reworkReasons.map((reasonLabel, idx) => {
+                  const reasonData = REWORK_REASONS_MAP.find(r => r.label === reasonLabel);
+                  return (
+                    <View key={idx} className="flex-row gap-3">
+                      <View className="mt-1">
+                        <AlertTriangle size={14} color="#F59E0B" strokeWidth={3} />
+                      </View>
+                      <View className="flex-1">
+                        <Text className="text-[13px] font-extrabold text-amber-800 dark:text-amber-200">
+                          {reasonLabel}
+                        </Text>
+                        {reasonData?.desc && (
+                          <Text className="text-[12px] font-medium text-amber-600/80 dark:text-amber-500/80 leading-4 mt-0.5">
+                            {reasonData.desc}
+                          </Text>
+                        )}
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+
+            {previousWork?.reworkNote && (
+              <View className="mt-2 p-4 rounded-2xl bg-white/80 dark:bg-black/20 border border-amber-200/50 dark:border-amber-900/30">
+                <Text className="text-[10px] font-black text-amber-600 dark:text-amber-500 uppercase tracking-widest mb-2">
+                  Unit Officer Remarks
+                </Text>
+                <Text className="text-[13px] font-semibold text-slate-700 dark:text-slate-300 leading-5">
+                  "{previousWork.reworkNote}"
+                </Text>
+              </View>
+            )}
+          </Animated.View>
+        )}
         {/* ── Before Image ── */}
         <View className="rounded-3xl bg-white p-5 dark:bg-slate-900" style={styles.card}>
           <SectionHeader
             icon={<Camera size={16} color="#0EA5A4" strokeWidth={2.5} />}
             title="Before Image"
-            badge="Required"
-            badgeColor="red"
+            badge={isRework && !isBeforeReplaced ? 'Evidence Kept' : 'Required'}
+            badgeColor={isRework && !isBeforeReplaced ? 'green' : 'red'}
           />
 
-          {beforeImage ? (
+          {effectiveBeforeImage ? (
             <View style={styles.imageWrap}>
-              <Image source={{ uri: beforeImage }} style={styles.previewImage} resizeMode="cover" />
+              <Image
+                source={{ uri: effectiveBeforeImage }}
+                style={styles.previewImage}
+                resizeMode="cover"
+              />
               <LinearGradient
                 colors={['transparent', 'rgba(0,0,0,0.6)']}
                 style={styles.imageGradient}
               />
               <TouchableOpacity
-                onPress={() => {
-                  setBeforeImage(null);
-                  setBeforeLocation(null);
-                }}
+                onPress={() => setShowImagePicker('before')}
                 style={styles.retakeBtn}
                 activeOpacity={0.85}>
                 <RefreshCw size={13} color="#FFFFFF" strokeWidth={2.5} />
-                <Text className="ml-1 text-[12px] font-bold text-white">Retake</Text>
+                <Text className="ml-1 text-[12px] font-bold text-white">
+                  {isBeforeReplaced ? 'Retake' : 'Change Evidence'}
+                </Text>
               </TouchableOpacity>
+              {!isBeforeReplaced && isRework && (
+                <View className="absolute left-3 top-3 rounded-md bg-emerald-500 px-2 py-1">
+                  <Text className="text-[10px] font-black text-white">PREVIOUS</Text>
+                </View>
+              )}
             </View>
           ) : (
             <TouchableOpacity
@@ -469,7 +621,7 @@ export default function WorkExecutionFlow({
           <View className="mt-3">
             <LocationBlock
               label="Before Location"
-              coords={beforeLocation}
+              coords={effectiveBeforeLocation}
               isCapturing={capturingFor === 'before'}
             />
           </View>
@@ -480,47 +632,61 @@ export default function WorkExecutionFlow({
           <SectionHeader
             icon={<CheckCircle2 size={16} color="#0EA5A4" strokeWidth={2.5} />}
             title="After Image"
-            badge="Required"
-            badgeColor="red"
+            badge={isRework && !isAfterReplaced ? 'Evidence Kept' : 'Required'}
+            badgeColor={isRework && !isAfterReplaced ? 'green' : 'red'}
           />
 
-          {afterImage ? (
+          {effectiveAfterImage ? (
             <View style={styles.imageWrap}>
-              <Image source={{ uri: afterImage }} style={styles.previewImage} resizeMode="cover" />
+              <Image
+                source={{ uri: effectiveAfterImage }}
+                style={styles.previewImage}
+                resizeMode="cover"
+              />
               <LinearGradient
                 colors={['transparent', 'rgba(0,0,0,0.6)']}
                 style={styles.imageGradient}
               />
               <TouchableOpacity
-                onPress={() => {
-                  setAfterImage(null);
-                  setAfterLocation(null);
-                }}
+                onPress={() => setShowImagePicker('after')}
                 style={styles.retakeBtn}
                 activeOpacity={0.85}>
                 <RefreshCw size={13} color="#FFFFFF" strokeWidth={2.5} />
-                <Text className="ml-1 text-[12px] font-bold text-white">Retake</Text>
+                <Text className="ml-1 text-[12px] font-bold text-white">
+                  {isAfterReplaced ? 'Retake' : 'Change Evidence'}
+                </Text>
               </TouchableOpacity>
+              {!isAfterReplaced && isRework && (
+                <View className="absolute left-3 top-3 rounded-md bg-emerald-500 px-2 py-1">
+                  <Text className="text-[10px] font-black text-white">PREVIOUS</Text>
+                </View>
+              )}
             </View>
           ) : (
             <TouchableOpacity
               onPress={() =>
-                beforeImage
+                effectiveBeforeImage
                   ? setShowImagePicker('after')
                   : Alert.alert('Required', 'Capture the before image first')
               }
-              activeOpacity={beforeImage ? 0.8 : 1}
-              style={[styles.captureZone, !beforeImage && styles.captureZoneDisabled]}>
+              activeOpacity={effectiveBeforeImage ? 0.8 : 1}
+              style={[styles.captureZone, !effectiveBeforeImage && styles.captureZoneDisabled]}>
               <View
-                className={`mb-3 h-14 w-14 items-center justify-center rounded-2xl ${beforeImage ? 'bg-teal-50 dark:bg-teal-900/30' : 'bg-slate-100 dark:bg-slate-800'}`}>
-                <Camera size={24} color={beforeImage ? '#0EA5A4' : '#94A3B8'} strokeWidth={2.5} />
+                className={`mb-3 h-14 w-14 items-center justify-center rounded-2xl ${effectiveBeforeImage ? 'bg-teal-50 dark:bg-teal-900/30' : 'bg-slate-100 dark:bg-slate-800'}`}>
+                <Camera
+                  size={24}
+                  color={effectiveBeforeImage ? '#0EA5A4' : '#94A3B8'}
+                  strokeWidth={2.5}
+                />
               </View>
               <Text
-                className={`text-[14px] font-extrabold ${beforeImage ? 'text-teal-600 dark:text-teal-400' : 'text-slate-300 dark:text-slate-600'}`}>
+                className={`text-[14px] font-extrabold ${effectiveBeforeImage ? 'text-teal-600 dark:text-teal-400' : 'text-slate-300 dark:text-slate-600'}`}>
                 Capture After Photo
               </Text>
               <Text className="mt-1 text-[12px] font-medium text-slate-400 dark:text-slate-500">
-                {beforeImage ? 'Tap to use camera or gallery' : 'Complete before image first'}
+                {effectiveBeforeImage
+                  ? 'Tap to use camera or gallery'
+                  : 'Complete before image first'}
               </Text>
             </TouchableOpacity>
           )}
@@ -528,7 +694,7 @@ export default function WorkExecutionFlow({
           <View className="mt-3">
             <LocationBlock
               label="After Location"
-              coords={afterLocation}
+              coords={effectiveAfterLocation}
               isCapturing={capturingFor === 'after'}
             />
           </View>
@@ -539,14 +705,14 @@ export default function WorkExecutionFlow({
           <SectionHeader
             icon={<FileText size={16} color={isRework ? '#F59E0B' : '#0EA5A4'} strokeWidth={2.5} />}
             title={isRework ? 'Rectification Notes' : 'Work Notes'}
-            badge="Required"
-            badgeColor="red"
+            badge={isRework && !isNotesReplaced ? 'Notes Kept' : 'Required'}
+            badgeColor={isRework && !isNotesReplaced ? 'green' : 'red'}
           />
           <View
             style={[
               styles.notesContainer,
               isDark ? styles.notesDark : styles.notesLight,
-              notes.trim().length > 0 &&
+              effectiveNotes.trim().length > 0 &&
                 !isNotesValid && {
                   borderColor: '#EF4444',
                   backgroundColor: 'rgba(239,68,68,0.02)',
@@ -557,8 +723,8 @@ export default function WorkExecutionFlow({
               style={[styles.notesInput, { color: isDark ? '#F8FAFC' : '#0F172A' }]}
               placeholder={
                 isRework
-                  ? "Explain how you've addressed the feedback and the specific corrections made..."
-                  : 'Detailed report of work performed, inventory utilized, and site conditions...'
+                  ? previousWork?.notes || 'Explain corrections...'
+                  : 'Detailed report of work performed...'
               }
               placeholderTextColor={isDark ? '#475569' : '#94A3B8'}
               value={notes}
@@ -571,11 +737,26 @@ export default function WorkExecutionFlow({
               {isNotesValid ? (
                 <CheckCircle size={14} color="#FFFFFF" />
               ) : (
-                <Sparkles size={14} color={notes.trim().length > 0 ? '#EF4444' : '#0D9488'} />
+                <Sparkles
+                  size={14}
+                  color={effectiveNotes.trim().length > 0 ? '#EF4444' : '#0D9488'}
+                />
               )}
             </View>
           </View>
-          {notes.trim().length > 0 && (
+          {isRework && !isNotesReplaced && previousWork?.notes && (
+            <View className="mt-2 rounded-xl bg-slate-50 p-3 dark:bg-slate-800/40">
+              <Text className="mb-1 text-[11px] font-bold uppercase text-slate-400 dark:text-slate-500">
+                Previous Notes Preview
+              </Text>
+              <Text
+                className="text-[12px] font-medium italic text-slate-600 dark:text-slate-400"
+                numberOfLines={2}>
+                {previousWork.notes}
+              </Text>
+            </View>
+          )}
+          {effectiveNotes.trim().length > 0 && (
             <View className="mt-3 flex-row items-center justify-between">
               <View style={styles.wordCountBadge}>
                 <Text
@@ -587,7 +768,7 @@ export default function WorkExecutionFlow({
                 </Text>
               </View>
               <View style={styles.charCountBox}>
-                <Text style={styles.charCountText}>{notes.trim().length} CHARS</Text>
+                <Text style={styles.charCountText}>{effectiveNotes.trim().length} CHARS</Text>
               </View>
             </View>
           )}
@@ -599,12 +780,12 @@ export default function WorkExecutionFlow({
             icon={<CheckCircle size={16} color="#0EA5A4" strokeWidth={2.5} />}
             title="Submission Checklist"
           />
-          <ChecklistItem done={!!beforeImage} label="Before image captured" />
-          <ChecklistItem done={!!beforeLocation} label="Before location recorded" />
-          <ChecklistItem done={!!afterImage} label="After image captured" />
-          <ChecklistItem done={!!afterLocation} label="After location recorded" />
+          <ChecklistItem done={!!effectiveBeforeImage} label="Before image captured" />
+          <ChecklistItem done={!!effectiveBeforeLocation} label="Before location recorded" />
+          <ChecklistItem done={!!effectiveAfterImage} label="After image captured" />
+          <ChecklistItem done={!!effectiveAfterLocation} label="After location recorded" />
           <ChecklistItem
-            done={!!notes.trim()}
+            done={!!effectiveNotes.trim()}
             label={isRework ? 'Rectification notes added' : 'Work notes added'}
           />
         </View>

@@ -81,7 +81,9 @@ interface WorkExecutionFlowProps {
   issueId: string;
   previousWork: {
     beforePhotos: string[];
+    beforePhotosId: string[];
     afterPhotos: string[];
+    afterPhotosId: string[];
     beforeLocation: Coords;
     afterLocation: Coords;
     notes: string;
@@ -405,19 +407,20 @@ export default function WorkExecutionFlow({
         // Schedule deletion of previous storage assets
         if (isBeforeReplaced && previousWork?.beforePhotos?.[0]) {
           await deleteImage({
-            storageId: previousWork.beforePhotos[0].split('api/storage/')[1] as Id<'_storage'>,
+            storageId: previousWork.beforePhotosId[0] as Id<'_storage'>,
           });
         }
 
         if (isAfterReplaced && previousWork?.afterPhotos?.[0]) {
           await deleteImage({
-            storageId: previousWork.afterPhotos[0].split('api/storage/')[1] as Id<'_storage'>,
+            storageId: previousWork.afterPhotosId[0] as Id<'_storage'>,
           });
         }
       }
     }
 
-    console.log('Final Submission Data:', finalData);
+    // console.log('Final Submission Data:', finalData);
+    
     onSubmit(finalData as any);
   };
 
@@ -510,62 +513,62 @@ export default function WorkExecutionFlow({
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ padding: 16, gap: 12 }}>
         {/* ── Rework Instructions ── */}
-        {isRework && (previousWork?.reworkNote || (previousWork?.reworkReasons?.length ?? 0) > 0) && (
-          <Animated.View 
-            entering={FadeInDown.duration(400)}
-            className="rounded-3xl bg-amber-50 dark:bg-amber-950/20 p-5 border border-amber-200 dark:border-amber-900/50 shadow-sm"
-          >
-            <View className="flex-row items-center gap-3 mb-4">
-              <View className="w-10 h-10 rounded-xl bg-amber-500 items-center justify-center shadow-md shadow-amber-500/30">
-                <RotateCcw color="#FFF" size={20} strokeWidth={2.5} />
+        {isRework &&
+          (previousWork?.reworkNote || (previousWork?.reworkReasons?.length ?? 0) > 0) && (
+            <Animated.View
+              entering={FadeInDown.duration(400)}
+              className="rounded-3xl border border-amber-200 bg-amber-50 p-5 shadow-sm dark:border-amber-900/50 dark:bg-amber-950/20">
+              <View className="mb-4 flex-row items-center gap-3">
+                <View className="h-10 w-10 items-center justify-center rounded-xl bg-amber-500 shadow-md shadow-amber-500/30">
+                  <RotateCcw color="#FFF" size={20} strokeWidth={2.5} />
+                </View>
+                <View>
+                  <Text className="text-[16px] font-black uppercase tracking-tight text-amber-900 dark:text-amber-100">
+                    Rework Directive
+                  </Text>
+                  <Text className="text-[11px] font-bold uppercase tracking-widest text-amber-600 dark:text-amber-500">
+                    Corrections required by Unit Officer
+                  </Text>
+                </View>
               </View>
-              <View>
-                <Text className="text-[16px] font-black text-amber-900 dark:text-amber-100 uppercase tracking-tight">
-                  Rework Directive
-                </Text>
-                <Text className="text-[11px] font-bold text-amber-600 dark:text-amber-500 uppercase tracking-widest">
-                  Corrections required by Unit Officer
-                </Text>
-              </View>
-            </View>
 
-            {previousWork?.reworkReasons && previousWork.reworkReasons.length > 0 && (
-              <View className="gap-3 mb-4">
-                {previousWork.reworkReasons.map((reasonLabel, idx) => {
-                  const reasonData = REWORK_REASONS_MAP.find(r => r.label === reasonLabel);
-                  return (
-                    <View key={idx} className="flex-row gap-3">
-                      <View className="mt-1">
-                        <AlertTriangle size={14} color="#F59E0B" strokeWidth={3} />
-                      </View>
-                      <View className="flex-1">
-                        <Text className="text-[13px] font-extrabold text-amber-800 dark:text-amber-200">
-                          {reasonLabel}
-                        </Text>
-                        {reasonData?.desc && (
-                          <Text className="text-[12px] font-medium text-amber-600/80 dark:text-amber-500/80 leading-4 mt-0.5">
-                            {reasonData.desc}
+              {previousWork?.reworkReasons && previousWork.reworkReasons.length > 0 && (
+                <View className="mb-4 gap-3">
+                  {previousWork.reworkReasons.map((reasonLabel, idx) => {
+                    const reasonData = REWORK_REASONS_MAP.find((r) => r.label === reasonLabel);
+                    return (
+                      <View key={idx} className="flex-row gap-3">
+                        <View className="mt-1">
+                          <AlertTriangle size={14} color="#F59E0B" strokeWidth={3} />
+                        </View>
+                        <View className="flex-1">
+                          <Text className="text-[13px] font-extrabold text-amber-800 dark:text-amber-200">
+                            {reasonLabel}
                           </Text>
-                        )}
+                          {reasonData?.desc && (
+                            <Text className="mt-0.5 text-[12px] font-medium leading-4 text-amber-600/80 dark:text-amber-500/80">
+                              {reasonData.desc}
+                            </Text>
+                          )}
+                        </View>
                       </View>
-                    </View>
-                  );
-                })}
-              </View>
-            )}
+                    );
+                  })}
+                </View>
+              )}
 
-            {previousWork?.reworkNote && (
-              <View className="mt-2 p-4 rounded-2xl bg-white/80 dark:bg-black/20 border border-amber-200/50 dark:border-amber-900/30">
-                <Text className="text-[10px] font-black text-amber-600 dark:text-amber-500 uppercase tracking-widest mb-2">
-                  Unit Officer Remarks
-                </Text>
-                <Text className="text-[13px] font-semibold text-slate-700 dark:text-slate-300 leading-5">
-                  "{previousWork.reworkNote}"
-                </Text>
-              </View>
-            )}
-          </Animated.View>
-        )}
+              {previousWork?.reworkNote && (
+                <View className="mt-2 rounded-2xl border border-amber-200/50 bg-white/80 p-4 dark:border-amber-900/30 dark:bg-black/20">
+                  <Text className="mb-2 text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-500">
+                    Unit Officer Remarks
+                  </Text>
+                  <Text className="text-[13px] font-semibold leading-5 text-slate-700 dark:text-slate-300">
+                    "{previousWork.reworkNote}"
+                  </Text>
+                </View>
+              )}
+            </Animated.View>
+          )}
         {/* ── Before Image ── */}
         <View className="rounded-3xl bg-white p-5 dark:bg-slate-900" style={styles.card}>
           <SectionHeader

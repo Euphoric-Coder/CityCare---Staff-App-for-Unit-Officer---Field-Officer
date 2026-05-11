@@ -155,7 +155,9 @@ export const getIssueById = query({
       },
       photoUrl,
       beforePhotos,
+      beforePhotosId: issue.beforePhotos,
       afterPhotos,
+      afterPhotosId: issue.afterPhotos,
       videoUrl,
       fieldOfficerDetails,
     };

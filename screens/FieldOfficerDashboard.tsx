@@ -26,7 +26,6 @@ interface DashboardStats {
 interface FieldOfficerDashboardProps {
   officerName: string;
   ward: string;
-  isOnline: boolean;
   stats: DashboardStats;
   onNotificationPress: () => void;
 }
@@ -86,7 +85,6 @@ const STAT_CONFIG = (stats: DashboardStats) => [
 export default function FieldOfficerDashboard({
   officerName,
   ward,
-  isOnline,
   stats,
   onNotificationPress,
 }: FieldOfficerDashboardProps) {
@@ -142,7 +140,6 @@ export default function FieldOfficerDashboard({
                 </LinearGradient>
               </View>
             </LinearGradient>
-            {isOnline && <View style={[styles.onlineBadge, { borderColor: isDark ? '#111827' : '#4F46E5' }]} />}
           </View>
 
           <View className="flex-1">

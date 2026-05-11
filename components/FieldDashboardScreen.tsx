@@ -129,9 +129,8 @@ export default function FieldDashboardScreen() {
           />
         }>
         <FieldOfficerDashboard
-          officerName="Rajesh Kumar"
-          ward="Ward 12 – South Zone"
-          isOnline
+          officerName={user?.name || 'Field Officer'}
+          ward={"Ward 12 – South Zone"}
           stats={mockStats}
           onNotificationPress={() => setShowNotifications(true)}
         />

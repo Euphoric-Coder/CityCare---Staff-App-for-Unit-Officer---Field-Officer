@@ -648,19 +648,30 @@ export default function FieldIssueDetailScreen() {
     if (!issue) return;
 
     try {
-      const uploadOrReuse = async (uri: string | null, isReplaced: boolean) => {
+      const uploadOrReuse = async (
+        uri: string | null,
+        isReplaced: boolean,
+        before?: boolean,
+        after?: boolean
+      ) => {
         if (!uri) return null;
         if (!isReplaced && uri.includes('convex.cloud')) {
-          return uri.split('api/storage/')[1];
+          // Reuse the existing images
+          if (before) {
+            return issue.beforePhotosId ? issue.beforePhotosId[0] : null;
+          }
+          if (after) {
+            return issue.afterPhotosId ? issue.afterPhotosId[0] : null;
+          }
         }
         return await uploadImageToConvex(uri);
       };
 
       const beforePhotoId = data.beforeImage
-        ? await uploadOrReuse(data.beforeImage, data.isBeforeImageReplaced)
+        ? await uploadOrReuse(data.beforeImage, data.isBeforeImageReplaced, true, false)
         : null;
       const afterPhotoId = data.afterImage
-        ? await uploadOrReuse(data.afterImage, data.isAfterImageReplaced)
+        ? await uploadOrReuse(data.afterImage, data.isAfterImageReplaced, false, true)
         : null;
 
       console.log('beforePhotoId', beforePhotoId);
@@ -2446,8 +2457,10 @@ export default function FieldIssueDetailScreen() {
           issueId={issue.id}
           previousWork={{
             afterPhotos: issue.afterPhotos,
+            afterPhotosId: issue.afterPhotosId,
             afterLocation: issue.afterLocation,
             beforePhotos: issue.beforePhotos,
+            beforePhotosId: issue.beforePhotosId,
             beforeLocation: issue.beforeLocation,
             notes: issue.foResolutionNotes,
             reworkNote: issue.reworkNote,

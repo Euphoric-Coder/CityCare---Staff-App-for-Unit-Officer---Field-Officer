@@ -36,7 +36,9 @@ export function mapIssueToUI(issue: any) {
     },
 
     beforePhotos: issue.beforePhotos || [],
+    beforePhotosId: issue.beforePhotosId || [],
     afterPhotos: issue.afterPhotos || [],
+    afterPhotosId: issue.afterPhotosId || [],
 
     beforeLocation: issue.beforeLocation || null,
     afterLocation: issue.afterLocation || null,

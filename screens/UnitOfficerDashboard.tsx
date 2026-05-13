@@ -1883,26 +1883,26 @@ export default function UnitOfficerDashboard() {
     {
       label: 'Total',
       value: mockStats.totalIssues,
-      icon: <FileText color={isDark ? '#FFFFFF' : '#0284C7'} size={20} strokeWidth={2.5} />,
-      iconBg: isDark ? 'rgba(255,255,255,0.15)' : '#E0F2FE',
+      icon: <FileText color="#FFFFFF" size={22} strokeWidth={2.5} />,
+      iconBg: '#3B82F6', // Vivid Blue
     },
     {
       label: 'Pending',
       value: mockStats.pendingVerification,
-      icon: <Clock color={isDark ? '#FDE047' : '#B45309'} size={20} strokeWidth={2.5} />,
-      iconBg: isDark ? 'rgba(253,224,71,0.2)' : '#FEF3C7',
+      icon: <Clock color="#FFFFFF" size={22} strokeWidth={2.5} />,
+      iconBg: '#F59E0B', // Vivid Amber
     },
     {
       label: 'Assigned',
       value: mockStats.assigned,
-      icon: <AlertCircle color={isDark ? '#F9A8D4' : '#BE123C'} size={20} strokeWidth={2.5} />,
-      iconBg: isDark ? 'rgba(249,168,212,0.2)' : '#FFE4E6',
+      icon: <AlertCircle color="#FFFFFF" size={22} strokeWidth={2.5} />,
+      iconBg: '#F43F5E', // Vivid Rose
     },
     {
       label: 'Closed',
       value: mockStats.closed,
-      icon: <CheckCircle color={isDark ? '#6EE7B7' : '#047857'} size={20} strokeWidth={2.5} />,
-      iconBg: isDark ? 'rgba(110,231,183,0.2)' : '#D1FAE5',
+      icon: <CheckCircle color="#FFFFFF" size={22} strokeWidth={2.5} />,
+      iconBg: '#10B981', // Vivid Emerald
     },
   ];
 
@@ -1934,85 +1934,167 @@ export default function UnitOfficerDashboard() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled">
           {/* ── HEADER ── */}
-          <LinearGradient
-            colors={isDark ? ['#164E63', '#083344', '#0E7490'] : ['#0891B2', '#06B6D4', '#22D3EE']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.header}>
-            <View className="mb-6 flex-row items-start justify-between">
-              <View className="flex-1">
-                <Text className="mb-1 text-[13px] font-medium text-white/70">Welcome back,</Text>
-                <Text className="mb-2.5 text-[26px] font-extrabold tracking-tight text-white">
-                  {unitOfficer?.fullName}
-                </Text>
-                <View className="flex-row items-center gap-1 self-start rounded-full bg-white/[0.16] px-2.5 py-1">
-                  <MapPin color="rgba(255,255,255,0.85)" size={10} strokeWidth={2.5} />
-                  <Text className="text-[11px] font-bold text-white">{unitOfficer?.city}</Text>
-                </View>
-              </View>
-              <View className="items-end gap-2">
-                <TouchableOpacity
-                  onPress={() => setShowNotifications(true)}
-                  activeOpacity={0.75}
-                  className="h-11 w-11 items-center justify-center rounded-[14px] bg-white/[0.16]">
-                  <Bell color="#FFFFFF" size={20} strokeWidth={2} />
-                  {unreadNotifCount !== undefined && unreadNotifCount > 0 && (
-                    <View style={styles.bellDot}>
-                      {unreadNotifCount <= 99 && (
-                        <Text
-                          style={{
-                            color: '#FFFFFF',
-                            fontSize: 8,
-                            fontWeight: '800',
-                            lineHeight: 10,
-                          }}>
-                          {unreadNotifCount}
-                        </Text>
-                      )}
-                      {unreadNotifCount > 99 && (
-                        <Text
-                          style={{
-                            color: '#FFFFFF',
-                            fontSize: 8,
-                            fontWeight: '800',
-                            lineHeight: 10,
-                          }}>
-                          99+
-                        </Text>
-                      )}
-                    </View>
-                  )}
-                </TouchableOpacity>
-                {overdueCount > 0 && (
-                  <View className="flex-row items-center gap-1 rounded-full bg-red-500/80 px-2.5 py-1">
-                    <AlertTriangle color="#FFFFFF" size={10} strokeWidth={2.5} />
-                    <Text className="text-[11px] font-extrabold text-white">
-                      {overdueCount} Overdue
+          <View style={styles.headerWrapper}>
+            <LinearGradient
+              colors={
+                isDark ? ['#082F49', '#164E63', '#0891B2'] : ['#0284C7', '#06B6D4', '#2DD4BF']
+              }
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.headerBase}>
+
+              {/* Depth Overlay */}
+              <LinearGradient
+                colors={['rgba(0,0,0,0.15)', 'transparent', 'rgba(0,0,0,0.5)']}
+                style={StyleSheet.absoluteFill}
+                pointerEvents="none"
+              />
+
+              <Animated.View 
+                entering={FadeInDown.springify().damping(16).mass(0.8)} 
+                className="mb-8 flex-row items-start justify-between z-10"
+              >
+                <View className="flex-row items-center gap-4">
+                  {/* Ultra-Premium Avatar */}
+                  <View className="relative h-16 w-16 items-center justify-center rounded-[20px] bg-white/10 overflow-hidden shadow-xl shadow-blue-900/40 border border-white/20">
+                    <BlurView intensity={25} tint="light" style={StyleSheet.absoluteFill} />
+                    <LinearGradient
+                      colors={['rgba(255,255,255,0.4)', 'rgba(255,255,255,0.0)']}
+                      start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                      style={StyleSheet.absoluteFill}
+                    />
+                    <Text className="text-[26px] font-black text-white drop-shadow-md">
+                      {unitOfficer?.fullName?.charAt(0).toUpperCase()}
                     </Text>
                   </View>
-                )}
-                <View className="flex-row items-center gap-1 rounded-full bg-white/[0.14] px-2.5 py-1">
-                  <TrendingUp color="rgba(255,255,255,0.85)" size={10} strokeWidth={2.5} />
-                  <Text className="text-[11px] font-bold text-white">78% SLA</Text>
-                </View>
-              </View>
-            </View>
 
-            {/* Stats */}
-            <View className="flex-row gap-2.5">
-              {stats.map((s, i) => (
-                <View key={i} style={styles.statCard}>
-                  <View style={[styles.statIconWrap, { backgroundColor: s.iconBg }]}>{s.icon}</View>
-                  <Text className="text-2xl font-extrabold tracking-tight text-white">
-                    {s.value}
-                  </Text>
-                  <Text className="text-center text-[10px] font-semibold text-white/75">
-                    {s.label}
-                  </Text>
+                  <View>
+                    <Text className="mb-1 text-[12px] font-bold text-blue-200/90 uppercase tracking-[0.2em]">
+                      Welcome back
+                    </Text>
+                    <Text className="text-[24px] font-black tracking-tighter text-white drop-shadow-lg leading-tight">
+                      {unitOfficer?.fullName}
+                    </Text>
+                    <View className="mt-1.5 flex-row items-center gap-1.5 self-start rounded-full bg-black/20 border border-white/10 px-3 py-1">
+                      <MapPin color="#93C5FD" size={11} strokeWidth={3} />
+                      <Text className="text-[10px] font-black uppercase text-blue-100 tracking-widest">
+                        {unitOfficer?.city}
+                      </Text>
+                    </View>
+                  </View>
                 </View>
-              ))}
-            </View>
-          </LinearGradient>
+
+                <View className="items-end gap-3 pt-1">
+                  <TouchableOpacity
+                    onPress={() => setShowNotifications(true)}
+                    activeOpacity={0.7}
+                    className="relative items-center justify-center shadow-2xl z-50">
+                    
+                    {/* Glass Container (Handles blur & gradient without clipping the dot) */}
+                    <View className={`h-14 w-14 rounded-[22px] overflow-hidden items-center justify-center ${
+                      unreadNotifCount && unreadNotifCount > 0
+                        ? 'bg-white/20 border border-white/50 shadow-lg shadow-blue-400/50'
+                        : 'bg-black/20 border border-white/15 shadow-lg shadow-blue-900/30'
+                    }`}>
+                      <BlurView intensity={35} tint="light" style={StyleSheet.absoluteFill} />
+                      <LinearGradient
+                        colors={['rgba(255,255,255,0.6)', 'rgba(255,255,255,0.0)']}
+                        start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                        style={StyleSheet.absoluteFill}
+                      />
+                      <Bell 
+                        color={unreadNotifCount && unreadNotifCount > 0 ? '#FFFFFF' : 'rgba(255,255,255,0.9)'} 
+                        size={28} 
+                        strokeWidth={2.5} 
+                        style={unreadNotifCount && unreadNotifCount > 0 ? { shadowColor: '#fff', shadowOffset: {width: 0, height: 0}, shadowOpacity: 0.5, shadowRadius: 8 } : {}}
+                      />
+                    </View>
+
+                    {/* Glowing Notification Badge (Unclipped) */}
+                    {unreadNotifCount !== undefined && unreadNotifCount > 0 && (
+                      <Animated.View 
+                        entering={ZoomIn.springify().damping(12).mass(0.9)} 
+                        style={styles.bellDot}
+                      >
+                        <Text className="text-[12px] font-black text-white tracking-tighter" style={{ lineHeight: 14 }}>
+                          {unreadNotifCount > 99 ? '99+' : unreadNotifCount}
+                        </Text>
+                      </Animated.View>
+                    )}
+                  </TouchableOpacity>
+
+                  <View className="flex-row gap-2">
+                    {overdueCount > 0 && (
+                      <View className="flex-row items-center gap-1.5 rounded-full bg-rose-500/90 border border-rose-400/30 px-3 py-1.5 shadow-lg shadow-rose-900/40">
+                        <AlertCircle color="#FFFFFF" size={11} strokeWidth={3} />
+                        <Text className="text-[10px] font-black uppercase text-white">
+                          {overdueCount} Critical
+                        </Text>
+                      </View>
+                    )}
+                    <View className="flex-row items-center gap-1.5 rounded-full bg-cyan-500/80 border border-cyan-400/30 px-3 py-1.5 shadow-lg shadow-cyan-900/30">
+                      <TrendingUp color="#FFFFFF" size={11} strokeWidth={3} />
+                      <Text className="text-[10px] font-black uppercase text-white">78% SLA</Text>
+                    </View>
+                  </View>
+                </View>
+              </Animated.View>
+
+              {/* High-Fidelity Stats Cards */}
+              <View className="flex-row gap-3 z-10 mt-1">
+                {stats.map((s, i) => (
+                  <Animated.View 
+                    entering={FadeInDown.delay(100 + i * 150).springify().damping(14)}
+                    key={i} 
+                    style={[styles.statCardShadowWrap, { shadowColor: s.iconBg }]}
+                  >
+                    <View style={styles.statCardGlassInner}>
+                      <BlurView intensity={35} tint="light" style={StyleSheet.absoluteFill} />
+                      
+                      {/* Deep Sweeping Glass Highlight */}
+                      <LinearGradient
+                        colors={['rgba(255,255,255,0.35)', 'rgba(255,255,255,0.05)', 'transparent']}
+                        locations={[0, 0.4, 1]}
+                        start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                        style={StyleSheet.absoluteFill}
+                      />
+
+                      {/* Breathtaking Background Watermark */}
+                      <Text 
+                        className="absolute -right-3 -bottom-5 text-[80px] font-black italic tracking-tighter"
+                        style={{ color: 'rgba(255,255,255,0.08)', includeFontPadding: false }}
+                      >
+                        {s.value}
+                      </Text>
+
+                      <View
+                        style={[
+                          styles.statIconShadowWrap,
+                          { shadowColor: s.iconBg },
+                        ]}>
+                        <View style={[styles.statIconInner, { backgroundColor: s.iconBg }]}>
+                          <LinearGradient
+                            colors={['rgba(255,255,255,0.25)', 'transparent']}
+                            start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
+                            style={StyleSheet.absoluteFill}
+                          />
+                          {s.icon}
+                        </View>
+                      </View>
+                      <View className="mt-4 items-center">
+                        <Text className="text-[28px] font-black tracking-tighter text-white drop-shadow-xl leading-none">
+                          {s.value}
+                        </Text>
+                        <Text className="mt-1.5 text-[9px] font-black uppercase tracking-widest text-blue-100">
+                          {s.label}
+                        </Text>
+                      </View>
+                    </View>
+                  </Animated.View>
+                ))}
+              </View>
+            </LinearGradient>
+          </View>
 
           {/* ── BODY ── */}
           <View className="gap-3 bg-slate-50 px-4 pt-[18px] dark:bg-slate-900">
@@ -2275,42 +2357,79 @@ export default function UnitOfficerDashboard() {
 
 const styles = StyleSheet.create({
   scrollContent: { paddingBottom: 40 },
-  header: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 24,
+  headerWrapper: {
+    overflow: 'hidden',
+    borderBottomLeftRadius: 36,
+    borderBottomRightRadius: 36,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 15 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 20,
+  },
+  headerBase: {
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    paddingBottom: 32,
+    position: 'relative',
   },
   bellDot: {
     position: 'absolute',
-    top: 6,
-    right: 6,
-    minWidth: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: '#F87171',
-    borderWidth: 1.5,
-    borderColor: 'rgba(15,118,110,0.6)',
+    top: -6,
+    right: -6,
+    minWidth: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#F43F5E', // Rose-500
+    borderWidth: 2.5,
+    borderColor: '#0891B2', // Matches the new cyan/turquoise theme
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 2,
+    shadowColor: '#F43F5E',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.9,
+    shadowRadius: 8,
+    elevation: 10,
+    zIndex: 100,
   },
-  statCard: {
+  statCardShadowWrap: {
     flex: 1,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    borderRadius: 18,
-    paddingVertical: 14,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.4,
+    shadowRadius: 18,
+    borderRadius: 28,
+  },
+  statCardGlassInner: {
+    flex: 1,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 28,
+    paddingVertical: 24,
     paddingHorizontal: 8,
     alignItems: 'center',
-    gap: 6,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: 'rgba(255,255,255,0.15)',
+    borderTopWidth: 1.5,
+    borderLeftWidth: 1.5,
+    borderTopColor: 'rgba(255,255,255,0.4)',
+    borderLeftColor: 'rgba(255,255,255,0.3)',
+    overflow: 'hidden',
   },
-  statIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+  statIconShadowWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.6,
+    shadowRadius: 10,
+  },
+  statIconInner: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
   },
   shadow: {
     shadowColor: '#000',

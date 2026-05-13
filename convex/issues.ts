@@ -352,6 +352,77 @@ export const reopenIssue = mutation({
   },
 });
 
+export const submitIssueFeedback = mutation({
+  args: {
+    issueId: v.id('issues'),
+    userId: v.id('users'),
+    rating: v.number(),
+    feedback: v.string(),
+  },
+
+  handler: async (ctx, args) => {
+    const { issueId, userId, rating, feedback } = args;
+
+    const issue = await ctx.db.get(issueId);
+    if (!issue) throw new Error('Issue not found');
+
+    // Fallback to ensures only the reporter can give feedback
+    if (issue.reportedBy !== userId) {
+      throw new Error('Unauthorized');
+    }
+
+    const now = Date.now();
+
+    // Update Issue with citizen feedback and rating
+    await ctx.db.patch(issueId, {
+      citizenRating: rating,
+      citizenFeedback: feedback,
+      status: issue.status,
+      closedAt: issue.status === 'resolved' ? now : issue.closedAt,
+    });
+
+    // Adds the Issue Update with feedback and rating details
+    await ctx.db.insert('issueUpdates', {
+      issueId,
+      status: issue.status,
+      comment: `Citizen submitted a feedback for the issue.\nRating: ${rating}/5 ${feedback ? `\nFeedback: ${feedback}` : ''}`,
+      updatedBy: userId,
+      role: 'citizen',
+      attachments: [],
+      scope: 'officer_and_citizen',
+      createdAt: now,
+    });
+
+    // Notifications for Unit Officer and Citizen
+
+    // Notify Unit Officer about the feedback submission
+    if (issue.assignedUnitOfficer) {
+      await ctx.db.insert('notifications', {
+        userId: issue.assignedUnitOfficer,
+        issueId,
+        title: `Feedback received on ${issue.issueCode}`,
+        message: `Feedback received for issue ${issue.issueCode} from the citizen. \nRating: ${rating}/5 ${feedback ? ` \nFeedback: ${feedback}` : ''}`,
+        type: 'feedback',
+        read: false,
+        createdAt: now,
+      });
+    }
+
+    // Notify Citizen about the feedback submission
+    await ctx.db.insert('notifications', {
+      userId: userId,
+      issueId,
+      title: 'Feedback Submitted',
+      message: `Your feedback for issue ${issue.issueCode} has been successfully submitted.`,
+      type: 'feedback_confirmation',
+      read: false,
+      createdAt: now,
+    });
+
+    return { success: true };
+  },
+});
+
 export const getIssueById = query({
   args: {
     issueId: v.id('issues'),

@@ -425,6 +425,7 @@ function getSlaStatus(slaDeadline?: string): SLAFilter {
   const now = new Date();
   const deadline = new Date(slaDeadline);
   const diffHours = (deadline.getTime() - now.getTime()) / (1000 * 60 * 60);
+
   if (diffHours < 0) return 'overdue';
   if (diffHours < 48) return 'due_soon';
   return 'on_track';
@@ -711,36 +712,6 @@ function IssueCard({ issue, onPress }: { issue: MappedIssue; onPress: () => void
           }}
         />
 
-        {/* High-Fidelity SLA Banner */}
-        {isOverdue && (
-          <LinearGradient
-            colors={['#EF4444', '#7F1D1D']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0.5 }}
-            className="flex-row items-center gap-3 px-8 py-4">
-            <View className="rounded-full bg-white/25 p-1.5">
-              <AlertCircle color="#FFFFFF" size={14} strokeWidth={3} />
-            </View>
-            <Text className="text-[11px] font-black tracking-[0.2em] text-white">
-              SLA BREACHED — IMMEDIATE ACTION
-            </Text>
-          </LinearGradient>
-        )}
-        {isDueSoon && !isOverdue && (
-          <LinearGradient
-            colors={['#F59E0B', '#92400E']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0.5 }}
-            className="flex-row items-center gap-3 px-8 py-4">
-            <View className="rounded-full bg-white/25 p-1.5">
-              <Clock color="#FFFFFF" size={14} strokeWidth={3} />
-            </View>
-            <Text className="text-[11px] font-black tracking-[0.2em] text-white">
-              SLA DUE SOON — PRIORITY TASK
-            </Text>
-          </LinearGradient>
-        )}
-
         {/* Priority Level Indicator Strip (Side) */}
         <View
           className="absolute bottom-0 left-0 top-0 z-20 w-[10px]"
@@ -752,6 +723,78 @@ function IssueCard({ issue, onPress }: { issue: MappedIssue; onPress: () => void
 
         {/* Card Content */}
         <View className="py-8 pl-10 pr-6">
+          {/* High-Fidelity SLA Alert Pod */}
+          {/* High-Fidelity SLA Alert Pod (Overdue) */}
+          {isOverdue && (
+            <View
+              className="mb-6 overflow-hidden rounded-2xl border"
+              style={{
+                borderColor: isDark ? 'rgba(239,68,68,0.2)' : 'rgba(239,68,68,0.3)',
+              }}>
+              <View
+                className="flex-row items-center gap-3.5 px-4 py-3"
+                style={{
+                  backgroundColor: isDark ? 'rgba(239,68,68,0.1)' : 'rgba(254,226,226,0.6)',
+                }}>
+                <View
+                  className="h-8 w-8 shrink-0 items-center justify-center rounded-full"
+                  style={{
+                    backgroundColor: isDark ? 'rgba(239,68,68,0.2)' : 'rgba(239,68,68,0.15)',
+                  }}>
+                  <AlertCircle color={isDark ? '#F87171' : '#DC2626'} size={16} strokeWidth={2.5} />
+                </View>
+
+                <View className="flex-1">
+                  <Text
+                    className="text-[12px] font-black uppercase tracking-widest text-red-600 dark:text-red-400"
+                    numberOfLines={1}>
+                    SLA Breached
+                  </Text>
+                  <Text
+                    className="mt-0.5 text-[10px] font-bold text-red-500/80 dark:text-red-400/80"
+                    numberOfLines={1}>
+                    Immediate action required
+                  </Text>
+                </View>
+              </View>
+            </View>
+          )}
+
+          {/* High-Fidelity SLA Alert Pod (Due Soon) */}
+          {isDueSoon && !isOverdue && (
+            <View
+              className="mb-6 overflow-hidden rounded-2xl border"
+              style={{
+                borderColor: isDark ? 'rgba(245,158,11,0.2)' : 'rgba(245,158,11,0.3)',
+              }}>
+              <View
+                className="flex-row items-center gap-3.5 px-4 py-3"
+                style={{
+                  backgroundColor: isDark ? 'rgba(245,158,11,0.1)' : 'rgba(254,243,199,0.6)',
+                }}>
+                <View
+                  className="h-8 w-8 shrink-0 items-center justify-center rounded-full"
+                  style={{
+                    backgroundColor: isDark ? 'rgba(245,158,11,0.2)' : 'rgba(245,158,11,0.15)',
+                  }}>
+                  <Clock color={isDark ? '#FBBF24' : '#D97706'} size={16} strokeWidth={2.5} />
+                </View>
+
+                <View className="flex-1">
+                  <Text
+                    className="text-[12px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400"
+                    numberOfLines={1}>
+                    SLA Due Soon
+                  </Text>
+                  <Text
+                    className="mt-0.5 text-[10px] font-bold text-amber-600/80 dark:text-amber-500/80"
+                    numberOfLines={1}>
+                    Priority task
+                  </Text>
+                </View>
+              </View>
+            </View>
+          )}
           {/* Header Row */}
           <View className="mb-7 flex-row items-center justify-between gap-2">
             <View className="flex-1 flex-row items-center gap-2">
@@ -1283,345 +1326,335 @@ function FilterModal({
       statusBarTranslucent
       onRequestClose={handleCloseAnim}>
       <View style={{ flex: 1 }}>
-            {/* Animated backdrop */}
-            <Animated.View
-              entering={FadeIn.duration(400)}
-              exiting={FadeOut.duration(300)}
-              style={StyleSheet.absoluteFillObject}>
-              <BlurView
-                intensity={isDark ? 40 : 25}
-                tint={isDark ? 'dark' : 'light'}
-                style={StyleSheet.absoluteFillObject}
-              />
-              <TouchableOpacity
-                style={StyleSheet.absoluteFillObject}
-                onPress={handleCloseAnim}
-                activeOpacity={1}
-              />
-            </Animated.View>
+        {/* Animated backdrop */}
+        <Animated.View
+          entering={FadeIn.duration(400)}
+          exiting={FadeOut.duration(300)}
+          style={StyleSheet.absoluteFillObject}>
+          <BlurView
+            intensity={isDark ? 40 : 25}
+            tint={isDark ? 'dark' : 'light'}
+            style={StyleSheet.absoluteFillObject}
+          />
+          <TouchableOpacity
+            style={StyleSheet.absoluteFillObject}
+            onPress={handleCloseAnim}
+            activeOpacity={1}
+          />
+        </Animated.View>
 
-            <Animated.View
-              entering={SlideInDown.springify().damping(100).stiffness(200)}
-              exiting={SlideOutDown.duration(300)}
-              layout={LinearTransition}
-              style={[
-                styles.filterSheet,
-                { width: '100%', position: 'absolute', bottom: 0, backgroundColor: 'transparent' },
-              ]}>
-              <BlurView
-                intensity={isDark ? 80 : 100}
-                tint={isDark ? 'dark' : 'light'}
+        <Animated.View
+          entering={SlideInDown.springify().damping(100).stiffness(200)}
+          exiting={SlideOutDown.duration(300)}
+          layout={LinearTransition}
+          style={[
+            styles.filterSheet,
+            { width: '100%', position: 'absolute', bottom: 0, backgroundColor: 'transparent' },
+          ]}>
+          <BlurView
+            intensity={isDark ? 80 : 100}
+            tint={isDark ? 'dark' : 'light'}
+            style={{
+              width: '100%',
+              flexShrink: 1,
+              paddingBottom: insets.bottom,
+              borderTopLeftRadius: 36,
+              borderTopRightRadius: 36,
+              overflow: 'hidden',
+              backgroundColor: isDark ? 'rgba(15, 23, 42, 0.75)' : 'rgba(255, 255, 255, 0.85)',
+              borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+              borderWidth: 1,
+            }}>
+            <LinearGradient
+              colors={
+                isDark
+                  ? ['rgba(20, 184, 166, 0.05)', 'transparent']
+                  : ['rgba(20, 184, 166, 0.05)', 'transparent']
+              }
+              style={StyleSheet.absoluteFillObject}
+              start={{ x: 0.5, y: 0 }}
+              end={{ x: 0.5, y: 0.2 }}
+              pointerEvents="none"
+            />
+
+            {/* Drag handle */}
+            <View
+              className="mb-2 mt-4 h-1.5 w-12 self-center rounded-full opacity-50"
+              style={{ backgroundColor: isDark ? '#475569' : '#CBD5E1' }}
+            />
+
+            {/* Header */}
+            <View
+              className="flex-row items-center justify-between border-b px-6 pb-4 pt-2"
+              style={{
+                borderBottomColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+              }}>
+              <View className="flex-row items-center gap-3">
+                <View
+                  className="h-10 w-10 items-center justify-center rounded-2xl"
+                  style={{
+                    backgroundColor: isDark ? 'rgba(20, 184, 166, 0.2)' : '#CCFBF1',
+                    borderWidth: 1,
+                    borderColor: isDark ? 'rgba(20, 184, 166, 0.3)' : '#99F6E4',
+                  }}>
+                  <SlidersHorizontal
+                    size={18}
+                    color={isDark ? '#5EEAD4' : '#0D9488'}
+                    strokeWidth={2.5}
+                  />
+                </View>
+                <View>
+                  <Text className="text-[19px] font-extrabold tracking-tight text-slate-900 dark:text-slate-100">
+                    Filters
+                  </Text>
+                  {activeCount > 0 && (
+                    <Animated.Text
+                      entering={FadeInUp.springify()}
+                      className="text-[12px] font-bold text-teal-600 dark:text-teal-400">
+                      {activeCount} active {activeCount === 1 ? 'filter' : 'filters'}
+                    </Animated.Text>
+                  )}
+                </View>
+              </View>
+              <View className="flex-row items-center gap-2">
+                {activeCount > 0 && (
+                  <TouchableOpacity
+                    onPress={handleReset}
+                    className="rounded-full px-3.5 py-2"
+                    style={{
+                      backgroundColor: isDark
+                        ? 'rgba(30, 41, 59, 0.8)'
+                        : 'rgba(241, 245, 249, 0.8)',
+                    }}>
+                    <Text className="text-[13px] font-extrabold text-slate-500 dark:text-slate-400">
+                      Reset
+                    </Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity
+                  onPress={handleCloseAnim}
+                  className="h-9 w-9 items-center justify-center rounded-full"
+                  style={{
+                    backgroundColor: isDark ? 'rgba(30, 41, 59, 0.8)' : 'rgba(241, 245, 249, 0.8)',
+                  }}>
+                  <X size={16} color={isDark ? '#94A3B8' : '#64748B'} strokeWidth={2.5} />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
+              {/* STATUS */}
+              <FilterAccordion
+                title="Status"
+                icon={
+                  <CheckCircle size={16} color={isDark ? '#5EEAD4' : '#0D9488'} strokeWidth={2.5} />
+                }
+                isOpen={openSection === 'status'}
+                onToggle={() => toggleSection('status')}
+                activeValue={local.status !== 'all' ? local.status : undefined}
+                activeMeta={local.status !== 'all' ? STATUS_META[local.status] : undefined}
+                isDark={isDark}>
+                <View className="flex-row flex-wrap gap-2.5 px-6 pb-5 pt-1">
+                  {STATUS_OPTIONS.filter((s) => s !== 'all').map((s, idx) => {
+                    const m = STATUS_META[s];
+                    const isActive = local.status === s;
+
+                    return (
+                      <FilterOption
+                        key={s}
+                        label={STATUS_LABEL_MAP[s]}
+                        isActive={isActive}
+                        dotColor={m.dot}
+                        onPress={() =>
+                          setLocal({ ...local, status: local.status === s ? 'all' : s })
+                        }
+                        isDark={isDark}
+                        delay={idx * 50}
+                      />
+                    );
+                  })}
+                </View>
+              </FilterAccordion>
+
+              {/* SLA */}
+              <FilterAccordion
+                title="SLA Status"
+                icon={<Clock size={16} color={isDark ? '#FCD34D' : '#F59E0B'} strokeWidth={2.5} />}
+                isOpen={openSection === 'sla'}
+                onToggle={() => toggleSection('sla')}
+                activeValue={local.sla !== 'all' ? local.sla : undefined}
+                activeMeta={
+                  local.status !== 'all' ? STATUS_META[local.status as StatusKey] : undefined
+                }
+                isDark={isDark}>
+                <View className="flex-row flex-wrap gap-2.5 px-6 pb-5 pt-1">
+                  {SLA_OPTIONS.filter((s) => s !== 'all').map((s, idx) => {
+                    const m = SLA_META[s];
+                    const isActive = local.sla === s;
+                    return (
+                      <FilterOption
+                        key={s}
+                        label={s}
+                        isActive={isActive}
+                        dotColor={m.dot}
+                        onPress={() => setLocal({ ...local, sla: local.sla === s ? 'all' : s })}
+                        isDark={isDark}
+                        delay={idx * 50}
+                      />
+                    );
+                  })}
+                </View>
+              </FilterAccordion>
+
+              {/* PRIORITY */}
+              <FilterAccordion
+                title="Priority"
+                icon={
+                  <AlertTriangle
+                    size={16}
+                    color={isDark ? '#FCA5A5' : '#EF4444'}
+                    strokeWidth={2.5}
+                  />
+                }
+                isOpen={openSection === 'priority'}
+                onToggle={() => toggleSection('priority')}
+                activeValue={local.priority !== 'all' ? local.priority : undefined}
+                activeMeta={local.priority !== 'all' ? PRIORITY_META[local.priority] : undefined}
+                isDark={isDark}>
+                <View className="flex-row flex-wrap gap-2.5 px-6 pb-5 pt-1">
+                  {PRIORITY_OPTIONS.filter((p) => p !== 'all').map((p, idx) => {
+                    const m = PRIORITY_META[p];
+                    const isActive = local.priority === p;
+                    return (
+                      <FilterOption
+                        key={p}
+                        label={p}
+                        isActive={isActive}
+                        dotColor={m.dot}
+                        onPress={() =>
+                          setLocal({ ...local, priority: local.priority === p ? 'all' : p })
+                        }
+                        isDark={isDark}
+                        delay={idx * 50}
+                      />
+                    );
+                  })}
+                </View>
+              </FilterAccordion>
+
+              {/* SUBCATEGORY */}
+              {local.category !== 'all' && (
+                <Animated.View entering={FadeIn.duration(200)}>
+                  <FilterAccordion
+                    title="Sub-Category"
+                    icon={
+                      <Layers size={16} color={isDark ? '#C4B5FD' : '#8B5CF6'} strokeWidth={2.5} />
+                    }
+                    isOpen={openSection === 'subcategory'}
+                    onToggle={() => toggleSection('subcategory')}
+                    activeValue={
+                      local.subCategories.length > 0
+                        ? local.subCategories.length === 1
+                          ? local.subCategories[0]
+                          : `${local.subCategories.length} Selected`
+                        : undefined
+                    }
+                    isDark={isDark}>
+                    <View className="flex-row flex-wrap gap-2.5 px-6 pb-5 pt-1">
+                      {availableSubcats.map((sc, idx) => {
+                        const isActive = local.subCategories.includes(sc);
+                        return (
+                          <FilterOption
+                            key={sc}
+                            label={sc}
+                            isActive={isActive}
+                            dotColor={isDark ? '#C4B5FD' : '#8B5CF6'}
+                            onPress={() => {
+                              if (isActive) {
+                                setLocal({
+                                  ...local,
+                                  subCategories: local.subCategories.filter((s) => s !== sc),
+                                });
+                              } else {
+                                setLocal({
+                                  ...local,
+                                  subCategories: [...local.subCategories, sc],
+                                });
+                              }
+                            }}
+                            isDark={isDark}
+                            delay={idx * 50}
+                          />
+                        );
+                      })}
+                    </View>
+                  </FilterAccordion>
+                </Animated.View>
+              )}
+
+              <View className="h-8" />
+            </ScrollView>
+
+            {/* Apply button */}
+            <View
+              className="px-6 pb-6 pt-4"
+              style={{
+                borderTopWidth: 1,
+                borderTopColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+              }}>
+              <TouchableOpacity
+                onPress={handleApply}
+                activeOpacity={0.85}
+                className="overflow-hidden rounded-2xl"
                 style={{
-                  width: '100%',
-                  flexShrink: 1,
-                  paddingBottom: insets.bottom,
-                  borderTopLeftRadius: 36,
-                  borderTopRightRadius: 36,
-                  overflow: 'hidden',
-                  backgroundColor: isDark ? 'rgba(15, 23, 42, 0.75)' : 'rgba(255, 255, 255, 0.85)',
-                  borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
-                  borderWidth: 1,
+                  height: 56,
+                  shadowColor: activeCount > 0 ? '#0D9488' : '#000',
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: activeCount > 0 ? 0.3 : 0.05,
+                  shadowRadius: 12,
+                  elevation: 8,
                 }}>
                 <LinearGradient
                   colors={
-                    isDark
-                      ? ['rgba(20, 184, 166, 0.05)', 'transparent']
-                      : ['rgba(20, 184, 166, 0.05)', 'transparent']
+                    activeCount > 0
+                      ? ['#0D9488', '#0F766E']
+                      : isDark
+                        ? ['#334155', '#1E293B']
+                        : ['#F1F5F9', '#E2E8F0']
                   }
-                  style={StyleSheet.absoluteFillObject}
-                  start={{ x: 0.5, y: 0 }}
-                  end={{ x: 0.5, y: 0.2 }}
-                  pointerEvents="none"
-                />
-
-                {/* Drag handle */}
-                <View
-                  className="mb-2 mt-4 h-1.5 w-12 self-center rounded-full opacity-50"
-                  style={{ backgroundColor: isDark ? '#475569' : '#CBD5E1' }}
-                />
-
-                {/* Header */}
-                <View
-                  className="flex-row items-center justify-between border-b px-6 pb-4 pt-2"
-                  style={{
-                    borderBottomColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
-                  }}>
-                  <View className="flex-row items-center gap-3">
-                    <View
-                      className="h-10 w-10 items-center justify-center rounded-2xl"
-                      style={{
-                        backgroundColor: isDark ? 'rgba(20, 184, 166, 0.2)' : '#CCFBF1',
-                        borderWidth: 1,
-                        borderColor: isDark ? 'rgba(20, 184, 166, 0.3)' : '#99F6E4',
-                      }}>
-                      <SlidersHorizontal
-                        size={18}
-                        color={isDark ? '#5EEAD4' : '#0D9488'}
-                        strokeWidth={2.5}
-                      />
-                    </View>
-                    <View>
-                      <Text className="text-[19px] font-extrabold tracking-tight text-slate-900 dark:text-slate-100">
-                        Filters
-                      </Text>
-                      {activeCount > 0 && (
-                        <Animated.Text
-                          entering={FadeInUp.springify()}
-                          className="text-[12px] font-bold text-teal-600 dark:text-teal-400">
-                          {activeCount} active {activeCount === 1 ? 'filter' : 'filters'}
-                        </Animated.Text>
-                      )}
-                    </View>
-                  </View>
-                  <View className="flex-row items-center gap-2">
-                    {activeCount > 0 && (
-                      <TouchableOpacity
-                        onPress={handleReset}
-                        className="rounded-full px-3.5 py-2"
-                        style={{
-                          backgroundColor: isDark
-                            ? 'rgba(30, 41, 59, 0.8)'
-                            : 'rgba(241, 245, 249, 0.8)',
-                        }}>
-                        <Text className="text-[13px] font-extrabold text-slate-500 dark:text-slate-400">
-                          Reset
-                        </Text>
-                      </TouchableOpacity>
-                    )}
-                    <TouchableOpacity
-                      onPress={handleCloseAnim}
-                      className="h-9 w-9 items-center justify-center rounded-full"
-                      style={{
-                        backgroundColor: isDark
-                          ? 'rgba(30, 41, 59, 0.8)'
-                          : 'rgba(241, 245, 249, 0.8)',
-                      }}>
-                      <X size={16} color={isDark ? '#94A3B8' : '#64748B'} strokeWidth={2.5} />
-                    </TouchableOpacity>
-                  </View>
-                </View>
-
-                <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
-                  {/* STATUS */}
-                  <FilterAccordion
-                    title="Status"
-                    icon={
-                      <CheckCircle
-                        size={16}
-                        color={isDark ? '#5EEAD4' : '#0D9488'}
-                        strokeWidth={2.5}
-                      />
-                    }
-                    isOpen={openSection === 'status'}
-                    onToggle={() => toggleSection('status')}
-                    activeValue={local.status !== 'all' ? local.status : undefined}
-                    activeMeta={local.status !== 'all' ? STATUS_META[local.status] : undefined}
-                    isDark={isDark}>
-                    <View className="flex-row flex-wrap gap-2.5 px-6 pb-5 pt-1">
-                      {STATUS_OPTIONS.filter((s) => s !== 'all').map((s, idx) => {
-                        const m = STATUS_META[s];
-                        const isActive = local.status === s;
-
-                        return (
-                          <FilterOption
-                            key={s}
-                            label={STATUS_LABEL_MAP[s]}
-                            isActive={isActive}
-                            dotColor={m.dot}
-                            onPress={() => setLocal({ ...local, status: local.status === s ? 'all' : s })}
-                            isDark={isDark}
-                            delay={idx * 50}
-                          />
-                        );
-                      })}
-                    </View>
-                  </FilterAccordion>
-
-                  {/* SLA */}
-                  <FilterAccordion
-                    title="SLA Status"
-                    icon={
-                      <Clock size={16} color={isDark ? '#FCD34D' : '#F59E0B'} strokeWidth={2.5} />
-                    }
-                    isOpen={openSection === 'sla'}
-                    onToggle={() => toggleSection('sla')}
-                    activeValue={local.sla !== 'all' ? local.sla : undefined}
-                    activeMeta={
-                      local.status !== 'all' ? STATUS_META[local.status as StatusKey] : undefined
-                    }
-                    isDark={isDark}>
-                    <View className="flex-row flex-wrap gap-2.5 px-6 pb-5 pt-1">
-                      {SLA_OPTIONS.filter((s) => s !== 'all').map((s, idx) => {
-                        const m = SLA_META[s];
-                        const isActive = local.sla === s;
-                        return (
-                          <FilterOption
-                            key={s}
-                            label={s}
-                            isActive={isActive}
-                            dotColor={m.dot}
-                            onPress={() => setLocal({ ...local, sla: local.sla === s ? 'all' : s })}
-                            isDark={isDark}
-                            delay={idx * 50}
-                          />
-                        );
-                      })}
-                    </View>
-                  </FilterAccordion>
-
-                  {/* PRIORITY */}
-                  <FilterAccordion
-                    title="Priority"
-                    icon={
-                      <AlertTriangle
-                        size={16}
-                        color={isDark ? '#FCA5A5' : '#EF4444'}
-                        strokeWidth={2.5}
-                      />
-                    }
-                    isOpen={openSection === 'priority'}
-                    onToggle={() => toggleSection('priority')}
-                    activeValue={local.priority !== 'all' ? local.priority : undefined}
-                    activeMeta={
-                      local.priority !== 'all' ? PRIORITY_META[local.priority] : undefined
-                    }
-                    isDark={isDark}>
-                    <View className="flex-row flex-wrap gap-2.5 px-6 pb-5 pt-1">
-                      {PRIORITY_OPTIONS.filter((p) => p !== 'all').map((p, idx) => {
-                        const m = PRIORITY_META[p];
-                        const isActive = local.priority === p;
-                        return (
-                          <FilterOption
-                            key={p}
-                            label={p}
-                            isActive={isActive}
-                            dotColor={m.dot}
-                            onPress={() => setLocal({ ...local, priority: local.priority === p ? 'all' : p })}
-                            isDark={isDark}
-                            delay={idx * 50}
-                          />
-                        );
-                      })}
-                    </View>
-                  </FilterAccordion>
-
-                  {/* SUBCATEGORY */}
-                  {local.category !== 'all' && (
-                    <Animated.View entering={FadeIn.duration(200)}>
-                      <FilterAccordion
-                        title="Sub-Category"
-                        icon={
-                          <Layers
-                            size={16}
-                            color={isDark ? '#C4B5FD' : '#8B5CF6'}
-                            strokeWidth={2.5}
-                          />
-                        }
-                        isOpen={openSection === 'subcategory'}
-                        onToggle={() => toggleSection('subcategory')}
-                        activeValue={
-                          local.subCategories.length > 0
-                            ? local.subCategories.length === 1
-                              ? local.subCategories[0]
-                              : `${local.subCategories.length} Selected`
-                            : undefined
-                        }
-                        isDark={isDark}>
-                        <View className="flex-row flex-wrap gap-2.5 px-6 pb-5 pt-1">
-                          {availableSubcats.map((sc, idx) => {
-                            const isActive = local.subCategories.includes(sc);
-                            return (
-                              <FilterOption
-                                key={sc}
-                                label={sc}
-                                isActive={isActive}
-                                dotColor={isDark ? '#C4B5FD' : '#8B5CF6'}
-                                onPress={() => {
-                                  if (isActive) {
-                                    setLocal({
-                                      ...local,
-                                      subCategories: local.subCategories.filter((s) => s !== sc),
-                                    });
-                                  } else {
-                                    setLocal({
-                                      ...local,
-                                      subCategories: [...local.subCategories, sc],
-                                    });
-                                  }
-                                }}
-                                isDark={isDark}
-                                delay={idx * 50}
-                              />
-                            );
-                          })}
-                        </View>
-                      </FilterAccordion>
-                    </Animated.View>
-                  )}
-
-                  <View className="h-8" />
-                </ScrollView>
-
-                {/* Apply button */}
-                <View
-                  className="px-6 pb-6 pt-4"
-                  style={{
-                    borderTopWidth: 1,
-                    borderTopColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
-                  }}>
-                  <TouchableOpacity
-                    onPress={handleApply}
-                    activeOpacity={0.85}
-                    className="overflow-hidden rounded-2xl"
-                    style={{
-                      height: 56,
-                      shadowColor: activeCount > 0 ? '#0D9488' : '#000',
-                      shadowOffset: { width: 0, height: 4 },
-                      shadowOpacity: activeCount > 0 ? 0.3 : 0.05,
-                      shadowRadius: 12,
-                      elevation: 8,
-                    }}>
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={StyleSheet.absoluteFillObject}>
+                  {activeCount > 0 && (
                     <LinearGradient
-                      colors={
-                        activeCount > 0
-                          ? ['#0D9488', '#0F766E']
-                          : isDark
-                            ? ['#334155', '#1E293B']
-                            : ['#F1F5F9', '#E2E8F0']
-                      }
+                      colors={['rgba(255,255,255,0.25)', 'transparent']}
                       start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={StyleSheet.absoluteFillObject}>
-                      {activeCount > 0 && (
-                        <LinearGradient
-                          colors={['rgba(255,255,255,0.25)', 'transparent']}
-                          start={{ x: 0, y: 0 }}
-                          end={{ x: 0, y: 1 }}
-                          style={StyleSheet.absoluteFillObject}
-                        />
-                      )}
-                      <View className="flex-1 flex-row items-center justify-center gap-2">
-                        <Filter
-                          size={18}
-                          color={activeCount > 0 ? '#FFFFFF' : isDark ? '#94A3B8' : '#64748B'}
-                          strokeWidth={2.5}
-                        />
-                        <Text
-                          style={{
-                            fontSize: 16,
-                            fontWeight: '800',
-                            letterSpacing: -0.3,
-                            color: activeCount > 0 ? '#FFFFFF' : isDark ? '#94A3B8' : '#64748B',
-                          }}>
-                          {`Apply Filters${activeCount > 0 ? ` (${activeCount})` : ''}`}
-                        </Text>
-                      </View>
-                    </LinearGradient>
-                  </TouchableOpacity>
-                </View>
-              </BlurView>
-            </Animated.View>
-    </View>
+                      end={{ x: 0, y: 1 }}
+                      style={StyleSheet.absoluteFillObject}
+                    />
+                  )}
+                  <View className="flex-1 flex-row items-center justify-center gap-2">
+                    <Filter
+                      size={18}
+                      color={activeCount > 0 ? '#FFFFFF' : isDark ? '#94A3B8' : '#64748B'}
+                      strokeWidth={2.5}
+                    />
+                    <Text
+                      style={{
+                        fontSize: 16,
+                        fontWeight: '800',
+                        letterSpacing: -0.3,
+                        color: activeCount > 0 ? '#FFFFFF' : isDark ? '#94A3B8' : '#64748B',
+                      }}>
+                      {`Apply Filters${activeCount > 0 ? ` (${activeCount})` : ''}`}
+                    </Text>
+                  </View>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </BlurView>
+        </Animated.View>
+      </View>
     </Modal>
   );
 }
@@ -1942,7 +1975,6 @@ export default function UnitOfficerDashboard() {
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.headerBase}>
-
               {/* Depth Overlay */}
               <LinearGradient
                 colors={['rgba(0,0,0,0.15)', 'transparent', 'rgba(0,0,0,0.5)']}
@@ -1950,17 +1982,17 @@ export default function UnitOfficerDashboard() {
                 pointerEvents="none"
               />
 
-              <Animated.View 
-                entering={FadeInDown.springify().damping(16).mass(0.8)} 
-                className="mb-8 flex-row items-start justify-between z-10"
-              >
+              <Animated.View
+                entering={FadeInDown.springify().damping(16).mass(0.8)}
+                className="z-10 mb-8 flex-row items-start justify-between">
                 <View className="flex-row items-center gap-4">
                   {/* Ultra-Premium Avatar */}
-                  <View className="relative h-16 w-16 items-center justify-center rounded-[20px] bg-white/10 overflow-hidden shadow-xl shadow-blue-900/40 border border-white/20">
+                  <View className="relative h-16 w-16 items-center justify-center overflow-hidden rounded-[20px] border border-white/20 bg-white/10 shadow-xl shadow-blue-900/40">
                     <BlurView intensity={25} tint="light" style={StyleSheet.absoluteFill} />
                     <LinearGradient
                       colors={['rgba(255,255,255,0.4)', 'rgba(255,255,255,0.0)']}
-                      start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
                       style={StyleSheet.absoluteFill}
                     />
                     <Text className="text-[26px] font-black text-white drop-shadow-md">
@@ -1969,15 +2001,15 @@ export default function UnitOfficerDashboard() {
                   </View>
 
                   <View>
-                    <Text className="mb-1 text-[12px] font-bold text-blue-200/90 uppercase tracking-[0.2em]">
+                    <Text className="mb-1 text-[12px] font-bold uppercase tracking-[0.2em] text-blue-200/90">
                       Welcome back
                     </Text>
-                    <Text className="text-[24px] font-black tracking-tighter text-white drop-shadow-lg leading-tight">
+                    <Text className="text-[24px] font-black leading-tight tracking-tighter text-white drop-shadow-lg">
                       {unitOfficer?.fullName}
                     </Text>
-                    <View className="mt-1.5 flex-row items-center gap-1.5 self-start rounded-full bg-black/20 border border-white/10 px-3 py-1">
+                    <View className="mt-1.5 flex-row items-center gap-1.5 self-start rounded-full border border-white/10 bg-black/20 px-3 py-1">
                       <MapPin color="#93C5FD" size={11} strokeWidth={3} />
-                      <Text className="text-[10px] font-black uppercase text-blue-100 tracking-widest">
+                      <Text className="text-[10px] font-black uppercase tracking-widest text-blue-100">
                         {unitOfficer?.city}
                       </Text>
                     </View>
@@ -1988,35 +2020,50 @@ export default function UnitOfficerDashboard() {
                   <TouchableOpacity
                     onPress={() => setShowNotifications(true)}
                     activeOpacity={0.7}
-                    className="relative items-center justify-center shadow-2xl z-50">
-                    
+                    className="relative z-50 items-center justify-center shadow-2xl">
                     {/* Glass Container (Handles blur & gradient without clipping the dot) */}
-                    <View className={`h-14 w-14 rounded-[22px] overflow-hidden items-center justify-center ${
-                      unreadNotifCount && unreadNotifCount > 0
-                        ? 'bg-white/20 border border-white/50 shadow-lg shadow-blue-400/50'
-                        : 'bg-black/20 border border-white/15 shadow-lg shadow-blue-900/30'
-                    }`}>
+                    <View
+                      className={`h-14 w-14 items-center justify-center overflow-hidden rounded-[22px] ${
+                        unreadNotifCount && unreadNotifCount > 0
+                          ? 'border border-white/50 bg-white/20 shadow-lg shadow-blue-400/50'
+                          : 'border border-white/15 bg-black/20 shadow-lg shadow-blue-900/30'
+                      }`}>
                       <BlurView intensity={35} tint="light" style={StyleSheet.absoluteFill} />
                       <LinearGradient
                         colors={['rgba(255,255,255,0.6)', 'rgba(255,255,255,0.0)']}
-                        start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
                         style={StyleSheet.absoluteFill}
                       />
-                      <Bell 
-                        color={unreadNotifCount && unreadNotifCount > 0 ? '#FFFFFF' : 'rgba(255,255,255,0.9)'} 
-                        size={28} 
-                        strokeWidth={2.5} 
-                        style={unreadNotifCount && unreadNotifCount > 0 ? { shadowColor: '#fff', shadowOffset: {width: 0, height: 0}, shadowOpacity: 0.5, shadowRadius: 8 } : {}}
+                      <Bell
+                        color={
+                          unreadNotifCount && unreadNotifCount > 0
+                            ? '#FFFFFF'
+                            : 'rgba(255,255,255,0.9)'
+                        }
+                        size={28}
+                        strokeWidth={2.5}
+                        style={
+                          unreadNotifCount && unreadNotifCount > 0
+                            ? {
+                                shadowColor: '#fff',
+                                shadowOffset: { width: 0, height: 0 },
+                                shadowOpacity: 0.5,
+                                shadowRadius: 8,
+                              }
+                            : {}
+                        }
                       />
                     </View>
 
                     {/* Glowing Notification Badge (Unclipped) */}
                     {unreadNotifCount !== undefined && unreadNotifCount > 0 && (
-                      <Animated.View 
-                        entering={ZoomIn.springify().damping(12).mass(0.9)} 
-                        style={styles.bellDot}
-                      >
-                        <Text className="text-[12px] font-black text-white tracking-tighter" style={{ lineHeight: 14 }}>
+                      <Animated.View
+                        entering={ZoomIn.springify().damping(12).mass(0.9)}
+                        style={styles.bellDot}>
+                        <Text
+                          className="text-[12px] font-black tracking-tighter text-white"
+                          style={{ lineHeight: 14 }}>
                           {unreadNotifCount > 99 ? '99+' : unreadNotifCount}
                         </Text>
                       </Animated.View>
@@ -2025,14 +2072,14 @@ export default function UnitOfficerDashboard() {
 
                   <View className="flex-row gap-2">
                     {overdueCount > 0 && (
-                      <View className="flex-row items-center gap-1.5 rounded-full bg-rose-500/90 border border-rose-400/30 px-3 py-1.5 shadow-lg shadow-rose-900/40">
+                      <View className="flex-row items-center gap-1.5 rounded-full border border-rose-400/30 bg-rose-500/90 px-3 py-1.5 shadow-lg shadow-rose-900/40">
                         <AlertCircle color="#FFFFFF" size={11} strokeWidth={3} />
                         <Text className="text-[10px] font-black uppercase text-white">
                           {overdueCount} Critical
                         </Text>
                       </View>
                     )}
-                    <View className="flex-row items-center gap-1.5 rounded-full bg-cyan-500/80 border border-cyan-400/30 px-3 py-1.5 shadow-lg shadow-cyan-900/30">
+                    <View className="flex-row items-center gap-1.5 rounded-full border border-cyan-400/30 bg-cyan-500/80 px-3 py-1.5 shadow-lg shadow-cyan-900/30">
                       <TrendingUp color="#FFFFFF" size={11} strokeWidth={3} />
                       <Text className="text-[10px] font-black uppercase text-white">78% SLA</Text>
                     </View>
@@ -2041,48 +2088,46 @@ export default function UnitOfficerDashboard() {
               </Animated.View>
 
               {/* High-Fidelity Stats Cards */}
-              <View className="flex-row gap-3 z-10 mt-1">
+              <View className="z-10 mt-1 flex-row gap-3">
                 {stats.map((s, i) => (
-                  <Animated.View 
-                    entering={FadeInDown.delay(100 + i * 150).springify().damping(14)}
-                    key={i} 
-                    style={[styles.statCardShadowWrap, { shadowColor: s.iconBg }]}
-                  >
+                  <Animated.View
+                    entering={FadeInDown.delay(100 + i * 150)
+                      .springify()
+                      .damping(14)}
+                    key={i}
+                    style={[styles.statCardShadowWrap, { shadowColor: s.iconBg }]}>
                     <View style={styles.statCardGlassInner}>
                       <BlurView intensity={35} tint="light" style={StyleSheet.absoluteFill} />
-                      
+
                       {/* Deep Sweeping Glass Highlight */}
                       <LinearGradient
                         colors={['rgba(255,255,255,0.35)', 'rgba(255,255,255,0.05)', 'transparent']}
                         locations={[0, 0.4, 1]}
-                        start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
                         style={StyleSheet.absoluteFill}
                       />
 
                       {/* Breathtaking Background Watermark */}
-                      <Text 
-                        className="absolute -right-3 -bottom-5 text-[80px] font-black italic tracking-tighter"
-                        style={{ color: 'rgba(255,255,255,0.08)', includeFontPadding: false }}
-                      >
+                      <Text
+                        className="absolute -bottom-5 -right-3 text-[80px] font-black italic tracking-tighter"
+                        style={{ color: 'rgba(255,255,255,0.08)', includeFontPadding: false }}>
                         {s.value}
                       </Text>
 
-                      <View
-                        style={[
-                          styles.statIconShadowWrap,
-                          { shadowColor: s.iconBg },
-                        ]}>
+                      <View style={[styles.statIconShadowWrap, { shadowColor: s.iconBg }]}>
                         <View style={[styles.statIconInner, { backgroundColor: s.iconBg }]}>
                           <LinearGradient
                             colors={['rgba(255,255,255,0.25)', 'transparent']}
-                            start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 0, y: 1 }}
                             style={StyleSheet.absoluteFill}
                           />
                           {s.icon}
                         </View>
                       </View>
                       <View className="mt-4 items-center">
-                        <Text className="text-[28px] font-black tracking-tighter text-white drop-shadow-xl leading-none">
+                        <Text className="text-[28px] font-black leading-none tracking-tighter text-white drop-shadow-xl">
                           {s.value}
                         </Text>
                         <Text className="mt-1.5 text-[9px] font-black uppercase tracking-widest text-blue-100">

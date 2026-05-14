@@ -431,15 +431,15 @@ export interface MappedIssue {
 }
 
 export interface FieldOfficer {
-  id: string;
-  name: string;
+  _id: string;
+  fullName: string;
   email: string;
   avatar?: string;
   rating: number;
-  specializations: IssueCategory[];
+  specialisations: IssueCategory[];
   workloadPercentage: number;
-  activeIssues: number;
-  successRate: number;
+  currentActiveIssues: number;
+  onTimeCompletionRate: number;
   lastActive: string;
   ward: string;
   recommended?: boolean;

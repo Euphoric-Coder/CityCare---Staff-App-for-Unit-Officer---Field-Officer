@@ -75,7 +75,14 @@ import {
   Maximize2,
 } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
-import { Issue, IssueStatus, IssueUpdate, UpdateScope } from '../lib/types';
+import {
+  FieldOfficerDetails,
+  Issue,
+  IssueStatus,
+  IssueUpdate,
+  MappedIssue,
+  UpdateScope,
+} from '../lib/types';
 import RejectionModal from '../components/RejectionModal';
 import ReassignmentModal from '../components/ReassignmentModal';
 import {
@@ -750,12 +757,6 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
     ]);
   };
 
-  const isSLAOverdue = !!(
-    mappedIssue?.slaDeadline &&
-    new Date(mappedIssue.slaDeadline) < new Date() &&
-    !['Closed', 'Rejected', 'Escalated'].includes(mappedIssue.status)
-  );
-
   const handleSLAReassign = (
     _newOfficer: FieldOfficer,
     _reason: any,
@@ -906,6 +907,12 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
   }
 
   const mappedIssue = mapIssueToUI(issue);
+
+  const isSLAOverdue = !!(
+    mappedIssue?.slaDeadline &&
+    new Date(mappedIssue.slaDeadline) < new Date() &&
+    !['Closed', 'Rejected', 'Escalated'].includes(mappedIssue.status)
+  );
 
   if (!mappedIssue) {
     return (
@@ -1075,9 +1082,7 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
 
   return (
     <SafeAreaView className="flex-1 bg-slate-100 dark:bg-slate-900" edges={['top']}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior="padding">
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
         <StatusBar style={isDark ? 'light' : 'dark'} />
 
         {/* HEADER */}
@@ -2973,18 +2978,18 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
           </View>
 
           {/* SLA OVERDUE ACTION PANEL */}
-          {/* {isSLAOverdue && (
-          <SectionCard>
-            <SLAOverduePanel
-              issue={mappedIssue}
-              fieldOfficers={mockFieldOfficers}
-              onReassign={handleSLAReassign}
-              onReject={handleSLAReject}
-              onExtend={handleSLAExtend}
-              onEscalate={handleSLAEscalate}
-            />
-          </SectionCard>
-        )} */}
+          {isSLAOverdue && assignedFO && (
+            <SectionCard>
+              <SLAOverduePanel
+                issue={mappedIssue}
+                fieldOfficers={assignedFO}
+                onReassign={handleSLAReassign}
+                onReject={handleSLAReject}
+                onExtend={handleSLAExtend}
+                onEscalate={handleSLAEscalate}
+              />
+            </SectionCard>
+          )}
 
           {/* Issue Verification & Rejection (Pending) */}
           {mappedIssue.status === 'pending' && (
@@ -3234,23 +3239,22 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
           )}
 
           {/* IN PROGRESS */}
-          {mappedIssue.status === 'In Progress' && (
-            // <SectionCard>
-            //   <View className="flex-row items-center gap-4 p-5">
-            //     <View className="h-12 w-12 items-center justify-center rounded-2xl bg-sky-100 dark:bg-sky-900/30">
-            //       <Clock color="#0EA5E9" size={22} strokeWidth={2.5} />
-            //     </View>
-            //     <View className="flex-1">
-            //       <Text className="mb-1 text-[16px] font-extrabold text-slate-800 dark:text-slate-100">
-            //         Work in Progress
-            //       </Text>
-            //       <Text className="text-[13px] leading-5 text-slate-500 dark:text-slate-400">
-            //         Field officer is currently working on this issue
-            //       </Text>
-            //     </View>
-            //   </View>
-            // </SectionCard>
-            <></>
+          {mappedIssue.status === 'in_progress' && (
+            <SectionCard>
+              <View className="flex-row items-center gap-4 p-5">
+                <View className="h-12 w-12 items-center justify-center rounded-2xl bg-sky-100 dark:bg-sky-900/30">
+                  <Clock color="#0EA5E9" size={22} strokeWidth={2.5} />
+                </View>
+                <View className="flex-1">
+                  <Text className="mb-1 text-[16px] font-extrabold text-slate-800 dark:text-slate-100">
+                    Work in Progress
+                  </Text>
+                  <Text className="text-[13px] leading-5 text-slate-500 dark:text-slate-400">
+                    Field officer is currently working on this issue
+                  </Text>
+                </View>
+              </View>
+            </SectionCard>
           )}
 
           {/* RESOLUTION */}

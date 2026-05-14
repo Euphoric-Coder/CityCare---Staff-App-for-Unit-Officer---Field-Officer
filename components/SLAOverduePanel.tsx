@@ -1,6 +1,17 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Alert, Platform } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  Alert,
+  Platform,
+  StyleSheet,
+  Modal,
+} from 'react-native';
+import { useColorScheme } from 'nativewind';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import {
   TriangleAlert as AlertTriangle,
@@ -90,6 +101,17 @@ function formatDateDisplay(date: Date): string {
   });
 }
 
+function formatDateTimeDisplay(date: Date): string {
+  return date.toLocaleString('en-US', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+}
+
 interface RadioGroupProps<T extends string> {
   options: T[];
   selected: T | null;
@@ -104,30 +126,30 @@ function RadioGroup<T extends string>({
   accentColor,
 }: RadioGroupProps<T>) {
   return (
-    <View className="gap-2">
+    <View className="gap-3.5">
       {options.map((opt) => {
         const isSelected = selected === opt;
         return (
           <TouchableOpacity
             key={opt}
             onPress={() => onSelect(opt)}
-            activeOpacity={0.75}
-            className={`flex-row items-center gap-2.5 rounded-xl border-[1.5px] px-3.5 py-3 ${
+            activeOpacity={0.7}
+            className={`flex-row items-center gap-4 rounded-[20px] border-[1.5px] px-5 py-4 ${
               isSelected
-                ? 'bg-slate-50 dark:bg-slate-800/60'
-                : 'border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800'
+                ? 'bg-white dark:bg-slate-800'
+                : 'border-slate-200/70 bg-slate-50/80 dark:border-slate-700/50 dark:bg-slate-800/30'
             }`}
-            style={isSelected ? { borderColor: accentColor } : undefined}>
+            style={{ borderColor: isSelected ? accentColor : 'transparent' }}>
             <View
-              className="h-5 w-5 items-center justify-center rounded-full border-2"
+              className="h-6 w-6 items-center justify-center rounded-full border-[2px]"
               style={{
-                borderColor: isSelected ? accentColor : undefined,
+                borderColor: isSelected ? accentColor : '#CBD5E1',
                 backgroundColor: isSelected ? accentColor : 'transparent',
               }}>
-              {isSelected && <View className="h-2 w-2 rounded-full bg-white" />}
+              {isSelected && <View className="h-2.5 w-2.5 rounded-full bg-white" />}
             </View>
             <Text
-              className={`flex-1 text-[13px] font-semibold ${
+              className={`flex-1 text-[15px] font-bold tracking-tight ${
                 isSelected
                   ? 'text-slate-900 dark:text-slate-100'
                   : 'text-slate-500 dark:text-slate-400'
@@ -153,40 +175,127 @@ function DatePickerField({
   accentColor: string;
 }) {
   const [show, setShow] = useState(false);
+  const [mode, setMode] = useState<'date' | 'time' | 'datetime'>(
+    Platform.OS === 'ios' ? 'datetime' : 'date'
+  );
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === 'dark';
+
+  const onChangePicker = (_: any, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShow(false);
+      if (selectedDate) {
+        onChange(selectedDate);
+        if (mode === 'date') {
+          // Chain into time picker for Android
+          setTimeout(() => {
+            setMode('time');
+            setShow(true);
+          }, 50);
+        } else {
+          setMode('date'); // Reset
+        }
+      } else {
+        setMode('date');
+      }
+    } else {
+      if (selectedDate) onChange(selectedDate);
+    }
+  };
 
   return (
-    <View className="gap-1.5">
-      <Text className="text-[10px] font-extrabold tracking-[1.1px] text-slate-500 dark:text-slate-400">
-        {label}
-      </Text>
+    <View>
       <TouchableOpacity
-        onPress={() => setShow(true)}
-        activeOpacity={0.8}
-        className={`flex-row items-center gap-2.5 rounded-xl border-[1.5px] px-3.5 py-3.5 ${
+        onPress={() => {
+          setMode(Platform.OS === 'ios' ? 'datetime' : 'date');
+          setShow(true);
+        }}
+        activeOpacity={0.7}
+        className={`flex-row items-center gap-4 rounded-[20px] border-[1.5px] px-5 py-4 ${
           value
-            ? 'bg-slate-50 dark:bg-slate-800'
-            : 'border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800'
+            ? 'bg-white dark:bg-slate-800'
+            : 'border-slate-200/70 bg-slate-50/80 dark:border-slate-700/50 dark:bg-slate-800/30'
         }`}
-        style={value ? { borderColor: accentColor } : undefined}>
-        <Calendar color={value ? accentColor : '#94A3B8'} size={18} strokeWidth={2.5} />
-        <Text
-          className={`flex-1 text-[14px] font-semibold ${
-            value ? 'text-slate-900 dark:text-slate-100' : 'text-slate-400 dark:text-slate-500'
-          }`}>
-          {value ? formatDateDisplay(value) : 'Select new deadline date'}
-        </Text>
-        <ChevronDown color="#94A3B8" size={16} strokeWidth={2.5} />
+        style={{ borderColor: value ? accentColor : 'transparent' }}>
+        <View
+          className="h-12 w-12 items-center justify-center rounded-full"
+          style={{ backgroundColor: value ? `${accentColor}15` : isDark ? '#334155' : '#F1F5F9' }}>
+          <CalendarClock
+            color={value ? accentColor : isDark ? '#94A3B8' : '#64748B'}
+            size={22}
+            strokeWidth={2}
+          />
+        </View>
+        <View className="flex-1 justify-center pr-1">
+          <Text
+            className={`mb-0.5 text-[11px] font-black uppercase tracking-widest ${
+              value ? 'text-slate-500 dark:text-slate-400' : 'text-slate-400 dark:text-slate-500'
+            }`}>
+            {label}
+          </Text>
+          <Text
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.8}
+            className={`text-[14px] font-black tracking-tight ${
+              value ? 'text-slate-900 dark:text-slate-100' : 'text-slate-400 dark:text-slate-500'
+            }`}>
+            {value ? formatDateTimeDisplay(value) : 'Select date & time'}
+          </Text>
+        </View>
+        <ChevronDown color={isDark ? '#475569' : '#94A3B8'} size={18} strokeWidth={2.5} />
       </TouchableOpacity>
-      {show && (
+      {show && Platform.OS === 'ios' && (
+        <Modal
+          transparent
+          animationType="slide"
+          visible={show}
+          onRequestClose={() => setShow(false)}>
+          <View className="flex-1 justify-end bg-black/40">
+            <TouchableOpacity
+              activeOpacity={1}
+              className="absolute inset-0"
+              onPress={() => setShow(false)}
+            />
+            <View className="rounded-t-[32px] bg-white pb-8 shadow-2xl dark:bg-slate-900">
+              <View className="flex-row items-center justify-between border-b-[1.5px] border-slate-100 px-6 py-4 dark:border-slate-800/80">
+                <Text className="text-[17px] font-black tracking-tight text-slate-900 dark:text-slate-100">
+                  Select Date & Time
+                </Text>
+                <TouchableOpacity
+                  onPress={() => setShow(false)}
+                  activeOpacity={0.7}
+                  className="rounded-full px-5 py-2"
+                  style={{ backgroundColor: `${accentColor}15` }}>
+                  <Text
+                    style={{ color: accentColor }}
+                    className="text-[15px] font-black tracking-tight">
+                    Done
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              <View className="px-4 py-4">
+                <DateTimePicker
+                  value={value ?? new Date()}
+                  mode={mode}
+                  display="spinner"
+                  minimumDate={new Date()}
+                  minuteInterval={15}
+                  onChange={onChangePicker}
+                />
+              </View>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {show && Platform.OS === 'android' && (
         <DateTimePicker
           value={value ?? new Date()}
-          mode="date"
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          mode={mode}
+          display="default"
           minimumDate={new Date()}
-          onChange={(_, date) => {
-            if (Platform.OS === 'android') setShow(false);
-            if (date) onChange(date);
-          }}
+          onChange={onChangePicker}
         />
       )}
     </View>
@@ -198,52 +307,82 @@ function OfficerPickerCard({
   selected,
   onSelect,
   currentOfficerId,
+  accentColor = '#2563EB',
 }: {
   officers: FieldOfficer[];
   selected: FieldOfficer | null;
   onSelect: (o: FieldOfficer) => void;
   currentOfficerId?: string;
+  accentColor?: string;
 }) {
-  const available = officers.filter((o) => o.id !== currentOfficerId);
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === 'dark';
+  const available = officers.filter((o) => o._id !== currentOfficerId);
+
   return (
-    <View className="gap-2">
+    <View className="gap-3.5">
       {available.map((officer) => {
-        const isSelected = selected?.id === officer.id;
+        const isSelected = selected?._id === officer._id;
         return (
           <TouchableOpacity
-            key={officer.id}
+            key={officer._id}
             onPress={() => onSelect(officer)}
             activeOpacity={0.8}
-            className={`flex-row items-center gap-3 rounded-2xl border-[1.5px] p-3 ${
+            className={`flex-row items-center gap-4 rounded-[20px] border-[1.5px] p-4 ${
               isSelected
-                ? 'bg-red-50 dark:bg-red-950/30'
-                : 'border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800'
+                ? 'bg-white dark:bg-slate-800'
+                : 'border-slate-200/70 bg-slate-50/80 dark:border-slate-700/50 dark:bg-slate-800/30'
             }`}
-            style={isSelected ? { borderColor: '#DC2626' } : undefined}>
-            <View className="h-10 w-10 items-center justify-center rounded-xl bg-slate-200 dark:bg-slate-700">
-              <User color="#64748B" size={18} strokeWidth={2.5} />
+            style={{ borderColor: isSelected ? accentColor : 'transparent' }}>
+            <View
+              className="h-12 w-12 items-center justify-center rounded-full"
+              style={{
+                backgroundColor: isSelected ? `${accentColor}15` : isDark ? '#334155' : '#F1F5F9',
+              }}>
+              <User
+                color={isSelected ? accentColor : isDark ? '#94A3B8' : '#64748B'}
+                size={22}
+                strokeWidth={2}
+              />
             </View>
             <View className="flex-1">
-              <Text className="mb-0.5 text-[14px] font-bold text-slate-900 dark:text-slate-100">
-                {officer.name}
+              <Text className="mb-1 text-[16px] font-black tracking-tight text-slate-900 dark:text-slate-100">
+                {officer.fullName}
               </Text>
-              <View className="mb-1 flex-row items-center gap-1.5">
-                <Star color="#F59E0B" size={11} strokeWidth={2.5} fill="#F59E0B" />
-                <Text className="text-[11px] font-medium text-slate-400 dark:text-slate-500">
-                  {officer.rating.toFixed(1)}
+              <View className="mb-2.5 flex-row items-center gap-2">
+                <View className="flex-row items-center gap-1 rounded border border-amber-200/50 bg-amber-50 px-1.5 py-0.5 pl-1 dark:border-amber-700/30 dark:bg-amber-900/20">
+                  <Star color="#F59E0B" size={10} strokeWidth={2.5} fill="#F59E0B" />
+                  <Text className="text-[10px] font-bold text-amber-600 dark:text-amber-500">
+                    {officer.rating.toFixed(1)}
+                  </Text>
+                </View>
+                <View className="h-1 w-1 rounded-full bg-slate-300 dark:bg-slate-600" />
+                <Text className="text-[11px] font-bold tracking-tight text-slate-500 dark:text-slate-400">
+                  {officer.currentActiveIssues} tasks
                 </Text>
-                <Briefcase color="#94A3B8" size={11} strokeWidth={2} />
-                <Text className="text-[11px] font-medium text-slate-400 dark:text-slate-500">
-                  {officer.activeIssues} active
-                </Text>
-                <Text className="text-[11px] font-medium text-slate-400 dark:text-slate-500">
-                  {officer.successRate}% success
-                </Text>
+                <View className="flex-row items-center gap-1 rounded border border-emerald-200/50 bg-emerald-50 px-1.5 py-0.5 pl-1 dark:border-emerald-700/30 dark:bg-emerald-900/20">
+                  <CheckCircle color="#10B981" size={10} strokeWidth={2.5} />
+                  <Text className="text-[10px] font-bold text-emerald-700 dark:text-emerald-500">
+                    {officer.onTimeCompletionRate}% on-time
+                  </Text>
+                </View>
               </View>
-              <View className="flex-row gap-1.5">
-                {officer.specializations.slice(0, 2).map((s) => (
-                  <View key={s} className="rounded-md bg-slate-200 px-1.5 py-0.5 dark:bg-slate-700">
-                    <Text className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">
+              <View className="flex-row flex-wrap gap-1.5">
+                {officer.specialisations?.map((s) => (
+                  <View
+                    key={s}
+                    className="rounded-md border px-2 py-0.5"
+                    style={{
+                      borderColor: isSelected ? `${accentColor}30` : isDark ? '#334155' : '#E2E8F0',
+                      backgroundColor: isSelected
+                        ? `${accentColor}08`
+                        : isDark
+                          ? '#1E293B'
+                          : '#F8FAFC',
+                    }}>
+                    <Text
+                      className="text-[10px] font-bold tracking-tight"
+                      style={{ color: isSelected ? accentColor : isDark ? '#94A3B8' : '#64748B' }}>
                       {s}
                     </Text>
                   </View>
@@ -251,12 +390,12 @@ function OfficerPickerCard({
               </View>
             </View>
             <View
-              className="h-5 w-5 items-center justify-center rounded-full border-2"
+              className="h-6 w-6 items-center justify-center rounded-full border-[2px]"
               style={{
-                borderColor: isSelected ? '#DC2626' : '#CBD5E1',
-                backgroundColor: isSelected ? '#DC2626' : 'transparent',
+                borderColor: isSelected ? accentColor : isDark ? '#475569' : '#CBD5E1',
+                backgroundColor: isSelected ? accentColor : 'transparent',
               }}>
-              {isSelected && <View className="h-2 w-2 rounded-full bg-white" />}
+              {isSelected && <View className="h-2.5 w-2.5 rounded-full bg-white" />}
             </View>
           </TouchableOpacity>
         );
@@ -276,25 +415,80 @@ function NoteInput({
   placeholder: string;
   accentColor: string;
 }) {
+  const [isFocused, setIsFocused] = useState(false);
+  const wordCount = value.trim() ? value.trim().split(/\s+/).length : 0;
+  const isEnoughWords = wordCount >= 10;
+  const showWarning = value.length > 0 && !isEnoughWords;
+
   return (
-    <View
-      className="rounded-2xl border-[1.5px] bg-slate-50 px-3.5 py-3 dark:bg-slate-800"
-      style={{ borderColor: value.length > 0 ? accentColor : undefined }}>
-      <TextInput
-        value={value}
-        onChangeText={onChange}
-        placeholder={placeholder}
-        placeholderTextColor="#94A3B8"
-        multiline
-        className="text-slate-900 dark:text-slate-100"
+    <View className="gap-3">
+      <View
+        className={`rounded-[20px] border-[1.5px] px-5 py-4 ${
+          isFocused
+            ? 'bg-white dark:bg-slate-800'
+            : 'border-slate-200/70 bg-slate-50/80 dark:border-slate-700/50 dark:bg-slate-800/30'
+        }`}
         style={{
-          fontSize: 14,
-          lineHeight: 22,
-          minHeight: 90,
-          textAlignVertical: 'top',
-          color: undefined,
-        }}
-      />
+          borderColor: isFocused
+            ? accentColor
+            : value.length > 0
+              ? isEnoughWords
+                ? '#10B981'
+                : '#F59E0B'
+              : 'transparent',
+        }}>
+        <TextInput
+          value={value}
+          onChangeText={onChange}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
+          placeholder={placeholder}
+          placeholderTextColor="#94A3B8"
+          multiline
+          className="font-semibold tracking-tight text-slate-900 dark:text-slate-100"
+          style={{
+            fontSize: 15,
+            lineHeight: 24,
+            minHeight: 110,
+            textAlignVertical: 'top',
+            color: undefined,
+          }}
+        />
+      </View>
+
+      <View className="flex-row items-center justify-between px-2">
+        <View className="flex-1 flex-row items-center gap-1.5">
+          {showWarning ? (
+            <>
+              <AlertTriangle color="#F59E0B" size={14} strokeWidth={2.5} />
+              <Text className="text-[12px] font-bold text-amber-600 dark:text-amber-500">
+                Minimum 10 words required
+              </Text>
+            </>
+          ) : (
+            <Text className="text-[12px] font-semibold tracking-tight text-slate-400 dark:text-slate-500">
+              Provide detailed context for the new officer.
+            </Text>
+          )}
+        </View>
+
+        <View
+          className="rounded-full px-3 py-1.5"
+          style={{
+            backgroundColor: value.length === 0 ? '#F1F5F9' : isEnoughWords ? '#D1FAE5' : '#FEF3C7',
+          }}>
+          <Text
+            className={`text-[11px] font-black uppercase tracking-wider ${
+              value.length === 0
+                ? 'text-slate-500'
+                : isEnoughWords
+                  ? 'text-emerald-700'
+                  : 'text-amber-700'
+            }`}>
+            {wordCount} / 10
+          </Text>
+        </View>
+      </View>
     </View>
   );
 }
@@ -307,6 +501,9 @@ export default function SLAOverduePanel({
   onExtend,
   onEscalate,
 }: SLAOverduePanelProps) {
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === 'dark';
+
   const [activeTab, setActiveTab] = useState<Tab>('reassign');
 
   const overdueDays = issue.slaDeadline ? daysSinceOverdue(issue.slaDeadline) : 0;
@@ -335,41 +532,33 @@ export default function SLAOverduePanel({
 
     Alert.alert(
       'Confirm Reassignment',
-      `Reassign to ${reassignOfficer.name} with extended SLA: ${formatDateDisplay(reassignNewSla)}?`,
+      `Reassign to ${reassignOfficer.fullName} with extended SLA: ${formatDateTimeDisplay(reassignNewSla)}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Confirm',
           style: 'destructive',
           onPress: () => {
-            const citizenUpdate: IssueUpdate = {
-              id: `upd-${Date.now()}`,
-              issueId: issue.id,
-              status: 'Assigned',
-              comment: `SLA overdue action: Issue reassigned to ${reassignOfficer.name}. Reason: ${reassignReason}. New SLA deadline: ${formatDateDisplay(reassignNewSla)}. Note: ${reassignNote.trim()}`,
-              role: 'UnitOfficer',
-              attachments: [],
-              updatedBy: 'uo-1',
-              scope: 'officer_and_citizen',
-              createdAt: new Date().toISOString(),
-            };
-            const updated: Issue = {
-              ...issue,
-              status: 'Assigned',
-              assignedOfficer: reassignOfficer.name,
-              assignedOfficerId: reassignOfficer.id,
-              slaDeadline: reassignNewSla.toISOString(),
-              reassignmentReason: reassignReason,
-              reassignmentComment: reassignNote.trim(),
-              issueUpdates: [...issue.issueUpdates, citizenUpdate],
-            };
-            onReassign(
-              reassignOfficer,
+            console.log('updated', {
+              newOfficer: reassignOfficer,
+              newSlaDate: reassignNewSla,
               reassignReason,
-              reassignNote.trim(),
-              reassignNewSla,
-              updated
-            );
+              reassignNote,
+              updatedIssue: {
+                status: 'assigned',
+                assignedFieldOfficer: reassignOfficer._id,
+                slaDeadline: reassignNewSla.toISOString(),
+                reassignmentReason: reassignReason,
+                reassignmentComment: reassignNote.trim(),
+              },
+            });
+            // onReassign(
+            //   reassignOfficer,
+            //   reassignReason,
+            //   reassignNote.trim(),
+            //   reassignNewSla,
+            //   updated
+            // );
           },
         },
       ]
@@ -505,9 +694,9 @@ export default function SLAOverduePanel({
       key: 'reassign',
       label: 'Reassign',
       icon: (active) => (
-        <UserCheck size={15} strokeWidth={2.5} color={active ? '#DC2626' : '#9CA3AF'} />
+        <UserCheck size={18} strokeWidth={2.5} color={active ? '#2563EB' : '#94A3B8'} />
       ),
-      color: '#DC2626',
+      color: '#2563EB',
     },
     {
       key: 'reject',
@@ -537,62 +726,68 @@ export default function SLAOverduePanel({
 
   return (
     <View>
-      {/* Overdue Banner */}
-      <LinearGradient
-        colors={['#FFF1F2', '#FEE2E2']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: 12,
-          padding: 14,
-          borderBottomWidth: 1,
-          borderBottomColor: 'rgba(239,68,68,0.2)',
-        }}
-        className="dark:bg-red-950">
-        <View className="h-10 w-10 items-center justify-center rounded-xl bg-red-100 dark:bg-red-900/60">
-          <Clock color="#EF4444" size={20} strokeWidth={2.5} />
-        </View>
-        <View className="flex-1">
-          <Text className="mb-0.5 text-[14px] font-extrabold text-red-600 dark:text-red-400">
-            SLA Deadline Overdue
-          </Text>
-          <Text className="text-[12px] font-medium text-red-800 dark:text-red-300">
-            {overdueDays > 0
-              ? `${overdueDays} day${overdueDays !== 1 ? 's' : ''} past due date`
-              : 'Deadline has passed'}
-            {issue.assignedOfficer ? ` · Assigned to ${issue.assignedOfficer}` : ''}
-          </Text>
-        </View>
-        <View className="rounded-xl bg-red-100 px-2.5 py-1 dark:bg-red-900/60">
-          <Text className="text-[13px] font-black text-red-600 dark:text-red-400">
-            +{overdueDays}d
-          </Text>
-        </View>
-      </LinearGradient>
+      {/* Cohesive SLA Alert Banner */}
+      <View className="rounded-t-[24px] bg-white px-5 pb-3 pt-5 dark:bg-slate-900">
+        <View
+          className="overflow-hidden rounded-2xl border"
+          style={{
+            borderColor: isDark ? 'rgba(239,68,68,0.2)' : 'rgba(239,68,68,0.3)',
+          }}>
+          <View
+            className="flex-row items-center gap-4 px-4 py-3.5"
+            style={{
+              backgroundColor: isDark ? 'rgba(239,68,68,0.1)' : 'rgba(254,226,226,0.6)',
+            }}>
+            <View
+              className="h-10 w-10 shrink-0 items-center justify-center rounded-full"
+              style={{ backgroundColor: isDark ? 'rgba(239,68,68,0.2)' : 'rgba(239,68,68,0.15)' }}>
+              <AlertTriangle color={isDark ? '#F87171' : '#DC2626'} size={20} strokeWidth={2.5} />
+            </View>
 
-      {/* Tab Bar */}
-      <View className="flex-row border-b border-slate-100 bg-slate-50 dark:border-slate-800 dark:bg-slate-900">
+            <View className="flex-1">
+              <Text className="text-[14px] font-black tracking-tight text-red-600 dark:text-red-400">
+                SLA Deadline Overdue
+              </Text>
+              <Text className="mt-0.5 text-[12px] font-medium text-red-700/80 dark:text-red-300/90">
+                {overdueDays > 0
+                  ? `Overdue by ${overdueDays} day${overdueDays !== 1 ? 's' : ''}`
+                  : 'Deadline has just passed'}
+              </Text>
+            </View>
+
+            <View className="items-center justify-center rounded-xl bg-red-600 px-3 py-1.5 shadow-sm dark:bg-red-500">
+              <Text className="text-[12px] font-black text-white">+{overdueDays}d</Text>
+            </View>
+          </View>
+        </View>
+      </View>
+
+      {/* Classic Clean Tab Bar */}
+      <View className="flex-row border-b border-slate-100 bg-white px-2 dark:border-slate-800 dark:bg-slate-900">
         {TABS.map((tab) => {
           const isActive = activeTab === tab.key;
           return (
             <TouchableOpacity
               key={tab.key}
               onPress={() => setActiveTab(tab.key)}
-              activeOpacity={0.75}
-              className={`flex-1 flex-row items-center justify-center gap-1 border-b-[3px] py-3 ${
-                isActive ? '' : 'border-transparent'
-              }`}
-              style={isActive ? { borderBottomColor: tab.color } : undefined}>
-              {tab.icon(isActive)}
-              <Text
-                className={`text-[11px] font-bold ${
-                  isActive ? '' : 'text-slate-400 dark:text-slate-500'
-                }`}
-                style={isActive ? { color: tab.color } : undefined}>
-                {tab.label}
-              </Text>
+              activeOpacity={0.7}
+              className="relative flex-1 items-center justify-center pb-3 pt-3">
+              <View className="flex-col items-center gap-1.5 pb-1">
+                {tab.icon(isActive)}
+                <Text
+                  className={`text-[10px] font-bold uppercase tracking-wider ${
+                    isActive ? '' : 'text-slate-400 dark:text-slate-500'
+                  }`}
+                  style={isActive ? { color: tab.color } : {}}>
+                  {tab.label}
+                </Text>
+              </View>
+              {isActive && (
+                <View
+                  className="absolute bottom-0 h-[3px] w-3/4 rounded-t-full"
+                  style={{ backgroundColor: tab.color }}
+                />
+              )}
             </TouchableOpacity>
           );
         })}
@@ -600,77 +795,94 @@ export default function SLAOverduePanel({
 
       {/* ─── REASSIGN TAB ─── */}
       {activeTab === 'reassign' && (
-        <View className="p-4">
-          <View className="gap-[18px] pb-6">
-            <View className="flex-row items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 p-3 dark:border-red-900 dark:bg-red-950/40">
-              <AlertTriangle color="#DC2626" size={16} strokeWidth={2.5} />
-              <Text className="flex-1 text-[12px] font-semibold leading-[18px] text-red-800 dark:text-red-300">
-                Reassigning will notify both the current and new officer. A new SLA deadline is
-                mandatory.
-              </Text>
+        <View className="px-5 py-6">
+          <View className="gap-8 pb-6">
+            {/* Premium Information Banner */}
+            <View className="overflow-hidden rounded-2xl border border-blue-100 bg-blue-50 dark:border-blue-800/50 dark:bg-blue-900/20">
+              <View className="flex-row items-start gap-4 p-4">
+                <View className="h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-800/50">
+                  <UserCheck color="#2563EB" size={18} strokeWidth={2.5} />
+                </View>
+                <View className="flex-1">
+                  <Text className="mb-1 text-[14px] font-black tracking-tight text-blue-900 dark:text-blue-100">
+                    Reassignment Action
+                  </Text>
+                  <Text className="text-[13px] font-medium leading-[20px] text-blue-700/90 dark:text-blue-300/90">
+                    Reassigning will notify both officers. A new SLA deadline is mandatory for the
+                    new assignee.
+                  </Text>
+                </View>
+              </View>
             </View>
 
-            <View className="gap-2.5">
-              <Text className="text-[10px] font-extrabold tracking-[1.1px] text-slate-500 dark:text-slate-400">
-                REASON FOR REASSIGNMENT
+            <View className="gap-3">
+              <Text className="ml-1 text-[11px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                Reason for Reassignment
               </Text>
               <RadioGroup
                 options={REASSIGNMENT_REASONS}
                 selected={reassignReason}
                 onSelect={setReassignReason}
-                accentColor="#DC2626"
+                accentColor="#2563EB"
               />
             </View>
 
-            <View className="gap-2.5">
-              <Text className="text-[10px] font-extrabold tracking-[1.1px] text-slate-500 dark:text-slate-400">
-                DELAY / REASSIGNMENT NOTE
+            <View className="gap-3">
+              <Text className="ml-1 text-[11px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                Instructions / Note
               </Text>
               <NoteInput
                 value={reassignNote}
                 onChange={setReassignNote}
-                placeholder="Explain reason for delay and what the new officer should prioritise..."
-                accentColor="#DC2626"
+                placeholder="Explain the reason for delay and what the new officer should prioritise..."
+                accentColor="#2563EB"
               />
             </View>
 
-            <View className="gap-2.5">
-              <Text className="text-[10px] font-extrabold tracking-[1.1px] text-slate-500 dark:text-slate-400">
-                SELECT NEW FIELD OFFICER
+            <View className="gap-3">
+              <Text className="ml-1 text-[11px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                Select New Officer
               </Text>
               <OfficerPickerCard
                 officers={fieldOfficers}
                 selected={reassignOfficer}
                 onSelect={setReassignOfficer}
-                currentOfficerId={issue.assignedOfficerId}
+                currentOfficerId={issue.assignedFieldOfficer}
+                accentColor="#2563EB"
               />
             </View>
 
-            <DatePickerField
-              label="NEW SLA DEADLINE"
-              value={reassignNewSla}
-              onChange={setReassignNewSla}
-              accentColor="#DC2626"
-            />
+            <View className="gap-3">
+              <Text className="ml-1 text-[11px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                New SLA Deadline
+              </Text>
+              <DatePickerField
+                label="NEW SLA DEADLINE"
+                value={reassignNewSla}
+                onChange={setReassignNewSla}
+                accentColor="#2563EB"
+              />
+            </View>
 
             <TouchableOpacity
               onPress={handleReassign}
-              activeOpacity={0.85}
-              className="mt-1 overflow-hidden rounded-2xl">
+              activeOpacity={0.8}
+              className="mt-2 overflow-hidden rounded-[20px] shadow-xl shadow-blue-500/30">
               <LinearGradient
-                colors={['#DC2626', '#B91C1C']}
+                colors={['#3B82F6', '#1D4ED8']}
                 start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
+                end={{ x: 1, y: 1 }}
                 style={{
                   flexDirection: 'row',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: 9,
-                  paddingVertical: 16,
-                  paddingHorizontal: 20,
+                  gap: 10,
+                  paddingVertical: 18,
                 }}>
-                <UserCheck color="#FFFFFF" size={19} strokeWidth={2.5} />
-                <Text className="text-[15px] font-extrabold text-white">Reassign & Extend SLA</Text>
+                <UserCheck color="#FFFFFF" size={20} strokeWidth={2.5} />
+                <Text className="text-[16px] font-black tracking-wide text-white drop-shadow-sm">
+                  Confirm Reassignment
+                </Text>
               </LinearGradient>
             </TouchableOpacity>
           </View>

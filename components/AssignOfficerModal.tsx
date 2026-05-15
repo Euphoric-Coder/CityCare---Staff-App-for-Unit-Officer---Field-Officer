@@ -188,7 +188,7 @@ export default function AssignOfficerModal({
                   onPress={() => setShowConfirm(false)}
                 />
                 <Animated.View
-                  entering={ZoomIn.springify().damping(20)}
+                  entering={ZoomIn.springify().damping(80)}
                   style={[
                     styles.confirmCard,
                     {
@@ -476,7 +476,7 @@ export default function AssignOfficerModal({
                   <AnimatedTouchableOpacity
                     entering={FadeInUp.delay(index * 60)
                       .springify()
-                      .damping(22)}
+                      .damping(80)}
                     layout={Layout.springify()}
                     key={officer._id}
                     onPress={() => !isOverloaded && !isAssigned && setSelectedId(officer._id)}

@@ -26,6 +26,7 @@ import {
   User,
   Star,
   Briefcase,
+  Check,
 } from 'lucide-react-native';
 import {
   Issue,
@@ -36,6 +37,7 @@ import {
   ReassignmentReason,
   FieldOfficer,
 } from '../lib/types';
+import { useUser } from 'context/UserContext';
 
 const SLA_REJECTION_REASONS: SLAOverdueRejectionReason[] = [
   'Non-feasible due to structural constraints',
@@ -125,6 +127,9 @@ function RadioGroup<T extends string>({
   onSelect,
   accentColor,
 }: RadioGroupProps<T>) {
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === 'dark';
+
   return (
     <View className="gap-3.5">
       {options.map((opt) => {
@@ -133,29 +138,44 @@ function RadioGroup<T extends string>({
           <TouchableOpacity
             key={opt}
             onPress={() => onSelect(opt)}
-            activeOpacity={0.7}
-            className={`flex-row items-center gap-4 rounded-[20px] border-[1.5px] px-5 py-4 ${
-              isSelected
-                ? 'bg-white dark:bg-slate-800'
-                : 'border-slate-200/70 bg-slate-50/80 dark:border-slate-700/50 dark:bg-slate-800/30'
+            activeOpacity={0.85}
+            className={`relative flex-row items-center justify-between overflow-hidden rounded-[20px] border-[2px] px-5 py-[18px] ${
+              isSelected ? 'bg-white dark:bg-slate-800' : 'bg-slate-50/60 dark:bg-slate-800/30'
             }`}
-            style={{ borderColor: isSelected ? accentColor : 'transparent' }}>
-            <View
-              className="h-6 w-6 items-center justify-center rounded-full border-[2px]"
-              style={{
-                borderColor: isSelected ? accentColor : '#CBD5E1',
-                backgroundColor: isSelected ? accentColor : 'transparent',
-              }}>
-              {isSelected && <View className="h-2.5 w-2.5 rounded-full bg-white" />}
-            </View>
+            style={{
+              borderColor: isSelected ? accentColor : isDark ? '#334155' : '#E2E8F0',
+            }}>
+            {/* Soft background gradient wash when selected */}
+            {isSelected && (
+              <LinearGradient
+                colors={[`${accentColor}15`, `${accentColor}02`]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={StyleSheet.absoluteFill}
+              />
+            )}
+
             <Text
-              className={`flex-1 text-[15px] font-bold tracking-tight ${
-                isSelected
-                  ? 'text-slate-900 dark:text-slate-100'
-                  : 'text-slate-500 dark:text-slate-400'
-              }`}>
+              className="flex-1 pr-4 text-[16px] font-black tracking-tight"
+              style={{ color: isSelected ? accentColor : isDark ? '#94A3B8' : '#64748B' }}>
               {opt}
             </Text>
+
+            {isSelected ? (
+              <View
+                style={{
+                  shadowColor: accentColor,
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.45,
+                  shadowRadius: 8,
+                  elevation: 5,
+                  borderRadius: 9999,
+                }}>
+                <CheckCircle color="#FFFFFF" fill={accentColor} size={26} strokeWidth={2} />
+              </View>
+            ) : (
+              <View className="h-[26px] w-[26px] rounded-full border-[2.5px] border-slate-300/80 bg-white/50 dark:border-slate-600/80 dark:bg-slate-800/50" />
+            )}
           </TouchableOpacity>
         );
       })}
@@ -210,22 +230,47 @@ function DatePickerField({
           setMode(Platform.OS === 'ios' ? 'datetime' : 'date');
           setShow(true);
         }}
-        activeOpacity={0.7}
-        className={`flex-row items-center gap-4 rounded-[20px] border-[1.5px] px-5 py-4 ${
-          value
-            ? 'bg-white dark:bg-slate-800'
-            : 'border-slate-200/70 bg-slate-50/80 dark:border-slate-700/50 dark:bg-slate-800/30'
+        activeOpacity={0.85}
+        className={`relative flex-row items-center gap-4 overflow-hidden rounded-[20px] border-[2px] px-5 py-[18px] ${
+          value ? 'bg-white dark:bg-slate-800' : 'bg-slate-50/60 dark:bg-slate-800/30'
         }`}
-        style={{ borderColor: value ? accentColor : 'transparent' }}>
-        <View
-          className="h-12 w-12 items-center justify-center rounded-full"
-          style={{ backgroundColor: value ? `${accentColor}15` : isDark ? '#334155' : '#F1F5F9' }}>
-          <CalendarClock
-            color={value ? accentColor : isDark ? '#94A3B8' : '#64748B'}
-            size={22}
-            strokeWidth={2}
+        style={{ borderColor: value ? accentColor : isDark ? '#334155' : '#E2E8F0' }}>
+        {/* Soft background gradient wash when selected */}
+        {value && (
+          <LinearGradient
+            colors={[`${accentColor}15`, `${accentColor}02`]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={StyleSheet.absoluteFill}
           />
-        </View>
+        )}
+
+        {value ? (
+          <View
+            className="h-12 w-12"
+            style={{
+              shadowColor: accentColor,
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.45,
+              shadowRadius: 8,
+              elevation: 5,
+            }}>
+            <View className="flex-1 items-center justify-center overflow-hidden rounded-full">
+              <LinearGradient
+                colors={[accentColor, `${accentColor}B3`]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={StyleSheet.absoluteFill}
+              />
+              <CalendarClock color="#FFFFFF" size={22} strokeWidth={2} />
+            </View>
+          </View>
+        ) : (
+          <View className="h-12 w-12 items-center justify-center rounded-full border-[2.5px] border-slate-300/80 bg-white/50 dark:border-slate-600/80 dark:bg-slate-800/50">
+            <CalendarClock color={isDark ? '#94A3B8' : '#64748B'} size={22} strokeWidth={2} />
+          </View>
+        )}
+
         <View className="flex-1 justify-center pr-1">
           <Text
             className={`mb-0.5 text-[11px] font-black uppercase tracking-widest ${
@@ -237,13 +282,16 @@ function DatePickerField({
             numberOfLines={1}
             adjustsFontSizeToFit
             minimumFontScale={0.8}
-            className={`text-[14px] font-black tracking-tight ${
-              value ? 'text-slate-900 dark:text-slate-100' : 'text-slate-400 dark:text-slate-500'
-            }`}>
+            className="text-[15px] font-black tracking-tight"
+            style={{ color: value ? accentColor : isDark ? '#64748B' : '#94A3B8' }}>
             {value ? formatDateTimeDisplay(value) : 'Select date & time'}
           </Text>
         </View>
-        <ChevronDown color={isDark ? '#475569' : '#94A3B8'} size={18} strokeWidth={2.5} />
+        <ChevronDown
+          color={value ? accentColor : isDark ? '#475569' : '#94A3B8'}
+          size={20}
+          strokeWidth={2.5}
+        />
       </TouchableOpacity>
       {show && Platform.OS === 'ios' && (
         <Modal
@@ -258,20 +306,33 @@ function DatePickerField({
               onPress={() => setShow(false)}
             />
             <View className="rounded-t-[32px] bg-white pb-8 shadow-2xl dark:bg-slate-900">
-              <View className="flex-row items-center justify-between border-b-[1.5px] border-slate-100 px-6 py-4 dark:border-slate-800/80">
+              <View className="flex-row items-center justify-between border-b-[1.5px] border-slate-100 px-6 py-3.5 dark:border-slate-800/80">
                 <Text className="text-[17px] font-black tracking-tight text-slate-900 dark:text-slate-100">
                   Select Date & Time
                 </Text>
                 <TouchableOpacity
                   onPress={() => setShow(false)}
-                  activeOpacity={0.7}
-                  className="rounded-full px-5 py-2"
-                  style={{ backgroundColor: `${accentColor}15` }}>
-                  <Text
-                    style={{ color: accentColor }}
-                    className="text-[15px] font-black tracking-tight">
-                    Done
-                  </Text>
+                  activeOpacity={0.8}
+                  style={{
+                    shadowColor: accentColor,
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.35,
+                    shadowRadius: 8,
+                    elevation: 4,
+                  }}>
+                  <View className="flex-row items-center justify-center overflow-hidden rounded-full px-5 py-2.5">
+                    <LinearGradient
+                      colors={[accentColor, `${accentColor}CC`]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={StyleSheet.absoluteFill}
+                    />
+                    <Clock color="#FFFFFF" size={16} strokeWidth={2.5} />
+                    <View className="w-1.5" />
+                    <Text className="mb-0.5 text-[14px] font-black tracking-tight text-white">
+                      Confirm
+                    </Text>
+                  </View>
                 </TouchableOpacity>
               </View>
               <View className="px-4 py-4">
@@ -327,46 +388,61 @@ function OfficerPickerCard({
           <TouchableOpacity
             key={officer._id}
             onPress={() => onSelect(officer)}
-            activeOpacity={0.8}
-            className={`flex-row items-center gap-4 rounded-[20px] border-[1.5px] p-4 ${
-              isSelected
-                ? 'bg-white dark:bg-slate-800'
-                : 'border-slate-200/70 bg-slate-50/80 dark:border-slate-700/50 dark:bg-slate-800/30'
+            activeOpacity={0.85}
+            className={`relative flex-row items-center gap-4 overflow-hidden rounded-[20px] border-[2px] p-[14px] ${
+              isSelected ? 'bg-white dark:bg-slate-800' : 'bg-slate-50/60 dark:bg-slate-800/30'
             }`}
-            style={{ borderColor: isSelected ? accentColor : 'transparent' }}>
+            style={{ borderColor: isSelected ? accentColor : isDark ? '#334155' : '#E2E8F0' }}>
+            {isSelected && (
+              <LinearGradient
+                colors={[`${accentColor}15`, `${accentColor}02`]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={StyleSheet.absoluteFill}
+              />
+            )}
+
             <View
-              className="h-12 w-12 items-center justify-center rounded-full"
+              className="h-[50px] w-[50px] items-center justify-center rounded-full"
               style={{
-                backgroundColor: isSelected ? `${accentColor}15` : isDark ? '#334155' : '#F1F5F9',
+                backgroundColor: isSelected ? `${accentColor}1A` : isDark ? '#334155' : '#E2E8F0',
               }}>
               <User
                 color={isSelected ? accentColor : isDark ? '#94A3B8' : '#64748B'}
-                size={22}
+                size={24}
                 strokeWidth={2}
               />
             </View>
-            <View className="flex-1">
-              <Text className="mb-1 text-[16px] font-black tracking-tight text-slate-900 dark:text-slate-100">
+
+            <View className="flex-1 pr-2">
+              <Text
+                className="mb-1 text-[16px] font-black tracking-tight"
+                style={{ color: isSelected ? accentColor : isDark ? '#F8FAFC' : '#0F172A' }}
+                numberOfLines={1}
+                adjustsFontSizeToFit>
                 {officer.fullName}
               </Text>
-              <View className="mb-2.5 flex-row items-center gap-2">
-                <View className="flex-row items-center gap-1 rounded border border-amber-200/50 bg-amber-50 px-1.5 py-0.5 pl-1 dark:border-amber-700/30 dark:bg-amber-900/20">
-                  <Star color="#F59E0B" size={10} strokeWidth={2.5} fill="#F59E0B" />
-                  <Text className="text-[10px] font-bold text-amber-600 dark:text-amber-500">
+
+              <View className="mb-2.5 flex-row flex-wrap items-center gap-1.5">
+                <View className="flex-row items-center gap-1 rounded border border-amber-200/50 bg-amber-50 px-1 py-0.5 pl-1 dark:border-amber-700/30 dark:bg-amber-900/20">
+                  <Star color="#F59E0B" size={9} strokeWidth={2.5} fill="#F59E0B" />
+                  <Text className="text-[9px] font-bold text-amber-600 dark:text-amber-500">
                     {officer.rating.toFixed(1)}
                   </Text>
                 </View>
                 <View className="h-1 w-1 rounded-full bg-slate-300 dark:bg-slate-600" />
-                <Text className="text-[11px] font-bold tracking-tight text-slate-500 dark:text-slate-400">
+                <Text className="text-[10px] font-bold tracking-tight text-slate-500 dark:text-slate-400">
                   {officer.currentActiveIssues} tasks
                 </Text>
-                <View className="flex-row items-center gap-1 rounded border border-emerald-200/50 bg-emerald-50 px-1.5 py-0.5 pl-1 dark:border-emerald-700/30 dark:bg-emerald-900/20">
-                  <CheckCircle color="#10B981" size={10} strokeWidth={2.5} />
-                  <Text className="text-[10px] font-bold text-emerald-700 dark:text-emerald-500">
+                <View className="h-1 w-1 rounded-full bg-slate-300 dark:bg-slate-600" />
+                <View className="flex-row items-center gap-1 rounded border border-emerald-200/50 bg-emerald-50 px-1 py-0.5 pl-1 dark:border-emerald-700/30 dark:bg-emerald-900/20">
+                  <CheckCircle color="#10B981" size={9} strokeWidth={2.5} />
+                  <Text className="text-[9px] font-bold text-emerald-700 dark:text-emerald-500">
                     {officer.onTimeCompletionRate}% on-time
                   </Text>
                 </View>
               </View>
+
               <View className="flex-row flex-wrap gap-1.5">
                 {officer.specialisations?.map((s) => (
                   <View
@@ -375,7 +451,7 @@ function OfficerPickerCard({
                     style={{
                       borderColor: isSelected ? `${accentColor}30` : isDark ? '#334155' : '#E2E8F0',
                       backgroundColor: isSelected
-                        ? `${accentColor}08`
+                        ? `${accentColor}0A`
                         : isDark
                           ? '#1E293B'
                           : '#F8FAFC',
@@ -389,14 +465,22 @@ function OfficerPickerCard({
                 ))}
               </View>
             </View>
-            <View
-              className="h-6 w-6 items-center justify-center rounded-full border-[2px]"
-              style={{
-                borderColor: isSelected ? accentColor : isDark ? '#475569' : '#CBD5E1',
-                backgroundColor: isSelected ? accentColor : 'transparent',
-              }}>
-              {isSelected && <View className="h-2.5 w-2.5 rounded-full bg-white" />}
-            </View>
+
+            {isSelected ? (
+              <View
+                style={{
+                  shadowColor: accentColor,
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.45,
+                  shadowRadius: 8,
+                  elevation: 5,
+                  borderRadius: 9999,
+                }}>
+                <CheckCircle color="#FFFFFF" fill={accentColor} size={26} strokeWidth={2} />
+              </View>
+            ) : (
+              <View className="h-[26px] w-[26px] rounded-full border-[2.5px] border-slate-300/80 bg-white/50 dark:border-slate-600/80 dark:bg-slate-800/50" />
+            )}
           </TouchableOpacity>
         );
       })}
@@ -415,67 +499,114 @@ function NoteInput({
   placeholder: string;
   accentColor: string;
 }) {
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === 'dark';
   const [isFocused, setIsFocused] = useState(false);
   const wordCount = value.trim() ? value.trim().split(/\s+/).length : 0;
   const isEnoughWords = wordCount >= 10;
   const showWarning = value.length > 0 && !isEnoughWords;
 
+  const currentStatusColor = isFocused
+    ? accentColor
+    : value.length > 0
+      ? isEnoughWords
+        ? '#10B981'
+        : '#F59E0B'
+      : 'transparent';
+
   return (
     <View className="gap-3">
+      {/* Outer wrapper to protect the glowing drop shadow from overflow-hidden */}
       <View
-        className={`rounded-[20px] border-[1.5px] px-5 py-4 ${
-          isFocused
-            ? 'bg-white dark:bg-slate-800'
-            : 'border-slate-200/70 bg-slate-50/80 dark:border-slate-700/50 dark:bg-slate-800/30'
-        }`}
         style={{
-          borderColor: isFocused
-            ? accentColor
-            : value.length > 0
-              ? isEnoughWords
-                ? '#10B981'
-                : '#F59E0B'
-              : 'transparent',
+          shadowColor:
+            currentStatusColor !== 'transparent' ? currentStatusColor : isDark ? '#000' : '#fff',
+          shadowOffset: { width: 0, height: 8 },
+          shadowOpacity: isFocused ? 0.25 : 0,
+          shadowRadius: 16,
+          elevation: isFocused ? 8 : 0,
+          borderRadius: 20,
         }}>
-        <TextInput
-          value={value}
-          onChangeText={onChange}
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
-          placeholder={placeholder}
-          placeholderTextColor="#94A3B8"
-          multiline
-          className="font-semibold tracking-tight text-slate-900 dark:text-slate-100"
+        <View
+          className={`relative overflow-hidden rounded-[20px] border-[2px] px-5 py-4 ${
+            isFocused || value.length > 0
+              ? 'bg-white dark:bg-slate-800'
+              : 'border-slate-300 bg-slate-50/60 dark:border-slate-200 dark:bg-slate-800/30'
+          }`}
           style={{
-            fontSize: 15,
-            lineHeight: 24,
-            minHeight: 110,
-            textAlignVertical: 'top',
-            color: undefined,
-          }}
-        />
+            borderColor:
+              currentStatusColor === 'transparent'
+                ? isDark
+                  ? '#334155'
+                  : '#E2E8F0'
+                : currentStatusColor,
+          }}>
+          {/* Semantic Status Gradient Wash */}
+          {(isFocused || value.length > 0) && (
+            <LinearGradient
+              colors={[
+                isFocused ? `${accentColor}12` : isEnoughWords ? '#10B98115' : '#F59E0B15',
+                'transparent',
+              ]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
+          )}
+
+          <TextInput
+            value={value}
+            onChangeText={onChange}
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => setIsFocused(false)}
+            placeholder={placeholder}
+            placeholderTextColor="#94A3B8"
+            multiline
+            className="font-semibold tracking-tight"
+            style={{
+              fontSize: 16,
+              lineHeight: 26,
+              minHeight: 110,
+              textAlignVertical: 'top',
+              color: `${isDark ? '#fff' : '#000'}`,
+            }}
+          />
+        </View>
       </View>
 
-      <View className="flex-row items-center justify-between px-2">
+      {/* Validation Intelligence Row */}
+      <View className="flex-row items-center justify-between px-2 pt-1">
         <View className="flex-1 flex-row items-center gap-1.5">
           {showWarning ? (
             <>
               <AlertTriangle color="#F59E0B" size={14} strokeWidth={2.5} />
-              <Text className="text-[12px] font-bold text-amber-600 dark:text-amber-500">
+              <Text className="text-[13px] font-bold text-amber-600 dark:text-amber-500">
                 Minimum 10 words required
               </Text>
             </>
+          ) : isEnoughWords ? (
+            <>
+              <CheckCircle color="#10B981" size={14} strokeWidth={2.5} />
+              <Text className="text-[13px] font-bold text-emerald-600 dark:text-emerald-500">
+                Context requirement met
+              </Text>
+            </>
           ) : (
-            <Text className="text-[12px] font-semibold tracking-tight text-slate-400 dark:text-slate-500">
+            <Text className="text-[13px] font-semibold tracking-tight text-slate-400 dark:text-slate-500">
               Provide detailed context for the new officer.
             </Text>
           )}
         </View>
 
         <View
-          className="rounded-full px-3 py-1.5"
+          className="flex-row items-center gap-1.5 rounded-full border px-3 py-1.5"
           style={{
             backgroundColor: value.length === 0 ? '#F1F5F9' : isEnoughWords ? '#D1FAE5' : '#FEF3C7',
+            borderColor: value.length === 0 ? '#E2E8F0' : isEnoughWords ? '#A7F3D0' : '#FDE68A',
+            shadowColor: isEnoughWords ? '#10B981' : showWarning ? '#F59E0B' : 'transparent',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.15,
+            shadowRadius: 4,
           }}>
           <Text
             className={`text-[11px] font-black uppercase tracking-wider ${
@@ -503,6 +634,8 @@ export default function SLAOverduePanel({
 }: SLAOverduePanelProps) {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
+
+  const user = useUser();
 
   const [activeTab, setActiveTab] = useState<Tab>('reassign');
 
@@ -579,25 +712,21 @@ export default function SLAOverduePanel({
           text: 'Reject Issue',
           style: 'destructive',
           onPress: () => {
-            const citizenUpdate: IssueUpdate = {
-              id: `upd-${Date.now()}`,
+            console.log({
               issueId: issue.id,
-              status: 'Rejected',
-              comment: `Issue rejected due to SLA breach non-feasibility. Reason: ${rejectReason}. Details: ${rejectNote.trim()}`,
-              role: 'UnitOfficer',
-              attachments: [],
-              updatedBy: 'uo-1',
-              scope: 'citizen',
-              createdAt: new Date().toISOString(),
-            };
-            const updated: Issue = {
-              ...issue,
-              status: 'Rejected',
-              slaOverdueRejectionReason: rejectReason,
-              slaOverdueRejectionComment: rejectNote.trim(),
-              issueUpdates: [...issue.issueUpdates, citizenUpdate],
-            };
-            onReject(rejectReason, rejectNote.trim(), updated);
+              issueCode: issue.issueCode,
+              reason: rejectReason,
+              comment: rejectNote.trim(),
+              UOName: user?.name,
+              status: 'rejected',
+              rejectedBy: user?.id,
+              issueName: issue.title,
+              reporterId: issue.reportedBy,
+            });
+            // onReject(rejectReason, rejectNote.trim(), updated);
+            setRejectNote('');
+            setRejectReason(null);
+            setActiveTab('reassign');
           },
         },
       ]
@@ -618,25 +747,8 @@ export default function SLAOverduePanel({
         {
           text: 'Extend',
           onPress: () => {
-            const citizenUpdate: IssueUpdate = {
-              id: `upd-${Date.now()}`,
-              issueId: issue.id,
-              status: issue.status,
-              comment: `SLA deadline extended to ${formatDateDisplay(extendNewSla)}. Reason: ${extendReason}. Note: ${extendNote.trim()}`,
-              role: 'UnitOfficer',
-              attachments: [],
-              updatedBy: 'uo-1',
-              scope: 'officer_and_citizen',
-              createdAt: new Date().toISOString(),
-            };
-            const updated: Issue = {
-              ...issue,
-              slaDeadline: extendNewSla.toISOString(),
-              slaExtensionReason: extendReason,
-              slaExtensionComment: extendNote.trim(),
-              issueUpdates: [...issue.issueUpdates, citizenUpdate],
-            };
-            onExtend(extendReason, extendNote.trim(), extendNewSla, updated);
+            console.log(extendReason, extendNote.trim(), extendNewSla);
+            // onExtend(extendReason, extendNote.trim(), extendNewSla, updated);
           },
         },
       ]
@@ -659,25 +771,8 @@ export default function SLAOverduePanel({
           text: 'Escalate',
           style: 'destructive',
           onPress: () => {
-            const citizenUpdate: IssueUpdate = {
-              id: `upd-${Date.now()}`,
-              issueId: issue.id,
-              status: 'Escalated',
-              comment: `Issue escalated to Admin due to SLA breach. Unit Officer note: ${escalateNote.trim()}`,
-              role: 'UnitOfficer',
-              attachments: [],
-              updatedBy: 'uo-1',
-              scope: 'officer_and_citizen',
-              createdAt: new Date().toISOString(),
-            };
-            const updated: Issue = {
-              ...issue,
-              status: 'Escalated',
-              escalationReason: 'SLA breach',
-              slaAdminEscalationComment: escalateNote.trim(),
-              issueUpdates: [...issue.issueUpdates, citizenUpdate],
-            };
-            onEscalate(escalateNote.trim(), updated);
+            console.log(escalateNote.trim());
+            // onEscalate(escalateNote.trim());
           },
         },
       ]
@@ -893,12 +988,22 @@ export default function SLAOverduePanel({
       {activeTab === 'reject' && (
         <View className="p-4">
           <View className="gap-[18px] pb-6">
-            <View className="flex-row items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 p-3 dark:border-red-900 dark:bg-red-950/40">
-              <AlertTriangle color="#B91C1C" size={16} strokeWidth={2.5} />
-              <Text className="flex-1 text-[12px] font-semibold leading-[18px] text-red-800 dark:text-red-300">
-                Rejection due to non-feasibility is irreversible. Citizen will be informed with the
-                reason provided. Only available for SLA-breached issues.
-              </Text>
+            {/* Information Banner */}
+            <View className="overflow-hidden rounded-2xl border border-red-100 bg-red-50 dark:border-red-800/50 dark:bg-red-900/20">
+              <View className="flex-row items-start gap-4 p-4">
+                <View className="h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100 dark:bg-red-800/50">
+                  <AlertTriangle color="#B91C1C" size={18} strokeWidth={2.5} />
+                </View>
+                <View className="flex-1">
+                  <Text className="mb-1 text-[14px] font-black tracking-tight text-red-900 dark:text-blue-100">
+                    Rejection Action
+                  </Text>
+                  <Text className="text-[13px] font-medium leading-[20px] text-red-700/90 dark:text-red-300/90">
+                    Rejection due to non-feasibility is irreversible. Citizen will be informed with
+                    the reason provided.
+                  </Text>
+                </View>
+              </View>
             </View>
 
             <View className="gap-2.5">
@@ -958,12 +1063,23 @@ export default function SLAOverduePanel({
       {activeTab === 'extend' && (
         <View className="p-4">
           <View className="gap-[18px] pb-6">
-            <View className="flex-row items-start gap-2.5 rounded-xl border border-yellow-200 bg-yellow-50 p-3 dark:border-yellow-800 dark:bg-yellow-950/40">
-              <CalendarClock color="#D97706" size={16} strokeWidth={2.5} />
-              <Text className="flex-1 text-[12px] font-semibold leading-[18px] text-yellow-800 dark:text-yellow-300">
-                Extends the SLA with the currently assigned officer (
-                {issue.assignedOfficer ?? 'N/A'}). Citizen will be notified of the new deadline.
-              </Text>
+            {/* Information Banner */}
+            <View className="overflow-hidden rounded-2xl border border-yellow-100 bg-yellow-50 dark:border-yellow-800/50 dark:bg-yellow-900/20">
+              <View className="flex-row items-start gap-4 p-4">
+                <View className="h-10 w-10 shrink-0 items-center justify-center rounded-full bg-yellow-100 dark:bg-yellow-800/50">
+                  <CalendarClock color="#D97706" size={18} strokeWidth={2.5} />
+                </View>
+                <View className="flex-1">
+                  <Text className="mb-1 text-[14px] font-black tracking-tight text-yellow-900 dark:text-blue-100">
+                    SLA Extension Action
+                  </Text>
+                  <Text className="text-[13px] font-medium leading-[20px] text-yellow-700/90 dark:text-yellow-300/90">
+                    Extends the SLA with the currently assigned officer (
+                    {issue.assignedOfficer?.fullName ?? 'N/A'}). Citizen will be notified of the new
+                    deadline.
+                  </Text>
+                </View>
+              </View>
             </View>
 
             <View className="gap-2.5">
@@ -1025,12 +1141,22 @@ export default function SLAOverduePanel({
       {activeTab === 'escalate' && (
         <View className="p-4">
           <View className="gap-[18px] pb-6">
-            <View className="flex-row items-start gap-2.5 rounded-xl border border-violet-200 bg-violet-50 p-3 dark:border-violet-800 dark:bg-violet-950/40">
-              <ShieldAlert color="#7C3AED" size={16} strokeWidth={2.5} />
-              <Text className="flex-1 text-[12px] font-semibold leading-[18px] text-violet-800 dark:text-violet-300">
-                Use this only when none of the above options are viable. The Admin will take over
-                this issue and the citizen will be updated on the timeline.
-              </Text>
+            {/* Information Banner */}
+            <View className="overflow-hidden rounded-2xl border border-purple-100 bg-purple-50 dark:border-purple-800/50 dark:bg-purple-900/20">
+              <View className="flex-row items-start gap-4 p-4">
+                <View className="h-10 w-10 shrink-0 items-center justify-center rounded-full bg-purple-100 dark:bg-purple-800/50">
+                  <ShieldAlert color="#7C3AED" size={18} strokeWidth={2.5} />
+                </View>
+                <View className="flex-1">
+                  <Text className="mb-1 text-[14px] font-black tracking-tight text-purple-900 dark:text-blue-100">
+                    Admin Escalation Action
+                  </Text>
+                  <Text className="text-[13px] font-medium leading-[20px] text-purple-700/90 dark:text-purple-300/90">
+                    Use this only when none of the above options are viable. The Admin will take
+                    over this issue and the citizen will be updated on the timeline.
+                  </Text>
+                </View>
+              </View>
             </View>
 
             <View className="gap-2.5 rounded-2xl border border-slate-200 bg-slate-50 p-3.5 dark:border-slate-700 dark:bg-slate-800">
@@ -1065,7 +1191,7 @@ export default function SLAOverduePanel({
 
             <View className="gap-2.5">
               <Text className="text-[10px] font-extrabold tracking-[1.1px] text-slate-500 dark:text-slate-400">
-                ESCALATION NOTE TO ADMIN (min. 20 characters)
+                ESCALATION NOTE TO ADMIN
               </Text>
               <NoteInput
                 value={escalateNote}

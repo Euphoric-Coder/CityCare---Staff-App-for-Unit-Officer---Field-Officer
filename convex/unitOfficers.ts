@@ -300,6 +300,7 @@ export const rejectIssue = mutation({
     rejectedBy: v.id('users'),
     issueName: v.string(),
     reporterId: v.id('users'),
+    isSlaRejection: v.optional(v.boolean()),
   },
 
   handler: async (ctx, args) => {
@@ -358,6 +359,38 @@ export const rejectIssue = mutation({
         userId: args.rejectedBy,
         issueId: args.issueId,
         message: `You have successfully rejected again after reopening of the issue "${args.issueName}" with Issue Code "${args.issueCode}".`,
+        type: 'rejected',
+        read: false,
+        createdAt: now,
+      });
+    } else if (args.isSlaRejection) {
+      // Add the Issue Timeline Update for rejected issue after missing SLA Deadline
+      await ctx.db.insert('issueUpdates', {
+        issueId: args.issueId,
+        status: 'rejected',
+        comment: `The Issue "${args.issueName}" with Issue Code "${args.issueCode}" has been rejected by the Unit Officer ${args.UOName}.\nReason: ${args.reason}\nComment: ${args.comment}\n We are very sorry for the inconvenience caused due to the delay in handling the issue.`,
+        updatedBy: args.rejectedBy,
+        role: 'unit_officer',
+        attachments: [],
+        scope: 'citizen',
+        createdAt: now,
+      });
+
+      // Add Notification to Citizen for rejected issue after missing SLA Deadline
+      await ctx.db.insert('notifications', {
+        userId: args.reporterId, // citizen
+        issueId: args.issueId,
+        message: `Your issue "${args.issueName}" with Issue Code "${args.issueCode}" has been rejected by the Unit Officer ${args.UOName}.`,
+        type: 'rejected',
+        read: false,
+        createdAt: now,
+      });
+
+      // Add Notification to Unit Officer for rejected issue after missing SLA Deadline
+      await ctx.db.insert('notifications', {
+        userId: args.rejectedBy,
+        issueId: args.issueId,
+        message: `You have successfully rejected the issue "${args.issueName}" with Issue Code "${args.issueCode}" after SLA breach.`,
         type: 'rejected',
         read: false,
         createdAt: now,

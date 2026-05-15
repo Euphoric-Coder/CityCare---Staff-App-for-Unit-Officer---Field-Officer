@@ -1239,30 +1239,58 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
 
                         if (isOverdue) {
                           return (
-                            <LinearGradient
-                              colors={['#EF4444', '#B91C1C']}
-                              start={{ x: 0, y: 0 }}
-                              end={{ x: 1, y: 1 }}
-                              className="mb-6 flex-row items-center gap-4 rounded-[24px] px-6 py-5"
+                            <View
+                              className="mb-6"
                               style={{
-                                shadowColor: '#EF4444',
-                                shadowOffset: { width: 0, height: 6 },
-                                shadowOpacity: 0.35,
-                                shadowRadius: 12,
-                                elevation: 8,
+                                shadowColor: '#DC2626',
+                                shadowOffset: { width: 0, height: 10 },
+                                shadowOpacity: 0.45,
+                                shadowRadius: 20,
+                                elevation: 12,
                               }}>
-                              <View className="h-[48px] w-[48px] items-center justify-center rounded-[16px] bg-white/20">
-                                <AlertTriangle color="#FFFFFF" size={24} strokeWidth={2.5} />
+                              <View className="relative overflow-hidden rounded-[24px] border-[1.5px] border-red-400/50">
+                                <LinearGradient
+                                  colors={['#EF4444', '#B91C1C']}
+                                  start={{ x: 0, y: 0 }}
+                                  end={{ x: 1, y: 1 }}
+                                  style={StyleSheet.absoluteFill}
+                                />
+
+                                {/* Specular highlight for premium glassmorphism */}
+                                <LinearGradient
+                                  colors={['rgba(255,255,255,0.25)', 'transparent']}
+                                  start={{ x: 0, y: 0 }}
+                                  end={{ x: 0, y: 1 }}
+                                  style={{
+                                    position: 'absolute',
+                                    top: 0,
+                                    left: 0,
+                                    right: 0,
+                                    height: 50,
+                                  }}
+                                />
+
+                                <View className="flex-row items-center gap-4 px-5 py-5">
+                                  {/* Deep glass icon container */}
+                                  <View className="h-[50px] w-[50px] items-center justify-center rounded-[16px] bg-red-950/30">
+                                    <View className="absolute inset-0 rounded-[16px] border-[1.5px] border-white/20" />
+                                    <AlertTriangle color="#FFFFFF" size={24} strokeWidth={2.5} />
+                                  </View>
+
+                                  <View className="flex-1 justify-center pr-2">
+                                    <Text className="mb-0.5 text-[11px] font-black uppercase tracking-[0.15em] text-red-100 opacity-90">
+                                      SLA Protocol Breached
+                                    </Text>
+                                    <Text
+                                      className="text-[16px] font-black leading-tight tracking-tight text-white"
+                                      numberOfLines={1}
+                                      adjustsFontSizeToFit>
+                                      Missed: {formatTimestamp(mappedIssue.slaDeadline)}
+                                    </Text>
+                                  </View>
+                                </View>
                               </View>
-                              <View className="flex-1 justify-center">
-                                <Text className="text-[10px] font-black uppercase tracking-[0.2em] text-red-100">
-                                  SLA PROTOCOL BREACHED
-                                </Text>
-                                <Text className="mt-0.5 text-[15px] font-black leading-tight text-white">
-                                  Missed: {formatTimestamp(mappedIssue.slaDeadline)}
-                                </Text>
-                              </View>
-                            </LinearGradient>
+                            </View>
                           );
                         }
 
@@ -2982,7 +3010,9 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
             <SectionCard>
               <SLAOverduePanel
                 issue={mappedIssue}
-                fieldOfficers={assignedFO}
+                fieldOfficers={assignedFO.filter(
+                  (officer) => officer?._id !== assignedOfficerData?._id
+                )}
                 onReassign={handleSLAReassign}
                 onReject={handleSLAReject}
                 onExtend={handleSLAExtend}

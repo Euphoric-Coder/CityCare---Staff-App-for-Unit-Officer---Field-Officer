@@ -205,9 +205,7 @@ export default function RejectionModal({ visible, issue, onClose, onReject }: Re
         {!isClosing && (
           <>
             {/* Animated backdrop to avoid jarring jumps */}
-            <Animated.View
-              entering={FadeIn.duration(400)}
-              style={StyleSheet.absoluteFillObject}>
+            <Animated.View entering={FadeIn.duration(400)} style={StyleSheet.absoluteFillObject}>
               <BlurView
                 intensity={isDark ? 40 : 25}
                 tint={isDark ? 'dark' : 'light'}
@@ -304,7 +302,7 @@ export default function RejectionModal({ visible, issue, onClose, onReject }: Re
                   keyboardShouldPersistTaps="handled">
                   {/* Warning banner */}
                   <Animated.View
-                    entering={FadeInDown.delay(100).springify().damping(22)}
+                    entering={FadeInDown.delay(100).springify().damping(80)}
                     style={{
                       marginBottom: 20,
                       shadowColor: '#EF4444',
@@ -360,7 +358,7 @@ export default function RejectionModal({ visible, issue, onClose, onReject }: Re
 
                   {/* Issue Preview Card */}
                   <Animated.View
-                    entering={FadeInDown.delay(150).springify().damping(22)}
+                    entering={FadeInDown.delay(150).springify().damping(80)}
                     style={[
                       { marginBottom: 24, borderRadius: 24, borderWidth: 1, overflow: 'hidden' },
                       { borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' },
@@ -524,8 +522,7 @@ export default function RejectionModal({ visible, issue, onClose, onReject }: Re
                             }}
                             style={{ width: '48%' }}>
                             <Animated.View
-                              layout={LinearTransition.springify().damping(18)}
-                              layout={LinearTransition.springify().damping(18)}
+                              layout={LinearTransition.springify().damping(80)}
                               style={[
                                 styles.reasonCard,
                                 {
@@ -613,7 +610,7 @@ export default function RejectionModal({ visible, issue, onClose, onReject }: Re
                               </Text>
                               {active && (
                                 <Animated.View
-                                  entering={ZoomIn.springify().damping(15)}
+                                  entering={ZoomIn.springify().damping(80)}
                                   style={[styles.activeDot, { backgroundColor: item.color }]}
                                 />
                               )}
@@ -626,7 +623,7 @@ export default function RejectionModal({ visible, issue, onClose, onReject }: Re
 
                   {/* Comment Section */}
                   <Animated.View
-                    entering={FadeInUp.delay(500).springify().damping(22)}
+                    entering={FadeInUp.delay(500).springify().damping(80)}
                     className={`mb-2 overflow-hidden rounded-[24px] border-[1.5px] bg-white shadow-sm dark:bg-slate-900 ${
                       isFocused
                         ? 'border-red-400 dark:border-red-500'
@@ -710,7 +707,7 @@ export default function RejectionModal({ visible, issue, onClose, onReject }: Re
                   {/* Inline validation error */}
                   {!!validationError && (
                     <Animated.View
-                      entering={ZoomIn.springify().damping(20)}
+                      entering={ZoomIn.springify().damping(80)}
                       className="mt-3 flex-row items-center gap-2 rounded-[16px] border border-red-200 p-3.5 dark:border-red-900/50"
                       style={{ backgroundColor: isDark ? 'rgba(69, 10, 10, 0.5)' : '#FEF2F2' }}>
                       <AlertTriangle color="#EF4444" size={16} strokeWidth={2.5} />
@@ -813,7 +810,7 @@ export default function RejectionModal({ visible, issue, onClose, onReject }: Re
             />
 
             <Animated.View
-              entering={ZoomIn.springify().damping(24)}
+              entering={ZoomIn.springify().damping(80)}
               className="w-full max-w-[380px] items-center rounded-[32px] border p-8"
               style={[
                 styles.confirmCard,

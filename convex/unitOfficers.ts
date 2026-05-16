@@ -238,6 +238,7 @@ export const verifyIssue = mutation({
       await ctx.db.insert('notifications', {
         userId: args.reporterId, // citizen
         issueId: args.issueId,
+        title: `Verified Re-opened Issue - "${args.issueName} (${args.issueCode})"`,
         message: `Your issue "${args.issueName}" with Issue Code "${args.issueCode}" has been successfully verified again by the Unit Officer ${args.UOName} after reopening and will be assigned shortly.`,
         type: 'verified',
         read: false,
@@ -248,6 +249,7 @@ export const verifyIssue = mutation({
       await ctx.db.insert('notifications', {
         userId: args.verifiedBy,
         issueId: args.issueId,
+        title: `Verified Re-opened Issue - "${args.issueName} (${args.issueCode})"`,
         message: `You have successfully verified again the issue "${args.issueName}" with Issue Code "${args.issueCode}" after reopening.`,
         type: 'verified',
         read: false,
@@ -270,6 +272,7 @@ export const verifyIssue = mutation({
       await ctx.db.insert('notifications', {
         userId: args.reporterId, // citizen
         issueId: args.issueId,
+        title: `Verified Issue - "${args.issueName} (${args.issueCode})"`,
         message: `Your issue "${args.issueName}" with Issue Code "${args.issueCode}" has been successfully verified by the Unit Officer ${args.UOName} and will be assigned shortly.`,
         type: 'verified',
         read: false,
@@ -280,6 +283,7 @@ export const verifyIssue = mutation({
       await ctx.db.insert('notifications', {
         userId: args.verifiedBy,
         issueId: args.issueId,
+        title: `Verified Issue - "${args.issueName} (${args.issueCode})"`,
         message: `You have successfully verified the issue "${args.issueName}" with Issue Code "${args.issueCode}".`,
         type: 'verified',
         read: false,
@@ -348,6 +352,7 @@ export const rejectIssue = mutation({
       await ctx.db.insert('notifications', {
         userId: args.reporterId, // citizen
         issueId: args.issueId,
+        title: `Reopened Issue Rejected - "${args.issueName} (${args.issueCode})"`,
         message: `Your issue "${args.issueName}" with Issue Code "${args.issueCode}" has been rejected again by the Unit Officer ${args.UOName} after issue reopened by citizen`,
         type: 'rejected',
         read: false,
@@ -358,6 +363,7 @@ export const rejectIssue = mutation({
       await ctx.db.insert('notifications', {
         userId: args.rejectedBy,
         issueId: args.issueId,
+        title: `Reopened Issue Rejected - "${args.issueName} (${args.issueCode})"`,
         message: `You have successfully rejected again after reopening of the issue "${args.issueName}" with Issue Code "${args.issueCode}".`,
         type: 'rejected',
         read: false,
@@ -380,6 +386,7 @@ export const rejectIssue = mutation({
       await ctx.db.insert('notifications', {
         userId: args.reporterId, // citizen
         issueId: args.issueId,
+        title: `Rejected Issue - "${args.issueName} (${args.issueCode})"`,
         message: `Your issue "${args.issueName}" with Issue Code "${args.issueCode}" has been rejected by the Unit Officer ${args.UOName}.`,
         type: 'rejected',
         read: false,
@@ -390,6 +397,7 @@ export const rejectIssue = mutation({
       await ctx.db.insert('notifications', {
         userId: args.rejectedBy,
         issueId: args.issueId,
+        title: `Rejected Issue - "${args.issueName} (${args.issueCode})"`,
         message: `You have successfully rejected the issue "${args.issueName}" with Issue Code "${args.issueCode}" after SLA breach.`,
         type: 'rejected',
         read: false,
@@ -412,6 +420,7 @@ export const rejectIssue = mutation({
       await ctx.db.insert('notifications', {
         userId: args.reporterId, // citizen
         issueId: args.issueId,
+        title: `Rejected Issue - "${args.issueName} (${args.issueCode})"`,
         message: `Your issue "${args.issueName}" with Issue Code "${args.issueCode}" has been rejected by the Unit Officer ${args.UOName}.`,
         type: 'rejected',
         read: false,
@@ -422,6 +431,7 @@ export const rejectIssue = mutation({
       await ctx.db.insert('notifications', {
         userId: args.rejectedBy,
         issueId: args.issueId,
+        title: `Rejected Issue - "${args.issueName} (${args.issueCode})"`,
         message: `You have successfully rejected the issue "${args.issueName}" with Issue Code "${args.issueCode}".`,
         type: 'rejected',
         read: false,
@@ -552,6 +562,7 @@ export const assignIssueToFieldOfficer = mutation({
     await ctx.db.insert('notifications', {
       userId: fieldOfficer.userId,
       issueId: args.issueId,
+      title: `Issue Assigned to You - "${args.issueTitle} (${args.issueCode})"`,
       message: `You have been assigned issue "${args.issueTitle}" with Issue Code "${args.issueCode}" by Unit Officer ${unitOfficer.fullName}.`,
       type: 'assigned',
       read: false,
@@ -562,6 +573,7 @@ export const assignIssueToFieldOfficer = mutation({
     await ctx.db.insert('notifications', {
       userId: args.assignedBy,
       issueId: args.issueId,
+      title: `Issue Assigned to FO ${fieldOfficer.fullName} - "${args.issueTitle} (${args.issueCode})"`,
       message: `You assigned issue "${args.issueTitle}" with Issue Code "${args.issueCode}" to ${fieldOfficer.fullName}.`,
       type: 'assigned',
       read: false,
@@ -572,6 +584,7 @@ export const assignIssueToFieldOfficer = mutation({
     await ctx.db.insert('notifications', {
       userId: issue.reportedBy,
       issueId: args.issueId,
+      title: `Issue Assigned to Field Officer - "${args.issueTitle} (${args.issueCode})"`,
       message: `Your issue "${args.issueTitle}" with Issue Code "${args.issueCode}" has been assigned to a Field Officer ${fieldOfficer.fullName} for further actions.`,
       type: 'assigned',
       read: false,

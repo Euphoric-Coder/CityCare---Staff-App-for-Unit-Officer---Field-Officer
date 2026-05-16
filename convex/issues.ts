@@ -332,6 +332,7 @@ export const reopenIssue = mutation({
     await ctx.db.insert('notifications', {
       userId: issue.reportedBy,
       issueId: args.issueId,
+      title: `Reopened Issue - "${issue.title} (${issue.issueCode})"`,
       message: `The Issue "${issue.title}" with Issue Code: ${issue.issueCode} has been reopened by the citizen.`,
       type: 'reopened',
       read: false,
@@ -343,6 +344,7 @@ export const reopenIssue = mutation({
       await ctx.db.insert('notifications', {
         userId: issue.assignedUnitOfficer,
         issueId: args.issueId,
+        title: `Reopened Issue - "${issue.title} (${issue.issueCode})"`,
         message: `The Issue "${issue.title}" with Issue Code: ${issue.issueCode} has been reopened by the citizen.`,
         type: 'reopened',
         read: false,
@@ -400,8 +402,8 @@ export const submitIssueFeedback = mutation({
       await ctx.db.insert('notifications', {
         userId: issue.assignedUnitOfficer,
         issueId,
-        title: `Feedback received on ${issue.issueCode}`,
-        message: `Feedback received for issue ${issue.issueCode} from the citizen. \nRating: ${rating}/5 ${feedback ? ` \nFeedback: ${feedback}` : ''}`,
+        title: `Feedback received on "${issue.title} (${issue.issueCode})"`,
+        message: `Feedback received for issue "${issue.title} (${issue.issueCode})" from the citizen. \nRating: ${rating}/5 ${feedback ? ` \nFeedback: ${feedback}` : ''}`,
         type: 'feedback',
         read: false,
         createdAt: now,
@@ -412,8 +414,8 @@ export const submitIssueFeedback = mutation({
     await ctx.db.insert('notifications', {
       userId: userId,
       issueId,
-      title: 'Feedback Submitted',
-      message: `Your feedback for issue ${issue.issueCode} has been successfully submitted.`,
+      title: `Feedback submitted for issue "${issue.title} (${issue.issueCode})"`,
+      message: `Your feedback for issue "${issue.title} (${issue.issueCode})" has been successfully submitted.`,
       type: 'feedback_confirmation',
       read: false,
       createdAt: now,
@@ -551,7 +553,8 @@ export const autoAssignIssues = internalMutation({
       await ctx.db.insert('notifications', {
         userId: issue.reportedBy,
         issueId: issue._id,
-        message: `Your issue "${issue.title}" has been assigned to ${officerName}.`,
+        title: `Issue Assigned to Unit Officer ${officerName} - "${issue.title} (${issue.issueCode})"`,
+        message: `Your issue "${issue.title}" with Issue Code "${issue.issueCode}" has been assigned to Unit Officer ${officerName}.`,
         type: 'assigned',
         read: false,
         createdAt: now,
@@ -561,7 +564,8 @@ export const autoAssignIssues = internalMutation({
       await ctx.db.insert('notifications', {
         userId: selectedOfficer.userId,
         issueId: issue._id,
-        message: `You have been assigned a new issue: "${issue.title}".`,
+        title: `New Issue Assigned - "${issue.title} (${issue.issueCode})"`,
+        message: `You have been assigned a new issue: "${issue.title} (${issue.issueCode})".`,
         type: 'assigned',
         read: false,
         createdAt: now,

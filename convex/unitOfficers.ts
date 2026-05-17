@@ -506,6 +506,20 @@ export const assignIssueToFieldOfficer = mutation({
         .unique();
 
       if (prevFO) {
+        // Notification to Previous Field Officer
+        await ctx.db.insert('notifications', {
+          userId: prevFO.userId,
+          issueId: args.issueId,
+          title: `Issue Reassigned - "${args.issueTitle} (${args.issueCode})"`,
+          message: `Issue "${args.issueTitle}" with Issue Code "${args.issueCode}" has been reassigned from you by Unit Officer ${unitOfficer.fullName} to Field Officer ${fieldOfficer.fullName}.${
+            args.reassignmentReason ? `\nReason: ${args.reassignmentReason}.` : ''
+          }${args.reassignmentComment ? `\nComment: ${args.reassignmentComment}` : ''}`,
+          type: 'assigned',
+          read: false,
+          createdAt: now,
+        });
+
+        // Remove the issue from previous field officer's assigned issues
         const updatedPrevIssues = prevFO.assignedIssueIds.filter((id) => id !== args.issueId);
 
         await ctx.db.patch(prevFO._id, {
@@ -543,7 +557,7 @@ export const assignIssueToFieldOfficer = mutation({
           args.previousFieldOfficerName ?? 'previous field officer'
         } to ${fieldOfficer.fullName}.${
           args.reassignmentReason ? `\nReason: ${args.reassignmentReason}.` : ''
-        }${args.reassignmentComment ? `\n${args.reassignmentComment}` : ''}`
+        }${args.reassignmentComment ? `\nComment: ${args.reassignmentComment}` : ''}`
       : `Issue assigned to Field Officer ${fieldOfficer.fullName}.`;
 
     // Add the Issue Timeline Update for assigned issue
@@ -746,6 +760,108 @@ export const requestRework = mutation({
       title: `Rework Requested for Issue "${issue.title}" (Issue Code: ${issue.issueCode})`,
       message: `You have requested rework for issue "${issue.title}" with Issue Code "${issue.issueCode}".`,
       type: 'rework',
+      read: false,
+      createdAt: now,
+    });
+
+    return { success: true };
+  },
+});
+
+export const extendSLAOverdue = mutation({
+  args: {
+    issueId: v.id('issues'),
+    issueCode: v.string(),
+    issueName: v.string(),
+
+    extendedBy: v.id('users'),
+    extendedByName: v.string(),
+
+    reporterId: v.id('users'),
+
+    assignedFieldOfficerUserId: v.optional(v.id('users')),
+    assignedFieldOfficerName: v.optional(v.string()),
+
+    reason: v.string(),
+    comment: v.string(),
+    newSlaDeadline: v.number(),
+  },
+
+  handler: async (ctx, args) => {
+    const issue = await ctx.db.get(args.issueId);
+
+    // Fallback for null values in issue
+    if (!issue) {
+      throw new Error('Issue not found');
+    }
+
+    // Fallback for resolved or rejected issues
+    if (['resolved', 'closed', 'rejected', 'withdrawn'].includes(issue.status)) {
+      throw new Error('Cannot extend SLA for a completed or rejected issue');
+    }
+
+    const now = Date.now();
+
+    // Update Issue SLA Deadline
+    await ctx.db.patch(args.issueId, {
+      slaDeadline: args.newSlaDeadline,
+      slaExtension: {
+        reason: args.reason,
+        comment: args.comment,
+        extendedBy: args.extendedBy,
+        extendedAt: now,
+        newSlaDeadline: args.newSlaDeadline,
+      },
+      slaBreachedCount: (issue.slaBreachedCount || 0) + 1,
+    });
+
+    // Add issue update in the issue timeline
+    await ctx.db.insert('issueUpdates', {
+      issueId: args.issueId,
+      status: issue.status,
+      comment: `SLA deadline extended by Unit Officer ${args.extendedByName}.\nReason: ${
+        args.reason
+      }\nNote: ${args.comment}\nNew SLA Deadline: ${new Date(
+        args.newSlaDeadline
+      ).toLocaleString()}\nWe sincerely apologize for any inconvenience caused due to delay in the resolution of this issue.`,
+      updatedBy: args.extendedBy,
+      role: 'unit_officer',
+      attachments: [],
+      scope: 'officer_and_citizen',
+      createdAt: now,
+    });
+
+    // Notification to the assigned Field Officer
+    if (args.assignedFieldOfficerUserId) {
+      await ctx.db.insert('notifications', {
+        userId: String(args.assignedFieldOfficerUserId),
+        issueId: args.issueId,
+        title: 'SLA deadline extended',
+        message: `The SLA deadline for issue "${args.issueName}" with Issue Code "${args.issueCode}" has been extended.`,
+        type: 'sla_alert',
+        read: false,
+        createdAt: now,
+      });
+    }
+
+    // Notification to the Citizen
+    await ctx.db.insert('notifications', {
+      userId: String(args.reporterId),
+      issueId: args.issueId,
+      title: 'SLA deadline updated',
+      message: `The resolution timeline for your issue "${args.issueName}" with Issue Code "${args.issueCode}" has been extended.We sincerely apologize for any inconvenience caused due to delay in the resolution of this issue.`,
+      type: 'sla_alert',
+      read: false,
+      createdAt: now,
+    });
+
+    // Notification to the Unit Officer who extended the SLA deadline
+    await ctx.db.insert('notifications', {
+      userId: String(args.extendedBy),
+      issueId: args.issueId,
+      title: 'SLA extension completed',
+      message: `You extended the SLA deadline for issue "${args.issueName}".`,
+      type: 'sla_alert',
       read: false,
       createdAt: now,
     });

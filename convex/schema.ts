@@ -221,6 +221,18 @@ export default defineSchema({
     slaDeadline: v.union(v.number(), v.null()),
     slaBreached: v.boolean(),
 
+    slaBreachedCount: v.optional(v.number()),
+
+    slaExtension: v.optional(
+      v.object({
+        reason: v.string(),
+        comment: v.optional(v.string()),
+        extendedBy: v.id('users'),
+        extendedAt: v.number(),
+        newSlaDeadline: v.number(),
+      })
+    ),
+
     resolvedAt: v.union(v.number(), v.null()),
     closedAt: v.union(v.number(), v.null()),
 

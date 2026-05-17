@@ -36,6 +36,7 @@ import {
   EscalationReason,
   ReassignmentReason,
   FieldOfficer,
+  MappedIssue,
 } from '../lib/types';
 import { useUser } from 'context/UserContext';
 
@@ -70,7 +71,7 @@ const REASSIGNMENT_REASONS: ReassignmentReason[] = [
 type Tab = 'reassign' | 'reject' | 'extend' | 'escalate';
 
 interface SLAOverduePanelProps {
-  issue: Issue;
+  issue: MappedIssue;
   fieldOfficers: FieldOfficer[];
   onReassign: (
     newOfficer: FieldOfficer,
@@ -748,6 +749,23 @@ export default function SLAOverduePanel({
           text: 'Extend',
           onPress: () => {
             console.log(extendReason, extendNote.trim(), extendNewSla);
+            console.log({
+              issueId: issue.id,
+              issueCode: issue.issueCode,
+              issueName: issue.title,
+
+              extendedBy: user?.id,
+              extendedByName: user?.name,
+
+              reporterId: issue.reportedBy,
+
+              assignedFieldOfficerUserId: issue.assignedOfficer?.userId,
+              assignedFieldOfficerName: issue.assignedOfficer?.fullName,
+
+              reason: extendReason,
+              comment: extendNote.trim(),
+              newSlaDeadline: extendNewSla.getTime(),
+            });
             // onExtend(extendReason, extendNote.trim(), extendNewSla, updated);
           },
         },
@@ -942,7 +960,7 @@ export default function SLAOverduePanel({
                 officers={fieldOfficers}
                 selected={reassignOfficer}
                 onSelect={setReassignOfficer}
-                currentOfficerId={issue.assignedFieldOfficer}
+                currentOfficerId={issue.assignedOfficer?.userId}
                 accentColor="#2563EB"
               />
             </View>

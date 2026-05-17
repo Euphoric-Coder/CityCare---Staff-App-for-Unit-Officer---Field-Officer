@@ -13,6 +13,7 @@ import {
   Dimensions,
   Linking,
   Platform,
+  InteractionManager,
   Modal,
   Pressable,
   TouchableWithoutFeedback,
@@ -441,6 +442,9 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
   // Assigns Issue to Field Officer
   const assignIssueToFieldOfficer = useMutation(api.unitOfficers.assignIssueToFieldOfficer);
 
+  // Extends SLA Deadline
+  const extendSLADeadline = useMutation(api.unitOfficers.extendSLADeadline);
+
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [assignModalMode, setAssignModalMode] = useState<'assign' | 'reassign'>('assign');
   const [pendingReassignMeta, setPendingReassignMeta] = useState<{
@@ -777,13 +781,60 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
   };
 
   const handleSLAExtend = (
-    _reason: SLAExtensionReason,
-    _note: string,
-    _date: Date,
-    updated: Issue
+    issueId: string,
+    issueCode: string,
+    issueName: string,
+
+    extendedBy: Id<'users'>,
+    extendedByName: string,
+
+    reporterId: Id<'users'>,
+
+    assignedFieldOfficerUserId: Id<'users'>,
+
+    assignedFieldOfficerName: string,
+
+    reason: string,
+    comment: string,
+    newSlaDeadline: number
   ) => {
-    console.log('handleSLAExtend', _reason, _note, _date, updated);
-    Alert.alert('SLA Extended', 'New SLA deadline has been set. Citizen has been notified.');
+    // Defer the mutation to run AFTER React finishes processing the current
+    // interaction. This prevents the Convex reactive re-render from firing
+    // mid-render-cycle, which unmounts the SLAOverduePanel and causes
+    // useNavigation() to lose its context.
+    InteractionManager.runAfterInteractions(async () => {
+      try {
+        await extendSLADeadline({
+          issueId: issueId as Id<'issues'>,
+          issueCode,
+          issueName,
+
+          extendedBy,
+          extendedByName,
+
+          reporterId,
+
+          assignedFieldOfficerUserId: assignedFieldOfficerUserId || undefined,
+          assignedFieldOfficerName: assignedFieldOfficerName || undefined,
+
+          reason,
+          comment,
+          newSlaDeadline,
+        });
+
+        setTimeout(() => {
+          Alert.alert('SLA Extended', 'New SLA deadline has been set. Citizen has been notified.');
+        }, 150);
+      } catch (error: any) {
+        console.error('SLA Extension Error:', error);
+        setTimeout(() => {
+          Alert.alert(
+            'Extension Failed',
+            error?.message || 'Something went wrong. Please try again.'
+          );
+        }, 150);
+      }
+    });
   };
 
   const handleSLAEscalate = (_note: string, updated: Issue) => {
@@ -3013,10 +3064,10 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
                 fieldOfficers={assignedFO.filter(
                   (officer) => officer?._id !== assignedOfficerData?._id
                 )}
-                onReassign={handleSLAReassign}
-                onReject={handleSLAReject}
+                // onReassign={handleSLAReassign}
+                // onReject={handleSLAReject}
                 onExtend={handleSLAExtend}
-                onEscalate={handleSLAEscalate}
+                // onEscalate={handleSLAEscalate}
               />
             </SectionCard>
           )}

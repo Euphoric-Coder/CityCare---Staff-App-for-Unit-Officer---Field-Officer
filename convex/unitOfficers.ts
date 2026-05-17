@@ -768,7 +768,7 @@ export const requestRework = mutation({
   },
 });
 
-export const extendSLAOverdue = mutation({
+export const extendSLADeadline = mutation({
   args: {
     issueId: v.id('issues'),
     issueCode: v.string(),
@@ -805,6 +805,7 @@ export const extendSLAOverdue = mutation({
     // Update Issue SLA Deadline
     await ctx.db.patch(args.issueId, {
       slaDeadline: args.newSlaDeadline,
+      slaBreached: false,
       slaExtension: {
         reason: args.reason,
         comment: args.comment,
@@ -821,9 +822,12 @@ export const extendSLAOverdue = mutation({
       status: issue.status,
       comment: `SLA deadline extended by Unit Officer ${args.extendedByName}.\nReason: ${
         args.reason
-      }\nNote: ${args.comment}\nNew SLA Deadline: ${new Date(
-        args.newSlaDeadline
-      ).toLocaleString()}\nWe sincerely apologize for any inconvenience caused due to delay in the resolution of this issue.`,
+      }\nNote: ${args.comment}\nNew SLA Deadline: ${new Date(args.newSlaDeadline).toLocaleString(
+        'en-IN',
+        {
+          timeZone: 'Asia/Kolkata',
+        }
+      )}\nWe sincerely apologize for any inconvenience caused due to delay in the resolution of this issue.`,
       updatedBy: args.extendedBy,
       role: 'unit_officer',
       attachments: [],
@@ -834,7 +838,7 @@ export const extendSLAOverdue = mutation({
     // Notification to the assigned Field Officer
     if (args.assignedFieldOfficerUserId) {
       await ctx.db.insert('notifications', {
-        userId: String(args.assignedFieldOfficerUserId),
+        userId: args.assignedFieldOfficerUserId,
         issueId: args.issueId,
         title: 'SLA deadline extended',
         message: `The SLA deadline for issue "${args.issueName}" with Issue Code "${args.issueCode}" has been extended.`,
@@ -846,10 +850,10 @@ export const extendSLAOverdue = mutation({
 
     // Notification to the Citizen
     await ctx.db.insert('notifications', {
-      userId: String(args.reporterId),
+      userId: args.reporterId,
       issueId: args.issueId,
       title: 'SLA deadline updated',
-      message: `The resolution timeline for your issue "${args.issueName}" with Issue Code "${args.issueCode}" has been extended.We sincerely apologize for any inconvenience caused due to delay in the resolution of this issue.`,
+      message: `The resolution timeline for your issue "${args.issueName}" with Issue Code "${args.issueCode}" has been extended. We sincerely apologize for any inconvenience caused due to delay in the resolution of this issue.`,
       type: 'sla_alert',
       read: false,
       createdAt: now,
@@ -857,7 +861,7 @@ export const extendSLAOverdue = mutation({
 
     // Notification to the Unit Officer who extended the SLA deadline
     await ctx.db.insert('notifications', {
-      userId: String(args.extendedBy),
+      userId: args.extendedBy,
       issueId: args.issueId,
       title: 'SLA extension completed',
       message: `You extended the SLA deadline for issue "${args.issueName}".`,

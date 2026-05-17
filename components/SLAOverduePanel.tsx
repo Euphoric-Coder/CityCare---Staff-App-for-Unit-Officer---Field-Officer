@@ -8,6 +8,7 @@ import {
   Platform,
   StyleSheet,
   Modal,
+  InteractionManager,
 } from 'react-native';
 import { useColorScheme } from 'nativewind';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -39,6 +40,9 @@ import {
   MappedIssue,
 } from '../lib/types';
 import { useUser } from 'context/UserContext';
+import { useMutation } from 'convex/react';
+import { api } from 'convex/_generated/api';
+import { Id } from 'convex/_generated/dataModel';
 
 const SLA_REJECTION_REASONS: SLAOverdueRejectionReason[] = [
   'Non-feasible due to structural constraints',
@@ -73,21 +77,24 @@ type Tab = 'reassign' | 'reject' | 'extend' | 'escalate';
 interface SLAOverduePanelProps {
   issue: MappedIssue;
   fieldOfficers: FieldOfficer[];
-  onReassign: (
-    newOfficer: FieldOfficer,
-    reason: ReassignmentReason,
-    note: string,
-    newSlaDate: Date,
-    updatedIssue: Issue
-  ) => void;
-  onReject: (reason: SLAOverdueRejectionReason, note: string, updatedIssue: Issue) => void;
   onExtend: (
-    reason: SLAExtensionReason,
-    note: string,
-    newSlaDate: Date,
-    updatedIssue: Issue
+    issueId: string,
+    issueCode: string,
+    issueName: string,
+
+    extendedBy: Id<'users'>,
+    extendedByName: string,
+
+    reporterId: Id<'users'>,
+
+    assignedFieldOfficerUserId: Id<'users'>,
+
+    assignedFieldOfficerName: string,
+
+    reason: string,
+    comment: string,
+    newSlaDeadline: number
   ) => void;
-  onEscalate: (note: string, updatedIssue: Issue) => void;
 }
 
 function daysSinceOverdue(slaDeadline: string): number {
@@ -625,14 +632,7 @@ function NoteInput({
   );
 }
 
-export default function SLAOverduePanel({
-  issue,
-  fieldOfficers,
-  onReassign,
-  onReject,
-  onExtend,
-  onEscalate,
-}: SLAOverduePanelProps) {
+export default function SLAOverduePanel({ issue, fieldOfficers, onExtend }: SLAOverduePanelProps) {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
 
@@ -740,37 +740,28 @@ export default function SLAOverduePanel({
       return Alert.alert('Required', 'Please add a note explaining the extension.');
     if (!extendNewSla) return Alert.alert('Required', 'Please select a new SLA deadline date.');
 
-    Alert.alert(
-      'Confirm SLA Extension',
-      `Extend SLA deadline to ${formatDateDisplay(extendNewSla)}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Extend',
-          onPress: () => {
-            console.log(extendReason, extendNote.trim(), extendNewSla);
-            console.log({
-              issueId: issue.id,
-              issueCode: issue.issueCode,
-              issueName: issue.title,
+    onExtend(
+      issue.id as Id<'issues'>,
+      issue.issueCode,
+      issue.title,
 
-              extendedBy: user?.id,
-              extendedByName: user?.name,
+      user?.id as Id<'users'>,
+      user?.name ?? 'Unit Officer',
 
-              reporterId: issue.reportedBy,
+      issue.reportedBy as Id<'users'>,
 
-              assignedFieldOfficerUserId: issue.assignedOfficer?.userId,
-              assignedFieldOfficerName: issue.assignedOfficer?.fullName,
+      issue.assignedOfficer?.userId as Id<'users'>,
 
-              reason: extendReason,
-              comment: extendNote.trim(),
-              newSlaDeadline: extendNewSla.getTime(),
-            });
-            // onExtend(extendReason, extendNote.trim(), extendNewSla, updated);
-          },
-        },
-      ]
+      issue.assignedOfficer?.fullName as string,
+
+      extendReason,
+      extendNote.trim(),
+      extendNewSla.getTime()
     );
+    setExtendReason(null);
+    setExtendNote('');
+    setExtendNewSla(null);
+    setActiveTab('reassign');
   };
 
   const handleEscalate = () => {

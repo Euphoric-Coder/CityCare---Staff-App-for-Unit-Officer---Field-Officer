@@ -77,6 +77,29 @@ type Tab = 'reassign' | 'reject' | 'extend' | 'escalate';
 interface SLAOverduePanelProps {
   issue: MappedIssue;
   fieldOfficers: FieldOfficer[];
+  onReassign: (
+    issueId: Id<'issues'>,
+    fieldOfficerId: Id<'fieldOfficers'>,
+    assignedBy: Id<'users'>,
+    issueTitle: string,
+    issueCode: string,
+    isReassign: boolean,
+    previousFieldOfficerName: string,
+    reassignmentReason: string,
+    reassignmentComment: string,
+    newSLADeadline: number
+  ) => void;
+  onReject: (
+    issueId: Id<'issues'>,
+    issueCode: string,
+    reason: string,
+    comment: string,
+    UOName: string,
+    status: string,
+    rejectedBy: Id<'users'>,
+    issueName: string,
+    reporterId: Id<'users'>
+  ) => void;
   onExtend: (
     issueId: string,
     issueCode: string,
@@ -632,7 +655,13 @@ function NoteInput({
   );
 }
 
-export default function SLAOverduePanel({ issue, fieldOfficers, onExtend }: SLAOverduePanelProps) {
+export default function SLAOverduePanel({
+  issue,
+  fieldOfficers,
+  onReassign,
+  onReject,
+  onExtend,
+}: SLAOverduePanelProps) {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
 
@@ -673,26 +702,18 @@ export default function SLAOverduePanel({ issue, fieldOfficers, onExtend }: SLAO
           text: 'Confirm',
           style: 'destructive',
           onPress: () => {
-            console.log('updated', {
-              newOfficer: reassignOfficer,
-              newSlaDate: reassignNewSla,
-              reassignReason,
-              reassignNote,
-              updatedIssue: {
-                status: 'assigned',
-                assignedFieldOfficer: reassignOfficer._id,
-                slaDeadline: reassignNewSla.toISOString(),
-                reassignmentReason: reassignReason,
-                reassignmentComment: reassignNote.trim(),
-              },
-            });
-            // onReassign(
-            //   reassignOfficer,
-            //   reassignReason,
-            //   reassignNote.trim(),
-            //   reassignNewSla,
-            //   updated
-            // );
+            onReassign(
+              issue?.id as Id<'issues'>,
+              reassignOfficer._id as Id<'fieldOfficers'>,
+              user?.id as Id<'users'>,
+              issue?.title as string,
+              issue?.issueCode as string,
+              true as boolean,
+              issue?.assignedOfficer?.fullName as string,
+              reassignReason as ReassignmentReason,
+              reassignNote.trim() as string,
+              reassignNewSla.getTime() as number
+            );
           },
         },
       ]
@@ -713,21 +734,32 @@ export default function SLAOverduePanel({ issue, fieldOfficers, onExtend }: SLAO
           text: 'Reject Issue',
           style: 'destructive',
           onPress: () => {
-            console.log({
-              issueId: issue.id,
-              issueCode: issue.issueCode,
-              reason: rejectReason,
-              comment: rejectNote.trim(),
-              UOName: user?.name,
-              status: 'rejected',
-              rejectedBy: user?.id,
-              issueName: issue.title,
-              reporterId: issue.reportedBy,
-            });
+            // console.log({
+            //   issueId: issue.id,
+            //   issueCode: issue.issueCode,
+            //   reason: rejectReason,
+            //   comment: rejectNote.trim(),
+            //   UOName: user?.name,
+            //   status: issue?.status,
+            //   rejectedBy: user?.id,
+            //   issueName: issue.title,
+            //   reporterId: issue.reportedBy,
+            // });
+            onReject(
+              issue.id as Id<'issues'>,
+              issue.issueCode,
+              rejectReason,
+              rejectNote.trim(),
+              user?.name ?? 'Unit Officer',
+              issue?.status,
+              user?.id as Id<'users'>,
+              issue?.title,
+              issue.reportedBy as Id<'users'>
+            );
             // onReject(rejectReason, rejectNote.trim(), updated);
-            setRejectNote('');
-            setRejectReason(null);
-            setActiveTab('reassign');
+            // setRejectNote('');
+            // setRejectReason(null);
+            // setActiveTab('reassign');
           },
         },
       ]
@@ -828,6 +860,13 @@ export default function SLAOverduePanel({ issue, fieldOfficers, onExtend }: SLAO
     },
   ];
 
+  const filteredTabs = TABS.filter((tab) => {
+    if (tab.key === 'reassign') {
+      return !!issue?.assignedOfficer;
+    }
+    return true;
+  });
+
   return (
     <View>
       {/* Cohesive SLA Alert Banner */}
@@ -868,7 +907,7 @@ export default function SLAOverduePanel({ issue, fieldOfficers, onExtend }: SLAO
 
       {/* Classic Clean Tab Bar */}
       <View className="flex-row border-b border-slate-100 bg-white px-2 dark:border-slate-800 dark:bg-slate-900">
-        {TABS.map((tab) => {
+        {filteredTabs.map((tab) => {
           const isActive = activeTab === tab.key;
           return (
             <TouchableOpacity

@@ -233,6 +233,27 @@ export default defineSchema({
       })
     ),
 
+    slaReassignment: v.optional(
+      v.object({
+        reason: v.string(),
+        comment: v.optional(v.string()),
+        previousFieldOfficer: v.id('users'),
+        newFieldOfficer: v.id('users'),
+        reassignedBy: v.id('users'),
+        reassignedAt: v.number(),
+        newSlaDeadline: v.number(),
+      })
+    ),
+
+    slaRejection: v.optional(
+      v.object({
+        reason: v.string(),
+        comment: v.optional(v.string()),
+        rejectedBy: v.id('users'),
+        rejectedAt: v.number(),
+      })
+    ),
+
     resolvedAt: v.union(v.number(), v.null()),
     closedAt: v.union(v.number(), v.null()),
 
@@ -300,4 +321,22 @@ export default defineSchema({
   })
     .index('by_user', ['userId'])
     .index('by_user_unread', ['userId', 'read']),
+
+  issueMessages: defineTable({
+    issueId: v.id('issues'),
+
+    senderId: v.id('users'),
+    recipientId: v.id('users'),
+
+    message: v.string(),
+
+    isRead: v.boolean(),
+
+    createdAt: v.number(),
+  })
+    .index('by_issue', ['issueId'])
+    .index('by_sender', ['senderId'])
+    .index('by_recipient', ['recipientId'])
+    .index('by_issue_createdAt', ['issueId', 'createdAt'])
+    .index('by_recipient_read', ['recipientId', 'isRead']),
 });

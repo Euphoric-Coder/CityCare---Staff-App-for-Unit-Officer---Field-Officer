@@ -461,6 +461,8 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
   const pendingPicker = useRef<'camera' | 'gallery' | 'document' | null>(null);
   const [previewAttachment, setPreviewAttachment] = useState<any>(null);
 
+  const [showSLAPanel, setShowSLAPanel] = useState(true);
+
   const launchCamera = useCallback(async () => {
     try {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
@@ -762,22 +764,113 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
   };
 
   const handleSLAReassign = (
-    _newOfficer: FieldOfficer,
-    _reason: any,
-    _note: string,
-    _date: Date,
-    updated: Issue
+    issueId: Id<'issues'>,
+    fieldOfficerId: Id<'fieldOfficers'>,
+    assignedBy: Id<'users'>,
+    issueTitle: string,
+    issueCode: string,
+    isReassign: boolean,
+    previousFieldOfficerName: string,
+    reassignmentReason: string,
+    reassignmentComment: string,
+    newSLADeadline: number
   ) => {
-    console.log('handleSLAReassign', _newOfficer, _reason, _note, _date, updated);
-    Alert.alert(
-      'Reassigned',
-      `Issue has been reassigned to ${_newOfficer.name} with a new SLA deadline.`
-    );
+    InteractionManager.runAfterInteractions(async () => {
+      try {
+        console.log({
+          issueId: issueId,
+          fieldOfficerId: fieldOfficerId,
+          assignedBy: assignedBy,
+          issueTitle: issueTitle,
+          issueCode: issueCode,
+          isReassign: isReassign,
+          previousFieldOfficerName: previousFieldOfficerName,
+          reassignmentReason: reassignmentReason,
+          reassignmentComment: reassignmentComment,
+          newSLADeadline: newSLADeadline,
+        });
+        await assignIssueToFieldOfficer({
+          issueId: issueId,
+          fieldOfficerId: fieldOfficerId,
+          assignedBy: assignedBy,
+          issueTitle: issueTitle,
+          issueCode: issueCode,
+          isReassign: isReassign,
+          previousFieldOfficerName: previousFieldOfficerName,
+          reassignmentReason: reassignmentReason,
+          reassignmentComment: reassignmentComment,
+          newSLADeadline: newSLADeadline,
+          isSlaReassign: true,
+        });
+
+        setTimeout(() => {
+          Alert.alert(
+            'Issue Reassigned',
+            'Issue has been reassigned to a new officer with new SLA deadline.'
+          );
+        }, 150);
+      } catch (error: any) {
+        console.error('SLA Reassignment Error:', error);
+        setTimeout(() => {
+          Alert.alert(
+            'Reassignment Failed',
+            error?.message || 'Something went wrong. Please try again.'
+          );
+        }, 150);
+      }
+    });
   };
 
-  const handleSLAReject = (_reason: SLAOverdueRejectionReason, _note: string, updated: Issue) => {
-    console.log('handleSLAReject', _reason, _note, updated);
-    Alert.alert('Issue Rejected', 'Issue has been rejected. Citizen has been notified.');
+  const handleSLAReject = (
+    issueId: Id<'issues'>,
+    issueCode: string,
+    reason: string,
+    comment: string,
+    UOName: string,
+    status: string,
+    rejectedBy: Id<'users'>,
+    issueName: string,
+    reporterId: Id<'users'>
+  ) => {
+    console.log({
+      issueId: issueId,
+      issueCode: issueCode,
+      reason: reason,
+      comment: comment,
+      UOName: UOName,
+      status: status,
+      rejectedBy: rejectedBy,
+      issueName: issueName,
+      reporterId: reporterId,
+    });
+    InteractionManager.runAfterInteractions(async () => {
+      try {
+        await rejectIssue({
+          issueId,
+          issueCode,
+          reason,
+          comment,
+          UOName,
+          status,
+          rejectedBy,
+          issueName,
+          reporterId,
+          isSlaRejection: true,
+        });
+
+        setTimeout(() => {
+          Alert.alert('Issue Rejected', 'Issue has been rejected. Citizen has been notified.');
+        }, 150);
+      } catch (error: any) {
+        console.error('SLA Rejection Error:', error);
+        setTimeout(() => {
+          Alert.alert(
+            'Rejection Failed',
+            error?.message || 'Something went wrong. Please try again.'
+          );
+        }, 150);
+      }
+    });
   };
 
   const handleSLAExtend = (
@@ -942,6 +1035,45 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
     }
   };
 
+  const mappedIssue = mapIssueToUI(issue);
+
+  const nowTime = Date.now();
+
+  const slaTime =
+    mappedIssue?.slaDeadline !== undefined && mappedIssue?.slaDeadline !== null
+      ? new Date(mappedIssue?.slaDeadline).getTime()
+      : null;
+
+  const completedStatuses = ['resolved', 'closed', 'rejected', 'withdrawn', 'escalated'];
+
+  const hasValidSla = slaTime !== null && !Number.isNaN(slaTime);
+
+  const isSlaOverdueCard =
+    hasValidSla &&
+    slaTime < nowTime &&
+    !completedStatuses.includes(mappedIssue?.status?.toLowerCase());
+
+  const isSLAOverdue = !!(
+    hasValidSla &&
+    slaTime < nowTime &&
+    !completedStatuses.includes(mappedIssue?.status?.toLowerCase())
+  );
+
+  useEffect(() => {
+    if (isSLAOverdue) {
+      setShowSLAPanel(true);
+    }
+  }, [isSLAOverdue]);
+
+  if (!mappedIssue) {
+    return (
+      <View className="flex-1 items-center justify-center bg-slate-50 dark:bg-slate-900">
+        <ActivityIndicator size="large" color="#0D9488" />
+        <Text className="mt-3 text-sm font-medium text-slate-400">Loading issue...</Text>
+      </View>
+    );
+  }
+
   if (issue === undefined) {
     return (
       <View className="flex-1 items-center justify-center bg-slate-50 dark:bg-slate-900">
@@ -953,24 +1085,8 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
 
   if (issue === null) {
     Alert.alert('Error', 'Issue not found');
-    navigation.goBack();
+    // navigation.goBack();
     return null;
-  }
-
-  const mappedIssue = mapIssueToUI(issue);
-
-  const isSLAOverdue = !!(
-    mappedIssue?.slaDeadline &&
-    new Date(mappedIssue.slaDeadline) < new Date() &&
-    !['Closed', 'Rejected', 'Escalated'].includes(mappedIssue.status)
-  );
-
-  if (!mappedIssue) {
-    return (
-      <View>
-        <Text>Something went wrong</Text>
-      </View>
-    );
   }
 
   const assignedOfficerData = mappedIssue.assignedOfficer;
@@ -1280,91 +1396,99 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
                     </Text>
 
                     {/* SLA Section */}
-                    {mappedIssue.slaDeadline &&
-                      (() => {
-                        const isOverdue =
-                          new Date(mappedIssue.slaDeadline) < new Date() &&
-                          !['resolved', 'closed', 'rejected', 'withdrawn'].includes(
-                            mappedIssue.status
-                          );
-
-                        if (isOverdue) {
-                          return (
-                            <View
-                              className="mb-6"
-                              style={{
-                                shadowColor: '#DC2626',
-                                shadowOffset: { width: 0, height: 10 },
-                                shadowOpacity: 0.45,
-                                shadowRadius: 20,
-                                elevation: 12,
-                              }}>
-                              <View className="relative overflow-hidden rounded-[24px] border-[1.5px] border-red-400/50">
-                                <LinearGradient
-                                  colors={['#EF4444', '#B91C1C']}
-                                  start={{ x: 0, y: 0 }}
-                                  end={{ x: 1, y: 1 }}
-                                  style={StyleSheet.absoluteFill}
-                                />
-
-                                {/* Specular highlight for premium glassmorphism */}
-                                <LinearGradient
-                                  colors={['rgba(255,255,255,0.25)', 'transparent']}
-                                  start={{ x: 0, y: 0 }}
-                                  end={{ x: 0, y: 1 }}
-                                  style={{
-                                    position: 'absolute',
-                                    top: 0,
-                                    left: 0,
-                                    right: 0,
-                                    height: 50,
-                                  }}
-                                />
-
-                                <View className="flex-row items-center gap-4 px-5 py-5">
-                                  {/* Deep glass icon container */}
-                                  <View className="h-[50px] w-[50px] items-center justify-center rounded-[16px] bg-red-950/30">
-                                    <View className="absolute inset-0 rounded-[16px] border-[1.5px] border-white/20" />
-                                    <AlertTriangle color="#FFFFFF" size={24} strokeWidth={2.5} />
-                                  </View>
-
-                                  <View className="flex-1 justify-center pr-2">
-                                    <Text className="mb-0.5 text-[11px] font-black uppercase tracking-[0.15em] text-red-100 opacity-90">
-                                      SLA Protocol Breached
-                                    </Text>
-                                    <Text
-                                      className="text-[16px] font-black leading-tight tracking-tight text-white"
-                                      numberOfLines={1}
-                                      adjustsFontSizeToFit>
-                                      Missed: {formatTimestamp(mappedIssue.slaDeadline)}
-                                    </Text>
-                                  </View>
-                                </View>
-                              </View>
-                            </View>
-                          );
-                        }
-
-                        return (
-                          <View className="mb-6 flex-row items-center gap-4 rounded-[24px] border border-orange-200/60 bg-orange-50/80 px-6 py-5 shadow-sm dark:border-orange-500/20 dark:bg-orange-900/10">
-                            <View className="h-[48px] w-[48px] items-center justify-center rounded-[16px] bg-orange-100/80 dark:bg-orange-500/20">
-                              <Clock
-                                color={isDark ? '#FB923C' : '#EA580C'}
-                                size={24}
-                                strokeWidth={2.5}
+                    {hasValidSla && (
+                      <View
+                        className="mb-6"
+                        style={{
+                          shadowColor: isSlaOverdueCard ? '#DC2626' : '#EA580C',
+                          shadowOffset: { width: 0, height: 10 },
+                          shadowOpacity: 0.35,
+                          shadowRadius: 20,
+                          elevation: 10,
+                        }}>
+                        <View
+                          className={`relative overflow-hidden rounded-[24px] border-[1.5px] ${
+                            isSlaOverdueCard
+                              ? 'border-red-400/50'
+                              : 'border-orange-200/60 dark:border-orange-500/20'
+                          }`}>
+                          {/* Background */}
+                          {isSlaOverdueCard ? (
+                            <>
+                              <LinearGradient
+                                colors={['#EF4444', '#B91C1C']}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 1 }}
+                                style={StyleSheet.absoluteFill}
                               />
+
+                              <LinearGradient
+                                colors={['rgba(255,255,255,0.25)', 'transparent']}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 0, y: 1 }}
+                                style={{
+                                  position: 'absolute',
+                                  top: 0,
+                                  left: 0,
+                                  right: 0,
+                                  height: 50,
+                                }}
+                              />
+                            </>
+                          ) : (
+                            <View className="absolute inset-0 bg-orange-50/80 dark:bg-orange-900/10" />
+                          )}
+
+                          {/* Content */}
+                          <View className="flex-row items-center gap-4 px-5 py-5">
+                            <View
+                              className={`h-[50px] w-[50px] items-center justify-center rounded-[16px] ${
+                                isSlaOverdueCard
+                                  ? 'bg-red-950/30'
+                                  : 'bg-orange-100/80 dark:bg-orange-500/20'
+                              }`}>
+                              {isSlaOverdueCard && (
+                                <View className="absolute inset-0 rounded-[16px] border-[1.5px] border-white/20" />
+                              )}
+
+                              {isSlaOverdueCard ? (
+                                <AlertTriangle color="#FFFFFF" size={24} strokeWidth={2.5} />
+                              ) : (
+                                <Clock
+                                  color={isDark ? '#FB923C' : '#EA580C'}
+                                  size={24}
+                                  strokeWidth={2.5}
+                                />
+                              )}
                             </View>
-                            <View className="flex-1 justify-center">
-                              <Text className="text-[10px] font-black uppercase tracking-[0.2em] text-orange-600 dark:text-orange-500">
-                                ACTIVE SLA DEADLINE
+
+                            <View className="flex-1 justify-center pr-2">
+                              <Text
+                                className={`text-[11px] font-black uppercase tracking-[0.15em] ${
+                                  isSlaOverdueCard
+                                    ? 'text-red-100'
+                                    : 'text-orange-600 dark:text-orange-500'
+                                }`}>
+                                {isSlaOverdueCard ? 'SLA Protocol Breached' : 'ACTIVE SLA DEADLINE'}
                               </Text>
-                              <Text className="mt-0.5 text-[15px] font-black leading-tight text-orange-800 dark:text-orange-300">
-                                Due: {formatTimestamp(mappedIssue.slaDeadline)}
+
+                              <Text
+                                className={`text-[16px] font-black leading-tight tracking-tight ${
+                                  isSlaOverdueCard
+                                    ? 'text-white'
+                                    : 'text-orange-800 dark:text-orange-300'
+                                }`}
+                                numberOfLines={1}
+                                adjustsFontSizeToFit>
+                                {isSlaOverdueCard
+                                  ? `Missed: ${formatTimestamp(mappedIssue?.slaDeadline)}`
+                                  : `Due: ${formatTimestamp(mappedIssue?.slaDeadline)}`}
                               </Text>
                             </View>
                           </View>
-                        );
-                      })()}
+                        </View>
+                      </View>
+                    )}
 
                     {/* Assigned Officer card (Preserved) */}
                     {mappedIssue.assignedOfficer && (
@@ -3064,8 +3188,8 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
                 fieldOfficers={assignedFO.filter(
                   (officer) => officer?._id !== assignedOfficerData?._id
                 )}
-                // onReassign={handleSLAReassign}
-                // onReject={handleSLAReject}
+                onReassign={handleSLAReassign}
+                onReject={handleSLAReject}
                 onExtend={handleSLAExtend}
                 // onEscalate={handleSLAEscalate}
               />

@@ -10,7 +10,7 @@ import {
   Alert,
 } from 'react-native';
 import { X, RotateCcw } from 'lucide-react-native';
-import { ReworkReason } from '../lib/types';
+import { ReworkReason } from 'lib/types';
 import ReasonDropdown from './ui/ReasonDropdown';
 import ActionButton from './ui/ActionButton';
 

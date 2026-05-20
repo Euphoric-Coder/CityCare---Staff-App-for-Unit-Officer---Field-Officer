@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Modal, StyleSheet, ScrollView } from 'react-native';
 import { ChevronDown, Filter, Check } from 'lucide-react-native';
-import { IssueStatus } from '../lib/types';
+import { IssueStatus } from 'lib/types';
 
 interface FilterBarProps {
   selectedStatus: IssueStatus | 'All';

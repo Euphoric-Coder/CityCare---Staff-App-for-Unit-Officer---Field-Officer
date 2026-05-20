@@ -38,7 +38,7 @@ import {
   Flag,
   Notebook,
 } from 'lucide-react-native';
-import { Issue, RejectionReason } from '../lib/types';
+import { Issue, RejectionReason } from 'lib/types';
 
 interface RejectionModalProps {
   visible: boolean;

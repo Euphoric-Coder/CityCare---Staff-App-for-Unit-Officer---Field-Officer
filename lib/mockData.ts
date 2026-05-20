@@ -1432,7 +1432,7 @@ export const mockMessages: Message[] = [
   {
     id: 'msg-1',
     issueId: 'ISS-2024-003',
-    fromUserId: 'uo-1',
+    senderId: 'uo-1',
     fromUserName: 'Kumar Singh',
     fromRole: 'UnitOfficer',
     text: 'Please ensure all bins are cleared and area is cleaned properly.',
@@ -1442,7 +1442,7 @@ export const mockMessages: Message[] = [
   {
     id: 'msg-2',
     issueId: 'ISS-2024-003',
-    fromUserId: 'fo-4',
+    senderId: 'fo-4',
     fromUserName: 'Sunita Yadav',
     fromRole: 'FieldOfficer',
     text: 'Acknowledged. Will complete by evening today.',
@@ -1452,7 +1452,7 @@ export const mockMessages: Message[] = [
   {
     id: 'msg-3',
     issueId: 'ISS-2024-005',
-    fromUserId: 'fo-1',
+    senderId: 'fo-1',
     fromUserName: 'Rajesh Kumar',
     fromRole: 'FieldOfficer',
     text: 'Work completed. Please review the before and after photos.',
@@ -1596,7 +1596,7 @@ export const mockDirectMessages: DirectMessage[] = [
   {
     id: 'dm-1',
     conversationId: 'conv-1',
-    fromUserId: 'uo-varanasi-1',
+    senderId: 'uo-varanasi-1',
     fromUserName: 'Anand Tripathi',
     fromRole: 'UnitOfficer',
     text: 'Rajesh, the Sigra road repair has been pending for a while. Please ensure the before photos are geo-tagged properly before submission.',
@@ -1606,7 +1606,7 @@ export const mockDirectMessages: DirectMessage[] = [
   {
     id: 'dm-2',
     conversationId: 'conv-1',
-    fromUserId: 'fo-1',
+    senderId: 'fo-1',
     fromUserName: 'Rajesh Kumar',
     fromRole: 'FieldOfficer',
     text: 'Sir, understood. I have started the resurfacing today. Photos are being geotagged. Will submit by evening.',
@@ -1617,7 +1617,7 @@ export const mockDirectMessages: DirectMessage[] = [
   {
     id: 'dm-3',
     conversationId: 'conv-1',
-    fromUserId: 'uo-varanasi-1',
+    senderId: 'uo-varanasi-1',
     fromUserName: 'Anand Tripathi',
     fromRole: 'UnitOfficer',
     text: 'Good. Also make sure the road marking re-painting is done properly. Last time it faded within a week.',
@@ -1627,7 +1627,7 @@ export const mockDirectMessages: DirectMessage[] = [
   {
     id: 'dm-4',
     conversationId: 'conv-1',
-    fromUserId: 'fo-1',
+    senderId: 'fo-1',
     fromUserName: 'Rajesh Kumar',
     fromRole: 'FieldOfficer',
     text: 'Sir, work completed. Uploaded all resolution photos and location data. Please review when you get a chance. Used premium bitumen VG-30 this time.',
@@ -1639,7 +1639,7 @@ export const mockDirectMessages: DirectMessage[] = [
   {
     id: 'dm-5',
     conversationId: 'conv-2',
-    fromUserId: 'fo-3',
+    senderId: 'fo-3',
     fromUserName: 'Amit Verma',
     fromRole: 'FieldOfficer',
     text: 'Sir, regarding ISS-2024-006 — I replaced the joint and sealed it as per standard procedure. The initial seepage was due to pressure spike at night. I will do a pressure test tomorrow morning.',
@@ -1650,7 +1650,7 @@ export const mockDirectMessages: DirectMessage[] = [
   {
     id: 'dm-6',
     conversationId: 'conv-2',
-    fromUserId: 'uo-varanasi-1',
+    senderId: 'uo-varanasi-1',
     fromUserName: 'Anand Tripathi',
     fromRole: 'UnitOfficer',
     text: 'Amit, the leak is still showing. I visited the site personally. The pipe material used is sub-standard. I am marking this as Rework Required. Please source proper ISI-certified pipes.',
@@ -1660,7 +1660,7 @@ export const mockDirectMessages: DirectMessage[] = [
   {
     id: 'dm-7',
     conversationId: 'conv-2',
-    fromUserId: 'fo-3',
+    senderId: 'fo-3',
     fromUserName: 'Amit Verma',
     fromRole: 'FieldOfficer',
     text: 'Understood, sir. I apologise for the oversight. Will arrange ISI-certified Class C pipes from the municipal store. Can you approve the material requisition form?',
@@ -1670,7 +1670,7 @@ export const mockDirectMessages: DirectMessage[] = [
   {
     id: 'dm-8',
     conversationId: 'conv-2',
-    fromUserId: 'uo-varanasi-1',
+    senderId: 'uo-varanasi-1',
     fromUserName: 'Anand Tripathi',
     fromRole: 'UnitOfficer',
     text: 'Approved. Please complete the rework within 48 hours. The SLA is already breached.',
@@ -1681,7 +1681,7 @@ export const mockDirectMessages: DirectMessage[] = [
   {
     id: 'dm-9',
     conversationId: 'conv-3',
-    fromUserId: 'fo-4',
+    senderId: 'fo-4',
     fromUserName: 'Sunita Yadav',
     fromRole: 'FieldOfficer',
     text: 'Sir, I have cleared all 4 bins at Dashashwamedh Ghat. Area sanitised. But I noticed the bins themselves are broken — lids missing on 2 of them. Should I raise a separate request?',
@@ -1692,7 +1692,7 @@ export const mockDirectMessages: DirectMessage[] = [
   {
     id: 'dm-10',
     conversationId: 'conv-3',
-    fromUserId: 'uo-varanasi-1',
+    senderId: 'uo-varanasi-1',
     fromUserName: 'Anand Tripathi',
     fromRole: 'UnitOfficer',
     text: 'Good work Sunita. Yes, please raise a separate issue for the bin replacements. Tag it under Waste Management category.',
@@ -1702,7 +1702,7 @@ export const mockDirectMessages: DirectMessage[] = [
   {
     id: 'dm-11',
     conversationId: 'conv-3',
-    fromUserId: 'fo-4',
+    senderId: 'fo-4',
     fromUserName: 'Sunita Yadav',
     fromRole: 'FieldOfficer',
     text: 'Done, sir. New issue raised. Also the Pandeypur illegal dumping site (ISS-2024-016) — the debris quantity is more than estimated. May need a second vehicle tomorrow.',
@@ -1714,7 +1714,7 @@ export const mockDirectMessages: DirectMessage[] = [
   {
     id: 'dm-12',
     conversationId: 'conv-4',
-    fromUserId: 'admin-1',
+    senderId: 'admin-1',
     fromUserName: 'D.K. Sharma',
     fromRole: 'Admin',
     text: 'Anand, I have reviewed the SLA overdue report. ISS-2024-012 (Kabir Chaura footpath) and ISS-2024-013 (Orderly Bazar sewage) need immediate attention. Please escalate if not resolved by this week.',
@@ -1724,7 +1724,7 @@ export const mockDirectMessages: DirectMessage[] = [
   {
     id: 'dm-13',
     conversationId: 'conv-4',
-    fromUserId: 'uo-varanasi-1',
+    senderId: 'uo-varanasi-1',
     fromUserName: 'Anand Tripathi',
     fromRole: 'UnitOfficer',
     text: 'Sir, noted. For ISS-2024-013 (sewage overflow), the desilting machine broke down last week. I have escalated for heavy equipment from the regional depot. Expecting delivery Thursday.',
@@ -1734,7 +1734,7 @@ export const mockDirectMessages: DirectMessage[] = [
   {
     id: 'dm-14',
     conversationId: 'conv-4',
-    fromUserId: 'admin-1',
+    senderId: 'admin-1',
     fromUserName: 'D.K. Sharma',
     fromRole: 'Admin',
     text: 'Understood. Keep me posted daily on both issues. Also the ISS-2024-008 traffic safety escalation — has police coordination been initiated?',
@@ -1745,7 +1745,7 @@ export const mockDirectMessages: DirectMessage[] = [
   {
     id: 'dm-15',
     conversationId: 'conv-5',
-    fromUserId: 'fo-2',
+    senderId: 'fo-2',
     fromUserName: 'Priya Singh',
     fromRole: 'FieldOfficer',
     text: 'Sir, the Nadesar street light repair is complete. Both lamps fully operational with new LED bulbs. After-photos uploaded. Please verify at your convenience.',
@@ -1756,7 +1756,7 @@ export const mockDirectMessages: DirectMessage[] = [
   {
     id: 'dm-16',
     conversationId: 'conv-5',
-    fromUserId: 'uo-varanasi-1',
+    senderId: 'uo-varanasi-1',
     fromUserName: 'Anand Tripathi',
     fromRole: 'UnitOfficer',
     text: 'Great work Priya. I will do the site verification tomorrow morning. If all looks good, I will close it immediately. Also — Bhelupur traffic issue, any update from the traffic department?',
@@ -1766,7 +1766,7 @@ export const mockDirectMessages: DirectMessage[] = [
   {
     id: 'dm-17',
     conversationId: 'conv-5',
-    fromUserId: 'fo-2',
+    senderId: 'fo-2',
     fromUserName: 'Priya Singh',
     fromRole: 'FieldOfficer',
     text: 'Sir, the ACP Bhelupur has verbally agreed but waiting for the written NOC. I expect to receive it by tomorrow. Will share immediately.',
@@ -1778,7 +1778,7 @@ export const mockDirectMessages: DirectMessage[] = [
   {
     id: 'dm-18',
     conversationId: 'conv-6',
-    fromUserId: 'fo-7',
+    senderId: 'fo-7',
     fromUserName: 'Deepak Gupta',
     fromRole: 'FieldOfficer',
     text: 'Sir, the Pahadia pipeline (ISS-2024-015) rework is underway. ISI-certified pipe section arrived. Excavation starts at 8am tomorrow.',
@@ -1789,7 +1789,7 @@ export const mockDirectMessages: DirectMessage[] = [
   {
     id: 'dm-19',
     conversationId: 'conv-6',
-    fromUserId: 'uo-varanasi-1',
+    senderId: 'uo-varanasi-1',
     fromUserName: 'Anand Tripathi',
     fromRole: 'UnitOfficer',
     text: 'Good, Deepak. Ensure the welding joint is done by a certified plumber this time. I will be on site for inspection at 11am.',

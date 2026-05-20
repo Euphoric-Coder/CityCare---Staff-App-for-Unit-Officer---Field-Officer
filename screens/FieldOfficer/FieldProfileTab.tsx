@@ -32,7 +32,7 @@ import {
   Target,
   Calendar,
 } from 'lucide-react-native';
-import { removeToken } from '../lib/auth';
+import { removeToken } from 'lib/auth';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 

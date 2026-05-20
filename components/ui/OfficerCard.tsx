@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
-import { FieldOfficer, IssueCategory } from '../../lib/types';
+import { FieldOfficer, IssueCategory } from '../lib/types';
 import { Star, CheckCircle2 } from 'lucide-react-native';
 
 interface OfficerCardProps {

@@ -42,7 +42,7 @@ import {
   Notebook,
   Sparkles,
 } from 'lucide-react-native';
-import { VerificationChecklist } from '../lib/types';
+import { VerificationChecklist } from 'lib/types';
 
 interface VerificationFlowProps {
   onVerify: (checklist: VerificationChecklist, slaDate: string, notes: string) => void;

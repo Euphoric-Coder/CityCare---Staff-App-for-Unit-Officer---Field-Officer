@@ -18,19 +18,18 @@ import {
   Globe,
 } from 'lucide-react-native';
 
-import SignInScreen from './components/SignInScreen';
-import UnitOfficerDashboard from 'screens/UnitOfficerDashboard';
-import IssueDetailScreen from 'screens/IssueDetailScreen';
-import AnalyticsTab from './screens/AnalyticsTab';
-import MessagesTab from './components/MessagesTab';
-import FieldDashboardScreen from './components/FieldDashboardScreen';
-import FieldIssueDetailScreen from 'screens/FieldIssueDetailScreen';
-import FieldProfileTab from 'screens/FieldProfileTab';
-import { getToken, getUserData, User, removeToken } from './lib/auth';
+import SignInScreen from 'components/SignInScreen';
+import UnitOfficerDashboard from 'screens/UnitOfficer/UnitOfficerDashboard';
+import IssueDetailScreen from 'screens/UnitOfficer/IssueDetailScreen';
+import AnalyticsTab from 'screens/UnitOfficer/AnalyticsTab';
+import MessagesTab from 'components/MessagesTab';
+import FieldDashboardScreen from 'screens/FieldOfficer/FieldDashboardScreen';
+import FieldIssueDetailScreen from 'screens/FieldOfficer/FieldIssueDetailScreen';
+import FieldProfileTab from 'screens/FieldOfficer/FieldProfileTab';
+import { getToken, getUserData, User, removeToken } from 'lib/auth';
 import './global.css';
-import ProfileTab from 'screens/ProfileTab';
+import ProfileTab from 'screens/UnitOfficer/ProfileTab';
 import ChangePasswordScreen from 'screens/ChangePasswordScreen';
-import { getUnitOfficerByUserId } from 'lib/convexClient';
 import { ConvexProvider, ConvexReactClient } from 'convex/react';
 import { UserContext } from 'context/UserContext';
 

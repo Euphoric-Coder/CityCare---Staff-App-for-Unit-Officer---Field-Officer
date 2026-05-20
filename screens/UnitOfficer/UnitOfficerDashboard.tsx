@@ -80,13 +80,13 @@ import {
   SLAKey,
   SLAMeta,
   MappedIssue,
-} from '../lib/types';
-import { mockDashboardStats as mockStats, mockDuplicateGroups } from '../lib/mockData';
+} from 'lib/types';
+import { mockDashboardStats as mockStats, mockDuplicateGroups } from 'lib/mockData';
 import { useNavigation } from '@react-navigation/native';
-import DuplicateDetectionBanner from '../components/DuplicateDetectionBanner';
-import { DuplicateGroup } from '../lib/types';
+import DuplicateDetectionBanner from 'components/UnitOfficer/DuplicateDetectionBanner';
+import { DuplicateGroup } from 'lib/types';
 import NotificationPanel from 'components/NotificationPanel';
-import { User } from '../lib/auth';
+import { User } from 'lib/auth';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from 'convex/_generated/api';
 import { mapIssueToUI } from 'lib/issueMapper';

@@ -28,7 +28,7 @@ import {
   ChevronRight,
   CircleX as XCircle,
 } from 'lucide-react-native';
-import { DuplicateGroup, Issue } from '../lib/types';
+import { DuplicateGroup, Issue } from 'lib/types';
 
 interface DuplicateMergeModalProps {
   group: DuplicateGroup;

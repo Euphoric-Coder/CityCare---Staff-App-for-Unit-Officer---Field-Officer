@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Search, MessageSquare, Send } from 'lucide-react-native';
-import { mockConversations, mockMessages } from '../lib/mockData';
+import { mockConversations, mockMessages } from 'lib/mockData';
 import StatusBadge from './ui/StatusBadge';
 
 export default function MessagesTab() {

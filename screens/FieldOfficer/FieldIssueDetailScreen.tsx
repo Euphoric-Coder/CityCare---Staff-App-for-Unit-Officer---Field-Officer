@@ -67,10 +67,10 @@ import {
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { WebView } from 'react-native-webview';
-import { Issue, IssueStatus, UpdateScope } from '../lib/types';
+import { Issue, IssueStatus, UpdateScope } from 'lib/types';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import { mockCitizenMessages } from '../lib/mockData';
-import WorkExecutionFlow from 'components/WorkExecutionFlow';
+import { mockCitizenMessages } from 'lib/mockData';
+import WorkExecutionFlow from 'components/FieldOfficer/WorkExecutionFlow';
 import CitizenMessagingInterface from 'components/CitizenMessagingInterface';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from 'convex/_generated/api';
@@ -381,7 +381,8 @@ export default function FieldIssueDetailScreen() {
     () => (issue ? mockCitizenMessages.filter((m) => m.issueId === issue.id) : []),
     [issue]
   );
-  const unreadMsgCount = issueMessages.filter((m) => !m.read && m.fromRole === 'Citizen').length;
+  // const unreadMsgCount = issueMessages.filter((m) => !m.read && m.fromRole === 'Citizen').length;
+  const unreadMsgCount = 100;
 
   const handleBack = () => navigation.goBack();
 
@@ -829,10 +830,10 @@ export default function FieldIssueDetailScreen() {
         </Text>
         <TouchableOpacity
           onPress={() => setShowMessaging(true)}
-          className="h-10 w-10 items-center justify-center rounded-2xl bg-teal-50 dark:bg-teal-900/30"
+          className="h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 dark:bg-slate-800"
           activeOpacity={0.7}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <MessageCircle color="#0EA5A4" size={20} strokeWidth={2.5} />
+          <MessageCircle color="#64748B" size={20} strokeWidth={2.5} />
           {unreadMsgCount > 0 && (
             <View
               style={{
@@ -847,7 +848,7 @@ export default function FieldIssueDetailScreen() {
                 justifyContent: 'center',
                 paddingHorizontal: 3,
                 borderWidth: 1.5,
-                borderColor: '#F0FDFA',
+                borderColor: isDark ? '#1E293B' : '#F1F5F9',
               }}>
               <Text style={{ color: '#FFFFFF', fontSize: 9, fontWeight: '800', lineHeight: 12 }}>
                 {unreadMsgCount > 9 ? '9+' : unreadMsgCount}

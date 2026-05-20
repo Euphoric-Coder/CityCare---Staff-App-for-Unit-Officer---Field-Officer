@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { MapPin, User, Calendar, UserCheck } from 'lucide-react-native';
-import { Issue } from '../lib/types';
+import { Issue } from 'lib/types';
 import StatusBadge, { PriorityBadge } from './StatusBadge';
 
 interface IssueCardProps {

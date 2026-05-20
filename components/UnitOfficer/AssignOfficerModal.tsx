@@ -35,7 +35,7 @@ import {
   ChartBar as BarChart2,
   RefreshCw,
 } from 'lucide-react-native';
-import { FieldOfficer } from '../lib/types';
+import { FieldOfficer } from 'lib/types';
 
 interface AssignOfficerModalProps {
   visible: boolean;

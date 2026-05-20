@@ -19,7 +19,7 @@ import {
   AlertCircle,
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Issue } from '../lib/types';
+import { Issue } from 'lib/types';
 
 interface FieldIssueCardProps {
   issue: Issue;

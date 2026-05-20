@@ -10,9 +10,15 @@ import {
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
+  useColorScheme,
+  Alert,
+  Linking,
+  Keyboard,
+  PanResponder,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import {
   X,
   Send,
@@ -23,20 +29,26 @@ import {
   Check,
   Tag,
   Clock,
+  Sparkles,
+  Info,
 } from 'lucide-react-native';
-import { CitizenMessage, Issue } from '../lib/types';
+import { CitizenMessage, Issue } from 'lib/types';
+import { useUser } from 'context/UserContext';
+import { useMutation, useQuery } from 'convex/react';
+import { Id } from 'convex/_generated/dataModel';
+import { api } from 'convex/_generated/api';
 
 const FO_ID = 'fo-1';
 const FO_NAME = 'Rajesh Kumar';
 const FO_AVATAR = 'https://i.pravatar.cc/150?img=12';
 
-function formatTime(timestamp: string): string {
-  const date = new Date(timestamp);
+function formatTime(createdAt: string): string {
+  const date = new Date(createdAt);
   return date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
 }
 
-function formatDateDivider(timestamp: string): string {
-  const date = new Date(timestamp);
+function formatDateDivider(createdAt: string): string {
+  const date = new Date(createdAt);
   const today = new Date();
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
@@ -48,8 +60,8 @@ function formatDateDivider(timestamp: string): string {
 
 function shouldShowDateDivider(messages: CitizenMessage[], index: number): boolean {
   if (index === 0) return true;
-  const curr = new Date(messages[index].timestamp).toDateString();
-  const prev = new Date(messages[index - 1].timestamp).toDateString();
+  const curr = new Date(messages[index].createdAt).toDateString();
+  const prev = new Date(messages[index - 1].createdAt).toDateString();
   return curr !== prev;
 }
 
@@ -57,70 +69,67 @@ interface MessageBubbleProps {
   message: CitizenMessage;
   isOwn: boolean;
   showAvatar: boolean;
+  isDark: boolean;
 }
 
-function MessageBubble({ message, isOwn, showAvatar }: MessageBubbleProps) {
+function MessageBubble({ message, isOwn, showAvatar, isDark }: MessageBubbleProps) {
   return (
-    <View className={`mb-1.5 flex-row items-end gap-2 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
-      {!isOwn && (
-        <View className="mb-0.5 h-8 w-8 flex-shrink-0 overflow-hidden rounded-full">
-          {showAvatar ? (
-            message.fromAvatar ? (
-              <Image source={{ uri: message.fromAvatar }} style={{ width: 32, height: 32 }} />
-            ) : (
-              <View className="h-8 w-8 items-center justify-center rounded-full bg-slate-300 dark:bg-slate-600">
-                <User size={16} color="#94A3B8" strokeWidth={2} />
-              </View>
-            )
-          ) : (
-            <View className="h-8 w-8" />
-          )}
-        </View>
-      )}
-
-      <View className={`max-w-[75%] ${isOwn ? 'items-end' : 'items-start'}`}>
+    <View className={`mb-3 flex-row items-end gap-2.5 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
+      <View className={`max-w-[78%] ${isOwn ? 'items-end' : 'items-start'}`}>
         {showAvatar && !isOwn && (
-          <Text className="mb-1 ml-1 text-[11px] font-bold text-slate-400 dark:text-slate-500">
-            {message.fromName}
-          </Text>
+          <View className="mb-1.5 ml-1 flex-row items-center gap-1.5">
+            <Text className="text-[12px] font-extrabold text-slate-600 dark:text-slate-400">
+              {message.fromName}
+            </Text>
+            <Text className="text-[10px] font-bold text-teal-600 dark:text-teal-400">
+              • Citizen
+            </Text>
+          </View>
         )}
 
-        <View
-          className={`rounded-2xl px-4 py-2.5 ${
-            isOwn
-              ? 'rounded-br-sm'
-              : 'rounded-bl-sm border border-slate-100 bg-white dark:border-slate-700 dark:bg-slate-800'
-          }`}
-          style={isOwn ? styles.ownBubble : undefined}>
-          <Text
-            className={`text-[14px] leading-[20px] ${
-              isOwn ? 'text-white' : 'text-slate-800 dark:text-slate-100'
-            }`}>
-            {message.text}
-          </Text>
-
-          <View
-            className={`mt-1 flex-row items-center gap-1 ${isOwn ? 'justify-end' : 'justify-start'}`}>
-            <Text
-              className={`text-[10px] ${isOwn ? 'text-teal-100' : 'text-slate-400 dark:text-slate-500'}`}>
-              {formatTime(message.timestamp)}
+        {isOwn ? (
+          <LinearGradient
+            colors={['#0D9488', '#0F766E']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.ownBubble}
+            className="border border-teal-500/30">
+            <Text className="text-[15px] font-medium leading-[22px] text-white">
+              {message.text}
             </Text>
-            {isOwn &&
-              (message.read ? (
-                <CheckCheck size={12} color="rgba(255,255,255,0.8)" strokeWidth={2.5} />
+            <View className="mt-1.5 flex-row items-center justify-end gap-1.5">
+              <Text className="text-[10px] font-bold text-teal-100/80">
+                {formatTime(message.createdAt)}
+              </Text>
+              {message.read ? (
+                <CheckCheck size={14} color="#5EEAD4" strokeWidth={2.5} />
               ) : (
-                <Check size={12} color="rgba(255,255,255,0.6)" strokeWidth={2.5} />
-              ))}
+                <CheckCheck size={14} color="rgba(255,255,255,0.6)" strokeWidth={2.5} />
+              )}
+            </View>
+          </LinearGradient>
+        ) : (
+          <View
+            style={styles.citizenBubble}
+            className="border border-slate-200/80 bg-white shadow-sm dark:border-slate-700/80 dark:bg-slate-800/90">
+            <Text className="text-[15px] font-medium leading-[22px] text-slate-800 dark:text-slate-100">
+              {message.text}
+            </Text>
+            <View className="mt-1.5 flex-row items-center justify-start gap-1.5">
+              <Text className="text-[10px] font-bold text-slate-400 dark:text-slate-500">
+                {formatTime(message.createdAt)}
+              </Text>
+            </View>
           </View>
-        </View>
+        )}
       </View>
 
       {isOwn && (
-        <View className="mb-0.5 h-8 w-8 flex-shrink-0 overflow-hidden rounded-full">
+        <View className="mb-1 h-9 w-9 flex-shrink-0 overflow-hidden rounded-full border border-teal-200 shadow-sm dark:border-teal-800">
           {showAvatar ? (
-            <Image source={{ uri: FO_AVATAR }} style={{ width: 32, height: 32 }} />
+            <Image source={{ uri: FO_AVATAR }} style={{ width: 36, height: 36 }} />
           ) : (
-            <View className="h-8 w-8" />
+            <View className="h-9 w-9" />
           )}
         </View>
       )}
@@ -131,52 +140,113 @@ function MessageBubble({ message, isOwn, showAvatar }: MessageBubbleProps) {
 interface CitizenMessagingInterfaceProps {
   visible: boolean;
   onClose: () => void;
-  issue: Issue;
-  initialMessages: CitizenMessage[];
+  issue: any;
+  initialMessages?: CitizenMessage[];
+  officer?: 'UnitOfficer' | 'FieldOfficer';
 }
 
 export default function CitizenMessagingInterface({
   visible,
   onClose,
   issue,
-  initialMessages,
 }: CitizenMessagingInterfaceProps) {
-  const [messages, setMessages] = useState<CitizenMessage[]>(
-    initialMessages.map((m) => ({ ...m, read: true }))
-  );
   const [inputText, setInputText] = useState('');
   const scrollRef = useRef<ScrollView>(null);
 
+  const user = useUser();
+  const currentUserId = user?.id as Id<'users'> | undefined;
+
+  const chatPartnerId = issue.reportedBy as Id<'users'> | undefined;
+
+  const rawMessages = useQuery(
+    api.messages.getOfficerIssueMessages,
+    currentUserId && chatPartnerId && issue.id
+      ? {
+          issueId: issue.id as Id<'issues'>,
+          currentUserId: currentUserId,
+          citizenId: chatPartnerId,
+        }
+      : 'skip'
+  );
+
+  const sendMessageMutation = useMutation(api.messages.sendMessage);
+  const markAsReadMutation = useMutation(api.messages.markMessagesAsRead);
+
+  const messages: CitizenMessage[] = React.useMemo(() => {
+    if (!rawMessages) return [];
+    return rawMessages.map((msg: any) => ({
+      id: msg._id,
+      issueId: msg.issueId,
+      senderId: msg.senderId,
+      fromName: msg.sender?.fullName || 'Unknown',
+      fromRole: msg.sender?.role,
+      text: msg.message,
+      createdAt: new Date(msg.createdAt).toISOString(),
+      read: msg.isRead,
+    }));
+  }, [rawMessages]);
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onStartShouldSetPanResponderCapture: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponderCapture: () => true,
+      onPanResponderRelease: (_, gestureState) => {
+        if (gestureState.dy > 50) {
+          onClose();
+        }
+      },
+      onPanResponderTerminate: (_, gestureState) => {
+        if (gestureState.dy > 50) {
+          onClose();
+        }
+      },
+    })
+  ).current;
+  const insets = useSafeAreaInsets();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+
   useEffect(() => {
-    if (visible) {
-      setMessages(initialMessages.map((m) => ({ ...m, read: true })));
+    if (visible && currentUserId && chatPartnerId && issue.id) {
+      const hasUnread = messages.some((m) => !m.read && m.senderId === chatPartnerId);
+      if (hasUnread) {
+        markAsReadMutation({
+          issueId: issue.id as Id<'issues'>,
+          currentUserId: currentUserId,
+          senderId: chatPartnerId,
+        }).catch(console.error);
+      }
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: false }), 100);
     }
-  }, [visible, initialMessages]);
+  }, [visible, currentUserId, chatPartnerId, issue.id, messages]);
 
   const citizenName =
-    initialMessages.find((m) => m.fromRole === 'Citizen')?.fromName ?? issue.citizenName;
-  const citizenAvatar = initialMessages.find((m) => m.fromRole === 'Citizen')?.fromAvatar;
+    messages.find((m) => m.fromRole === 'citizen' || m.fromRole === 'Citizen')?.fromName ??
+    issue.citizenName ??
+    'Citizen';
+  const citizenAvatar = null;
 
-  const handleSend = () => {
+  const handleSend = async () => {
     const text = inputText.trim();
-    if (!text) return;
+    if (!text || !currentUserId || !chatPartnerId || !issue.id) return;
 
-    const newMsg: CitizenMessage = {
-      id: `cm-new-${Date.now()}`,
-      issueId: issue.id,
-      fromId: FO_ID,
-      fromName: FO_NAME,
-      fromRole: 'FieldOfficer',
-      fromAvatar: FO_AVATAR,
-      text,
-      timestamp: new Date().toISOString(),
-      read: false,
-    };
-
-    setMessages((prev) => [...prev, newMsg]);
     setInputText('');
-    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 80);
+    Keyboard.dismiss();
+
+    try {
+      await sendMessageMutation({
+        issueId: issue.id as Id<'issues'>,
+        senderId: currentUserId,
+        recipientId: chatPartnerId,
+        message: text,
+      });
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 80);
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      Alert.alert('Error', 'Failed to send message. Please try again.');
+    }
   };
 
   const STATUS_COLOR: Record<string, string> = {
@@ -189,217 +259,373 @@ export default function CitizenMessagingInterface({
   const statusColor = STATUS_COLOR[issue.status] ?? '#64748B';
 
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={onClose}>
-      <SafeAreaView className="flex-1 bg-slate-50 dark:bg-slate-950" edges={['top', 'bottom']}>
-        <View className="flex-1">
-          {/* ── Header ── */}
-          <LinearGradient
-            colors={['#0D9488', '#0891B2']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.headerGrad}>
-            <TouchableOpacity
-              onPress={onClose}
-              activeOpacity={0.7}
-              className="h-9 w-9 items-center justify-center rounded-full bg-white/20">
-              <X size={18} color="#FFFFFF" strokeWidth={2.5} />
-            </TouchableOpacity>
+    <Modal visible={visible} transparent={true} animationType="slide" onRequestClose={onClose}>
+      <View style={styles.modalOverlay}>
+        <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
 
-            <View className="mx-3 flex-1 flex-row items-center gap-3">
-              <View className="relative">
-                {citizenAvatar ? (
-                  <Image source={{ uri: citizenAvatar }} style={styles.headerAvatar} />
-                ) : (
-                  <View
-                    style={styles.headerAvatar}
-                    className="items-center justify-center bg-white/20">
-                    <User size={20} color="#FFFFFF" strokeWidth={2} />
-                  </View>
-                )}
-                <View className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-teal-700 bg-green-400" />
-              </View>
-
-              <View className="flex-1">
-                <Text
-                  className="text-[16px] font-extrabold tracking-tight text-white"
-                  numberOfLines={1}>
-                  {citizenName}
-                </Text>
-                <View className="flex-row items-center gap-1.5">
-                  <View className="h-1.5 w-1.5 rounded-full bg-green-400" />
-                  <Text className="text-[11px] font-medium text-white/80">Citizen</Text>
-                  <Text className="mx-1 text-[10px] text-white/50">•</Text>
-                  <Tag size={9} color="rgba(255,255,255,0.6)" strokeWidth={2.5} />
-                  <Text className="text-[11px] font-medium text-white/70" numberOfLines={1}>
-                    {issue.title}
-                  </Text>
-                </View>
-              </View>
-            </View>
-
-            <TouchableOpacity
-              activeOpacity={0.7}
-              className="h-9 w-9 items-center justify-center rounded-full bg-white/20">
-              <Phone size={16} color="#FFFFFF" strokeWidth={2.5} />
-            </TouchableOpacity>
-          </LinearGradient>
-
-          {/* ── Issue Context Strip ── */}
-          <View className="flex-row items-center gap-3 border-b border-slate-100 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
-            <View
-              className="rounded-lg px-2.5 py-1"
-              style={{ backgroundColor: statusColor + '18' }}>
-              <Text
-                className="text-[10px] font-extrabold tracking-wide"
-                style={{ color: statusColor }}>
-                {issue.status.toUpperCase()}
-              </Text>
-            </View>
-            <Text
-              className="flex-1 text-[12px] font-semibold text-slate-500 dark:text-slate-400"
-              numberOfLines={1}>
-              #{issue.id.slice(0, 10)} — {issue.category}
-            </Text>
-            <View className="flex-row items-center gap-1">
-              <Clock size={11} color="#94A3B8" strokeWidth={2} />
-              <Text className="text-[10px] font-medium text-slate-400 dark:text-slate-500">
-                {messages.length} messages
-              </Text>
-            </View>
+        <View
+          style={[
+            styles.panelContainer,
+            { marginTop: insets.top + (Platform.OS === 'ios' ? 20 : 60) },
+            isDark ? styles.panelDark : styles.panelLight,
+          ]}>
+          {/* ── Breathtaking Mesh Gradient Background ── */}
+          <View style={StyleSheet.absoluteFill} className="overflow-hidden">
+            <View className="absolute -left-20 -top-20 h-[300px] w-[300px] rounded-full bg-teal-400/20 dark:bg-teal-600/20" />
+            <View className="absolute -bottom-32 -right-20 h-[400px] w-[400px] rounded-full bg-blue-400/20 dark:bg-blue-800/20" />
+            <View className="absolute right-10 top-1/3 h-[250px] w-[250px] rounded-full bg-emerald-400/15 dark:bg-emerald-600/15" />
+            <BlurView
+              intensity={120}
+              tint={isDark ? 'dark' : 'light'}
+              style={StyleSheet.absoluteFill}
+            />
           </View>
 
-          {/* ── Messages ── */}
-          <ScrollView
-            ref={scrollRef}
-            className="flex-1 bg-slate-50 dark:bg-slate-950"
-            contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={false}
-            onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: false })}>
-            {messages.map((msg, index) => {
-              const isOwn = msg.fromId === FO_ID;
-              const nextMsg = messages[index + 1];
-              const showAvatar = !nextMsg || nextMsg.fromId !== msg.fromId;
-              const showDivider = shouldShowDateDivider(messages, index);
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={{ flex: 1 }}>
+            <View className="flex-1">
+              {/* ── Breathtaking Header ── */}
+              <View>
+                <LinearGradient
+                  colors={
+                    isDark
+                      ? ['#115E59', '#0D9488', 'transparent']
+                      : ['#0D9488', '#0F766E', 'transparent']
+                  }
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 0, y: 1 }}
+                  style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 32 }}>
+                  {/* Modal Drag Handle */}
+                  <View
+                    {...panResponder.panHandlers}
+                    className="-mt-4 mb-2 w-full items-center py-4">
+                    <View className="h-1.5 w-12 rounded-full bg-white/40" />
+                  </View>
 
-              return (
-                <View key={msg.id}>
-                  {showDivider && (
-                    <View className="my-4 items-center">
-                      <View className="rounded-full bg-slate-200 px-3 py-1 dark:bg-slate-800">
-                        <Text className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-                          {formatDateDivider(msg.timestamp)}
+                  <View className="w-full flex-row items-center justify-between">
+                    <View className="flex-1 flex-row items-center gap-3.5 pr-2">
+                      <TouchableOpacity
+                        onPress={onClose}
+                        activeOpacity={0.7}
+                        className="h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-white/20 shadow-sm">
+                        <X size={20} color="#FFFFFF" strokeWidth={2.5} />
+                      </TouchableOpacity>
+
+                      <View className="relative">
+                        {citizenAvatar ? (
+                          <Image source={{ uri: citizenAvatar }} style={styles.headerAvatar} />
+                        ) : (
+                          <View
+                            style={styles.headerAvatar}
+                            className="items-center justify-center border border-white/30 bg-white/25 shadow-sm">
+                            <User size={22} color="#FFFFFF" strokeWidth={2.5} />
+                          </View>
+                        )}
+                        {/* Pulsating / Glowing Online Badge */}
+                        <View className="shadow-xs absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full border-2 border-teal-800 bg-emerald-400" />
+                      </View>
+
+                      <View className="flex-1 justify-center">
+                        <View className="flex-row items-center gap-1.5">
+                          <Text
+                            className="text-[17px] font-black tracking-tight text-white"
+                            numberOfLines={1}>
+                            {citizenName}
+                          </Text>
+                          <View className="rounded-full border border-white/20 bg-white/20 px-2 py-0.5">
+                            <Text className="text-[9px] font-extrabold uppercase tracking-wider text-white">
+                              Citizen
+                            </Text>
+                          </View>
+                        </View>
+
+                        <View className="mt-0.5 flex-row items-center gap-1.5">
+                          <View className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
+                          <Text className="text-[11px] font-bold tracking-wide text-teal-100">
+                            Active Now
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+
+                    <View className="flex-row items-center gap-2">
+                      <TouchableOpacity
+                        onPress={() => {
+                          if (issue.citizenPhone) {
+                            Linking.openURL(`tel:${issue.citizenPhone}`);
+                          } else {
+                            Alert.alert('Unavailable', 'Citizen phone number is not available.');
+                          }
+                        }}
+                        activeOpacity={0.7}
+                        className="h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-white/20 shadow-sm">
+                        <Phone size={18} color="#FFFFFF" strokeWidth={2.5} />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => {
+                          Alert.alert(
+                            'Issue Intelligence Details',
+                            `Title: ${issue.title}\n\nCategory: ${issue.category}\nStatus: ${issue.status.toUpperCase()}\nCitizen: ${issue.citizenName} (${issue.citizenPhone})\nLocation: ${issue.location ?? issue.address ?? 'N/A'}\n\nDescription:\n${issue.description ?? 'No description provided.'}`
+                          );
+                        }}
+                        activeOpacity={0.7}
+                        className="h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-white/20 shadow-sm">
+                        <Info size={18} color="#FFFFFF" strokeWidth={2.5} />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </LinearGradient>
+              </View>
+
+              {/* ── Floating Intelligence Pod ── */}
+              <View className="-mt-6 mb-2 px-4">
+                <BlurView
+                  intensity={80}
+                  tint={isDark ? 'dark' : 'light'}
+                  className="gap-2.5 overflow-hidden rounded-2xl border border-white/40 bg-white/40 px-4 py-3.5 shadow-lg dark:border-white/10 dark:bg-black/40">
+                  {/* Top Row: Pills */}
+                  <View className="w-full flex-row items-center justify-between">
+                    <View className="flex-row items-center gap-2">
+                      <View
+                        className="rounded-xl border px-3 py-1"
+                        style={{
+                          backgroundColor: statusColor + '20',
+                          borderColor: statusColor + '50',
+                        }}>
+                        <Text
+                          className="text-[11px] font-black uppercase tracking-wider"
+                          style={{ color: statusColor }}>
+                          {issue.status.toUpperCase()}
+                        </Text>
+                      </View>
+
+                      <View className="rounded-xl border border-slate-200/50 bg-slate-100/50 px-2.5 py-1 dark:border-slate-700/50 dark:bg-slate-800/50">
+                        <Text className="text-[11px] font-bold text-slate-700 dark:text-slate-200">
+                          {issue.category}
                         </Text>
                       </View>
                     </View>
-                  )}
-                  <MessageBubble message={msg} isOwn={isOwn} showAvatar={showAvatar} />
-                </View>
-              );
-            })}
-          </ScrollView>
 
-          {/* ── Typing Quick Replies ── */}
-          <View className="border-t border-slate-100 bg-white px-4 py-2 dark:border-slate-800 dark:bg-slate-900">
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ gap: 8 }}>
-              {[
-                'We will be there shortly.',
-                'Work has started.',
-                'Issue has been resolved.',
-                'Please send a photo.',
-              ].map((reply) => (
-                <TouchableOpacity
-                  key={reply}
-                  onPress={() => setInputText(reply)}
-                  activeOpacity={0.7}
-                  className="rounded-full border border-teal-200 bg-teal-50 px-3 py-1.5 dark:border-teal-800/60 dark:bg-teal-900/20">
-                  <Text className="text-[12px] font-semibold text-teal-700 dark:text-teal-400">
-                    {reply}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
+                    <View className="flex-row items-center gap-1.5 rounded-full border border-slate-200/50 bg-slate-100/50 px-3 py-1 dark:border-slate-700/50 dark:bg-slate-800/50">
+                      <MessageCircle size={13} color="#0D9488" strokeWidth={2.5} />
+                      <Text className="text-[11px] font-extrabold text-slate-700 dark:text-slate-200">
+                        {messages.length} {messages.length === 1 ? 'Msg' : 'Msgs'}
+                      </Text>
+                    </View>
+                  </View>
 
-          {/* ── Input Bar ── */}
-          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-            <View className="flex-row items-end gap-3 border-t border-slate-100 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
-              <View className="min-h-[44px] flex-1 justify-center rounded-3xl bg-slate-100 px-4 py-2.5 dark:bg-slate-800">
-                <TextInput
-                  value={inputText}
-                  onChangeText={setInputText}
-                  placeholder="Message citizen..."
-                  placeholderTextColor="#94A3B8"
-                  multiline
-                  maxLength={500}
-                  className="text-[14px] leading-[20px] text-slate-900 dark:text-slate-100"
-                  style={{ maxHeight: 120 }}
-                />
+                  {/* Bottom Row: Text Stack */}
+                  <View className="gap-1 pl-0.5">
+                    <Text
+                      className="text-[15px] font-extrabold leading-[22px] text-slate-900 dark:text-white"
+                      numberOfLines={3}>
+                      {issue.title}
+                    </Text>
+                    <Text
+                      className="text-[12px] font-bold text-teal-700 dark:text-teal-400"
+                      numberOfLines={1}>
+                      #{issue.id.slice(0, 8).toUpperCase()}
+                    </Text>
+                    <Text
+                      className="text-[11px] font-medium text-slate-600 dark:text-slate-400"
+                      numberOfLines={2}>
+                      {issue.location ?? `${issue.address ?? ''} ${issue.city ?? ''}`}
+                    </Text>
+                  </View>
+                </BlurView>
               </View>
 
-              <TouchableOpacity
-                onPress={handleSend}
-                disabled={!inputText.trim()}
-                activeOpacity={0.8}
-                style={[styles.sendBtn, { opacity: inputText.trim() ? 1 : 0.4 }]}>
-                <LinearGradient
-                  colors={['#0D9488', '#0891B2']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.sendGrad}>
-                  <Send size={18} color="#FFFFFF" strokeWidth={2.5} />
-                </LinearGradient>
-              </TouchableOpacity>
+              {/* ── Messages ── */}
+              <ScrollView
+                ref={scrollRef}
+                className="flex-1 bg-transparent"
+                contentContainerStyle={styles.scrollContent}
+                showsVerticalScrollIndicator={false}
+                onLayout={() => scrollRef.current?.scrollToEnd({ animated: true })}
+                onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: false })}>
+                {messages.map((msg, index) => {
+                  const isOwn = msg.senderId === currentUserId;
+                  const nextMsg = messages[index + 1];
+                  const showAvatar = !nextMsg || nextMsg.senderId !== msg.senderId;
+                  const showDivider = shouldShowDateDivider(messages, index);
+
+                  return (
+                    <View key={msg.id}>
+                      {showDivider && (
+                        <View className="my-5 items-center">
+                          <View className="shadow-xs flex-row items-center gap-2 rounded-full border border-slate-200/80 bg-white/80 px-4 py-1.5 backdrop-blur-md dark:border-slate-800/80 dark:bg-slate-900/80">
+                            <Clock size={12} color="#0D9488" strokeWidth={2.5} />
+                            <Text className="text-[11px] font-extrabold uppercase tracking-[0.15em] text-slate-600 dark:text-slate-400">
+                              {formatDateDivider(msg.createdAt)}
+                            </Text>
+                          </View>
+                        </View>
+                      )}
+                      <MessageBubble
+                        message={msg}
+                        isOwn={isOwn}
+                        showAvatar={showAvatar}
+                        isDark={isDark}
+                      />
+                    </View>
+                  );
+                })}
+              </ScrollView>
+
+              {/* ── Floating AI Quick Replies & Input Container ── */}
+              <View
+                className="px-3"
+                style={{ paddingBottom: Math.max(insets.bottom, 12), paddingTop: 8 }}>
+                {/* Quick Replies */}
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ gap: 8, paddingHorizontal: 4, paddingBottom: 12 }}>
+                  {[
+                    'We will be there shortly to resolve this.',
+                    'Work has officially started on location.',
+                    'The issue has been successfully resolved.',
+                    'Could you please share a recent photo?',
+                    'Our team is inspecting the site right now.',
+                  ].map((reply) => (
+                    <TouchableOpacity
+                      key={reply}
+                      onPress={() => {
+                        setInputText(reply);
+                        setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+                      }}
+                      activeOpacity={0.7}
+                      className="flex-row items-center gap-1.5 rounded-full border border-teal-500/20 bg-white/70 px-3.5 py-2 shadow-sm dark:border-teal-400/20 dark:bg-black/50">
+                      <Sparkles size={12} color="#0D9488" strokeWidth={2.5} />
+                      <Text className="text-[12px] font-bold text-teal-900 dark:text-teal-200">
+                        {reply}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+
+                {/* Floating Glass Input Bar */}
+                <BlurView
+                  intensity={80}
+                  tint={isDark ? 'dark' : 'light'}
+                  className="flex-row items-end gap-2.5 overflow-hidden rounded-[32px] border border-white/50 bg-white/50 px-2.5 py-2.5 shadow-lg dark:border-white/10 dark:bg-black/50">
+                  <View className="min-h-[44px] flex-1 justify-center rounded-[24px] border border-white/40 bg-white/70 px-4 py-1 dark:border-white/5 dark:bg-black/40">
+                    <TextInput
+                      value={inputText}
+                      onChangeText={setInputText}
+                      onFocus={() => {
+                        setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 150);
+                      }}
+                      placeholder="Message citizen..."
+                      placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
+                      multiline
+                      scrollEnabled={true}
+                      maxLength={500}
+                      className="text-[15px] leading-[22px] text-slate-900 dark:text-slate-100"
+                      style={{
+                        maxHeight: 120,
+                        paddingTop: Platform.OS === 'ios' ? 10 : 8,
+                        paddingBottom: Platform.OS === 'ios' ? 10 : 8,
+                      }}
+                    />
+                  </View>
+
+                  <TouchableOpacity
+                    onPress={handleSend}
+                    disabled={!inputText.trim()}
+                    activeOpacity={0.8}
+                    style={[
+                      styles.sendBtn,
+                      { opacity: inputText.trim() ? 1 : 0.4, marginBottom: 0 },
+                    ]}>
+                    <LinearGradient
+                      colors={['#0D9488', '#0F766E']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.sendGrad}>
+                      <Send size={18} color="#FFFFFF" strokeWidth={2.5} style={{ marginLeft: 2 }} />
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </BlurView>
+              </View>
             </View>
           </KeyboardAvoidingView>
         </View>
-      </SafeAreaView>
+      </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  panelContainer: {
+    flex: 1,
+    width: '100%',
+    borderTopLeftRadius: 40,
+    borderTopRightRadius: 40,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  panelLight: {
+    backgroundColor: 'rgba(255,255,255,0.95)',
+  },
+  panelDark: {
+    backgroundColor: 'rgba(15,23,42,0.9)',
+  },
   headerGrad: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 14,
   },
   headerAvatar: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     borderWidth: 2,
     borderColor: 'rgba(255,255,255,0.4)',
   },
   scrollContent: {
     paddingHorizontal: 16,
-    paddingVertical: 16,
-    gap: 2,
+    paddingVertical: 20,
+    gap: 4,
   },
   ownBubble: {
     backgroundColor: '#0D9488',
+    borderRadius: 24,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
     shadowColor: '#0D9488',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  citizenBubble: {
+    borderRadius: 24,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+  },
+  sendBtn: {
+    borderRadius: 24,
+    overflow: 'hidden',
+    width: 48,
+    height: 48,
+    shadowColor: '#0D9488',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
   },
-  sendBtn: {
-    borderRadius: 22,
-    overflow: 'hidden',
-    width: 44,
-    height: 44,
-  },
   sendGrad: {
-    width: 44,
-    height: 44,
+    width: 48,
+    height: 48,
     alignItems: 'center',
     justifyContent: 'center',
   },

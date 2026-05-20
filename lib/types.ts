@@ -225,7 +225,7 @@ export interface IssueUpdate {
 export interface Message {
   id: string;
   issueId: string;
-  fromUserId: string;
+  senderId: string;
   fromUserName: string;
   fromRole: 'UnitOfficer' | 'FieldOfficer' | 'Citizen';
   text: string;
@@ -490,7 +490,7 @@ export interface OfficialUser {
 export interface DirectMessage {
   id: string;
   conversationId: string;
-  fromUserId: string;
+  senderId: string;
   fromUserName: string;
   fromRole: 'Admin' | 'CityAdmin' | 'UnitOfficer' | 'FieldOfficer';
   text: string;

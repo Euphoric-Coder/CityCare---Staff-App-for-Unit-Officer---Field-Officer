@@ -18,7 +18,7 @@ import {
   Target,
   Star,
 } from 'lucide-react-native';
-import { mockAnalyticsData, mockDashboardStats, mockFieldOfficers } from '../lib/mockData';
+import { mockAnalyticsData, mockDashboardStats, mockFieldOfficers } from 'lib/mockData';
 
 interface AnalyticsTabProps {
   ward?: string;

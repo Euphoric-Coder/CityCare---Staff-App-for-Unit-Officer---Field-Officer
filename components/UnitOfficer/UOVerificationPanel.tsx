@@ -48,7 +48,7 @@ import {
   CheckSquare,
   ZoomIn as ZoomInIcon,
 } from 'lucide-react-native';
-import { Issue, IssueUpdate, MappedIssue } from '../lib/types';
+import { Issue, IssueUpdate, MappedIssue } from 'lib/types';
 import { useUser } from 'context/UserContext';
 import { Id } from 'convex/_generated/dataModel';
 import { api } from 'convex/_generated/api';

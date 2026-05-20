@@ -49,6 +49,8 @@ export function mapIssueToUI(issue: any) {
 
     slaDeadline: issue.slaDeadline,
 
+    assignedUnitOfficer: issue.assignedUnitOfficer || null,
+    assignedFieldOfficer: issue.assignedFieldOfficer || null,
     assignedOfficer: issue.fieldOfficerDetails || null,
 
     verificationChecklist: issue.verificationChecklist ?? null,

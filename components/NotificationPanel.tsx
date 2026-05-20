@@ -34,7 +34,7 @@ import {
   SendHorizontal,
   XCircle,
 } from 'lucide-react-native';
-import { AppNotification, NotificationType } from '../lib/types';
+import { AppNotification, NotificationType } from 'lib/types';
 import { useMutation } from 'convex/react';
 import { api } from 'convex/_generated/api';
 import { Id } from 'convex/_generated/dataModel';

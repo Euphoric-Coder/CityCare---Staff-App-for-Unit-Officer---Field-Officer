@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -74,6 +74,7 @@ import {
   Compass,
   ExternalLink,
   Maximize2,
+  MessageCircle,
 } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import {
@@ -83,25 +84,27 @@ import {
   IssueUpdate,
   MappedIssue,
   UpdateScope,
-} from '../lib/types';
-import RejectionModal from '../components/RejectionModal';
-import ReassignmentModal from '../components/ReassignmentModal';
+} from 'lib/types';
+import RejectionModal from 'components/UnitOfficer/RejectionModal';
+import ReassignmentModal from 'components/UnitOfficer/ReassignmentModal';
 import {
   VerificationChecklist,
   RejectionReason,
   SLAOverdueRejectionReason,
   SLAExtensionReason,
   FieldOfficer,
-} from '../lib/types';
-import AssignOfficerModal from 'components/AssignOfficerModal';
-import VerificationFlow from 'components/VerificationFlow';
-import UOVerificationPanel from 'components/UOVerificationPanel';
-import SLAOverduePanel from 'components/SLAOverduePanel';
+} from 'lib/types';
+import AssignOfficerModal from 'components/UnitOfficer/AssignOfficerModal';
+import VerificationFlow from 'components/UnitOfficer/VerificationFlow';
+import UOVerificationPanel from 'components/UnitOfficer/UOVerificationPanel';
+import SLAOverduePanel from 'components/UnitOfficer/SLAOverduePanel';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from 'convex/_generated/api';
 import { mapIssueToUI } from 'lib/issueMapper';
 import { useUser } from 'context/UserContext';
 import { Id } from 'convex/_generated/dataModel';
+import { mockCitizenMessages } from 'lib/mockData';
+import CitizenMessagingInterface from 'components/CitizenMessagingInterface';
 
 interface IssueDetailScreenProps {
   route: { params: { issueId: string } };
@@ -460,8 +463,17 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
   const [showAttachMenu, setShowAttachMenu] = useState(false);
   const pendingPicker = useRef<'camera' | 'gallery' | 'document' | null>(null);
   const [previewAttachment, setPreviewAttachment] = useState<any>(null);
+  const [showMessaging, setShowMessaging] = useState(false);
 
   const [showSLAPanel, setShowSLAPanel] = useState(true);
+
+  const issueMessages = useMemo(
+    () => (issue ? mockCitizenMessages.filter((m) => m.issueId === '1') : []),
+    [issue]
+  );
+
+  // const unreadMsgCount = issueMessages.filter((m) => !m.read && m.fromRole === 'Citizen').length;
+  const unreadMsgCount = 100;
 
   const launchCamera = useCallback(async () => {
     try {
@@ -1291,18 +1303,35 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
               </Text>
             </View>
 
-            <View className="h-[46px] w-[46px] items-center justify-center rounded-[18px] border border-white/30 bg-white/20 shadow-md dark:border-white/20 dark:bg-white/10">
-              <View
-                className="h-4 w-4 rounded-full border-2 border-white/90"
-                style={{
-                  backgroundColor: statusDotColor,
-                  shadowColor: statusDotColor,
-                  shadowOffset: { width: 0, height: 0 },
-                  shadowOpacity: 1,
-                  shadowRadius: 8,
-                }}
-              />
-            </View>
+            <TouchableOpacity
+              onPress={() => setShowMessaging(true)}
+              className="h-[46px] w-[46px] items-center justify-center rounded-[18px] border border-white/30 bg-white/20 shadow-md dark:border-white/20 dark:bg-white/10"
+              activeOpacity={0.7}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <MessageCircle color="#FFFFFF" size={22} strokeWidth={2.5} />
+              {unreadMsgCount > 0 && (
+                <View
+                  style={{
+                    position: 'absolute',
+                    top: 6,
+                    right: 6,
+                    minWidth: 16,
+                    height: 16,
+                    borderRadius: 8,
+                    backgroundColor: '#EF4444',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    paddingHorizontal: 3,
+                    borderWidth: 1.5,
+                    borderColor: 'rgba(255,255,255,0.8)',
+                  }}>
+                  <Text
+                    style={{ color: '#FFFFFF', fontSize: 9, fontWeight: '800', lineHeight: 12 }}>
+                    {unreadMsgCount > 9 ? '9+' : unreadMsgCount}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -3574,6 +3603,14 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
           onConfirm={handleReassign}
           issueTitle={mappedIssue.title}
           currentOfficer={mappedIssue.assignedOfficer?.fullName || ''}
+        />
+
+        <CitizenMessagingInterface
+          visible={showMessaging}
+          onClose={() => setShowMessaging(false)}
+          // @ts-ignore
+          issue={mappedIssue}
+          initialMessages={issueMessages}
         />
 
         {/* Attachment picker bottom sheet */}

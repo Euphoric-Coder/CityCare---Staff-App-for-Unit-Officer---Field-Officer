@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { IssuePriority } from '../../lib/types';
+import { IssuePriority } from '../lib/types';
 import { AlertCircle } from 'lucide-react-native';
 
 interface PriorityBadgeProps {

@@ -9,8 +9,8 @@ import {
   Copy,
   Zap,
 } from 'lucide-react-native';
-import { DuplicateGroup, Issue } from '../lib/types';
-import DuplicateMergeModal from './DuplicateMergeModal';
+import { DuplicateGroup, Issue } from 'lib/types';
+import DuplicateMergeModal from 'components/UnitOfficer/DuplicateMergeModal';
 
 interface DuplicateDetectionBannerProps {
   groups: DuplicateGroup[];

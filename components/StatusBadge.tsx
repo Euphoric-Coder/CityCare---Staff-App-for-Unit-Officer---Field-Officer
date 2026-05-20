@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, useColorScheme } from 'react-native';
-import { IssueStatus, IssuePriority } from '../lib/types';
+import { IssueStatus, IssuePriority } from 'lib/types';
 
 interface StatusBadgeProps {
   status: IssueStatus;

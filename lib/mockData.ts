@@ -2249,6 +2249,7 @@ export const publicIssues: PublicIssue[] = [
     ward: 'Ward 04 - Assi Ghat',
     location: 'Assi Ghat Road, Near Temple Gate',
     status: 'Resolved',
+    description: 'There is a massive pothole right in front of the temple gate. It caused an accident yesterday. Needs immediate repair!',
     summary:
       'A large pothole near the main temple gate on Assi Ghat Road has been successfully repaired. The road surface has been restored to a safe condition using cold-mix asphalt. Surrounding areas were also levelled to prevent waterlogging.',
     before_images: [
@@ -2256,6 +2257,8 @@ export const publicIssues: PublicIssue[] = [
       'https://images.pexels.com/photos/1461974/pexels-photo-1461974.jpeg',
     ],
     after_images: ['https://images.pexels.com/photos/1105766/pexels-photo-1105766.jpeg'],
+    created_at: '2026-03-01T10:00:00Z',
+    reviewed_at: '2026-03-02T11:00:00Z',
     resolved_by: 'Field Officer Team — Road Maintenance Unit',
     resolved_date: '2026-03-10',
     moderated_by: 'Unit Officer Rajesh',
@@ -2272,6 +2275,7 @@ export const publicIssues: PublicIssue[] = [
     ward: 'Ward 09 - Khojwa',
     location: 'Ravidas Park, Khojwa Area',
     status: 'Resolved',
+    description: 'The park benches are broken and the walkway is completely damaged. It is unsafe for kids to play here.',
     summary:
       'Extensive maintenance work completed at Ravidas Park. Six broken benches replaced, damaged walkway repaired across three sections, and overgrown branches trimmed. The park has been restored for safe public use.',
     before_images: [
@@ -2279,6 +2283,8 @@ export const publicIssues: PublicIssue[] = [
       'https://images.pexels.com/photos/1179229/pexels-photo-1179229.jpeg',
     ],
     after_images: ['https://images.pexels.com/photos/1105766/pexels-photo-1105766.jpeg'],
+    created_at: '2026-03-05T09:30:00Z',
+    reviewed_at: '2026-03-06T10:15:00Z',
     resolved_by: 'Field Officer Sunita Yadav — Parks & Maintenance Division',
     resolved_date: '2026-03-12',
     moderated_by: 'Unit Officer Rajesh',
@@ -2295,6 +2301,7 @@ export const publicIssues: PublicIssue[] = [
     ward: 'Ward 06 - Lanka',
     location: 'Lanka Chowk, Near University Gate',
     status: 'Resolved',
+    description: 'Drainage is completely blocked outside the university gate. The dirty water is overflowing onto the main road.',
     summary:
       'Severe drainage blockage near Lanka Chowk university gate has been fully cleared. Municipal drainage team removed accumulated debris and silt. Anti-blockage mesh installed to prevent recurrence.',
     before_images: ['https://images.pexels.com/photos/1462011/pexels-photo-1462011.jpeg'],
@@ -2315,6 +2322,7 @@ export const publicIssues: PublicIssue[] = [
     ward: 'Ward 02 - Godowlia',
     location: 'Godowlia Crossing, Main Road',
     status: 'Resolved',
+    description: 'The street light at the main crossing has been broken for a week. It is very dark and prone to accidents at night.',
     summary:
       'Non-functional street light at Godowlia Crossing has been repaired. Damaged ballast unit replaced and wiring inspected. Light is now fully operational, improving nighttime safety in the area.',
     before_images: ['https://images.pexels.com/photos/1181824/pexels-photo-1181824.jpeg'],
@@ -2335,6 +2343,7 @@ export const publicIssues: PublicIssue[] = [
     ward: 'Ward 05 - Sigra',
     location: 'Sigra Market, Central Area',
     status: 'Resolved',
+    description: 'Garbage has not been collected for three days. It is overflowing onto the street and smelling horrible.',
     summary:
       'Draft summary pending review. Garbage overflow at Sigra Market central area has been addressed. Municipal waste team cleared accumulated garbage and sanitised the area.',
     before_images: ['https://images.pexels.com/photos/2827392/pexels-photo-2827392.jpeg'],
@@ -2355,6 +2364,7 @@ export const publicIssues: PublicIssue[] = [
     ward: 'Ward 11 - Sunderpur',
     location: 'Sunderpur Bridge Approach Road',
     status: 'Rejected',
+    description: 'There is a huge pothole on the bridge approach road that needs to be fixed immediately.',
     summary:
       'The reported road damage near Sunderpur Bridge falls under the jurisdiction of National Highway Authority of India (NHAI) and not the municipal corporation. The issue has been forwarded to the appropriate authority.',
     before_images: [],

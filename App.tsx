@@ -32,9 +32,11 @@ import ProfileTab from 'screens/UnitOfficer/ProfileTab';
 import ChangePasswordScreen from 'screens/ChangePasswordScreen';
 import { ConvexProvider, ConvexReactClient } from 'convex/react';
 import { UserContext } from 'context/UserContext';
+import PublicModerationScreen from 'screens/PublicModerationScreen';
 
 type RootStackParamList = {
   DashboardHome: undefined;
+  PublicModeration: undefined;
   FieldDashboardHome: undefined;
   FieldIssueDetail: undefined;
   IssueDetail: { issueId: string };
@@ -51,6 +53,15 @@ function DashboardStack({ user }: { user: User }) {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="DashboardHome">{() => <UnitOfficerDashboard />}</Stack.Screen>
       <Stack.Screen name="IssueDetail" component={IssueDetailScreen} />
+    </Stack.Navigator>
+  );
+}
+
+// Public Issue Moderation Dashboard
+function PublicStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="PublicModeration" component={PublicModerationScreen} />
     </Stack.Navigator>
   );
 }
@@ -108,13 +119,13 @@ function UnitOfficerTabNavigator({ user, onSignOut }: TabNavigatorProps) {
         }}>
         {() => <DashboardStack user={user} />}
       </Tab.Screen>
-      {/* <Tab.Screen
+      <Tab.Screen
         name="Public"
         component={PublicStack}
         options={{
           tabBarIcon: ({ color, size }) => <Globe size={size} color={color} />,
         }}
-      /> */}
+      />
       {/* <Tab.Screen
         name="Messages"
         component={MessagesTab}

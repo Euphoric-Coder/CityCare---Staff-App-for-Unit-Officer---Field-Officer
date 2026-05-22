@@ -580,9 +580,12 @@ export interface PublicIssue {
   ward: string;
   location: string;
   status: 'Resolved' | 'Rejected';
+  description?: string;
   summary: string;
   before_images: string[];
   after_images: string[];
+  created_at?: string;
+  reviewed_at?: string;
   resolved_by: string;
   resolved_date: string;
   moderated_by: string;

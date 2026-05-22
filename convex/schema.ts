@@ -339,4 +339,50 @@ export default defineSchema({
     .index('by_recipient', ['recipientId'])
     .index('by_issue_createdAt', ['issueId', 'createdAt'])
     .index('by_recipient_read', ['recipientId', 'isRead']),
+
+  publicIssues: defineTable({
+    issueId: v.id('issues'),
+
+    issueCode: v.string(),
+    title: v.string(),
+    description: v.string(),
+
+    category: v.string(),
+    status: v.union(v.literal('resolved'), v.literal('rejected')),
+
+    ward: v.string(),
+
+    address: v.string(),
+    city: v.string(),
+    state: v.string(),
+    postal: v.string(),
+
+    latitude: v.number(),
+    longitude: v.number(),
+
+    createdAt: v.string(),
+    reviewedAt: v.union(v.string(), v.null()),
+    resolvedAt: v.union(v.string(), v.null()),
+    rejectedAt: v.union(v.string(), v.null()),
+
+    foVisible: v.optional(v.boolean()),
+
+    publicCompletionNote: v.union(v.string(), v.null()),
+    rejectionReason: v.union(v.string(), v.null()),
+
+    photosBefore: v.array(v.string()),
+    photosAfter: v.array(v.string()),
+
+    publicVisible: v.boolean(),
+    publishStatus: v.union(v.literal('published'), v.literal('draft')),
+
+    moderatedAt: v.optional(v.number()),
+    createdPublicAt: v.number(),
+  })
+    .index('by_city', ['city'])
+    .index('by_issue', ['issueId'])
+    .index('by_status', ['status'])
+    .index('by_resolved_at', ['resolvedAt'])
+    .index('by_rejected_at', ['rejectedAt'])
+    .index('by_created_at', ['createdAt']),
 });

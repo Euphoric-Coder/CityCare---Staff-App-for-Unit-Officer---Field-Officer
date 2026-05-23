@@ -354,7 +354,7 @@ export default function SignInScreen({ onSignIn }: SignInScreenProps) {
                   />
                   <TextInput
                     style={[styles.input, { color: textColorPrimary }]}
-                    placeholder="officer@citycare.com"
+                    placeholder="officer@citycare.in"
                     placeholderTextColor={placeholderColor}
                     value={email}
                     onChangeText={setEmail}

@@ -163,7 +163,6 @@ export default function PublicModerationScreen() {
           moderatedAt: new Date().getTime(),
         });
 
-        setModeratingIssue(null);
         showToast('Issue successfully published to public dashboard');
       } catch (error) {
         console.error('Failed to publish issue:', error);
@@ -183,7 +182,6 @@ export default function PublicModerationScreen() {
           foVisible: updated.foVisible ?? true,
         });
 
-        setModeratingIssue(null);
         showToast('Draft saved successfully');
       } catch (error) {
         console.error('Failed to save draft:', error);
@@ -199,7 +197,6 @@ export default function PublicModerationScreen() {
         await unpublishPublicIssue({ id: id as Id<'publicIssues'> });
 
         showToast('Issue moved back to drafts');
-        setModeratingIssue(null);
       } catch (error) {
         console.error('Failed to unpublish issue:', error);
         showToast('Failed to unpublish issue');

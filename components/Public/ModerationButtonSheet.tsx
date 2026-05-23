@@ -194,11 +194,15 @@ export default function ModerationBottomSheet({
   });
 
   const handlePublish = () => {
-    if (hasMinWords) onPublish(buildUpdated());
+    if (hasMinWords) {
+      onPublish(buildUpdated());
+      close();
+    }
   };
 
   const handleSaveDraft = () => {
     onSaveDraft(buildUpdated());
+    close();
   };
 
   const confirmUnpublish = () => {
@@ -762,8 +766,12 @@ export default function ModerationBottomSheet({
                     <TouchableOpacity
                       onPress={() => {
                         setActionPrompt('none');
-                        if (actionPrompt === 'unpublish') onUnpublish(issue.id);
-                        else handleSaveDraft();
+                        if (actionPrompt === 'unpublish') {
+                          onUnpublish(issue.id);
+                          close();
+                        } else {
+                          handleSaveDraft();
+                        }
                       }}
                       activeOpacity={0.7}
                       className="flex-1 items-center justify-center py-5">

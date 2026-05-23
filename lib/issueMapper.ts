@@ -122,7 +122,7 @@ export const mapToMobilePublicIssues = (issues: any[]): PublicIssue[] => {
 
       public_visible: issue.publicVisible ?? false,
 
-      publish_status: issue.publishStatus || 'draft',
+      publish_status: issue.publishStatus,
 
       rejection_reason: isRejected ? issue.rejectionReason || '' : undefined,
 

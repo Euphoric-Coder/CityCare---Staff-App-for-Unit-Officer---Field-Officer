@@ -239,6 +239,28 @@ export const getCitizenDashboardIssues = query({
   },
 });
 
+export const getCitizenCityByUserId = query({
+  args: {
+    userId: v.id('users'),
+  },
+
+  handler: async (ctx, args) => {
+    const citizen = await ctx.db
+      .query('citizens')
+      .withIndex('by_user', (q) => q.eq('userId', args.userId))
+      .unique();
+
+    if (!citizen) return null;
+
+    return {
+      city: citizen.city,
+      state: citizen.state,
+      region: citizen.region,
+      postal: citizen.postal,
+    };
+  },
+});
+
 export const withdrawIssue = mutation({
   args: {
     issueId: v.id('issues'),

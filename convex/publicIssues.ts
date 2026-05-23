@@ -198,6 +198,155 @@ export const getPublicIssues = query({
   },
 });
 
+export const getCityPublicIssues = query({
+  args: {
+    city: v.string(),
+  },
+
+  handler: async (ctx, args) => {
+    const publicIssues = await ctx.db
+      .query('publicIssues')
+      .withIndex('by_city', (q) => q.eq('city', args.city))
+      .collect();
+
+    const enriched = await Promise.all(
+      publicIssues.map(async (publicIssue) => {
+        const issue = await ctx.db.get(publicIssue.issueId);
+
+        let fieldOfficerUser = null;
+        let unitOfficerUser = null;
+
+        if (issue?.assignedFieldOfficer) {
+          fieldOfficerUser = await ctx.db.get(issue.assignedFieldOfficer);
+        }
+
+        if (issue?.assignedUnitOfficer) {
+          unitOfficerUser = await ctx.db.get(issue.assignedUnitOfficer);
+        }
+
+        return {
+          id: publicIssue._id,
+          issueId: publicIssue.issueId,
+
+          issueCode: publicIssue.issueCode,
+          title: publicIssue.title,
+          description: publicIssue.description,
+
+          category: publicIssue.category,
+          status: publicIssue.status,
+
+          ward: publicIssue.ward,
+
+          address: publicIssue.address,
+          city: publicIssue.city,
+          state: publicIssue.state,
+          postal: publicIssue.postal,
+
+          latitude: publicIssue.latitude,
+          longitude: publicIssue.longitude,
+
+          createdAt: publicIssue.createdAt,
+          reviewedAt: publicIssue.reviewedAt,
+          resolvedAt: publicIssue.resolvedAt,
+          rejectedAt: publicIssue.rejectedAt,
+
+          citizenRating: issue?.citizenRating ?? null,
+
+          publicCompletionNote: publicIssue.publicCompletionNote,
+          rejectionReason: publicIssue.rejectionReason,
+
+          photosBefore: publicIssue.photosBefore,
+          photosAfter: publicIssue.photosAfter,
+
+          publicVisible: publicIssue.publicVisible,
+          publishStatus: publicIssue.publishStatus,
+
+          moderatedBy: unitOfficerUser?.fullName || 'Unit Officer',
+          resolvedBy: fieldOfficerUser?.fullName || 'Field Officer Team',
+        };
+      })
+    );
+
+    return enriched.sort(
+      (a, b) =>
+        new Date(b.resolvedAt || b.rejectedAt || b.createdAt).getTime() -
+        new Date(a.resolvedAt || a.rejectedAt || a.createdAt).getTime()
+    );
+  },
+});
+
+export const getCityPublicIssueByIssueCode = query({
+  args: {
+    city: v.string(),
+    issueCode: v.string(),
+  },
+
+  handler: async (ctx, args) => {
+    const publicIssues = await ctx.db
+      .query('publicIssues')
+      .withIndex('by_city', (q) => q.eq('city', args.city))
+      .collect();
+
+    const publicIssue = publicIssues.find((issue) => issue.issueCode === args.issueCode);
+
+    if (!publicIssue) return null;
+
+    const issue = await ctx.db.get(publicIssue.issueId);
+
+    let fieldOfficerUser = null;
+    let unitOfficerUser = null;
+
+    if (issue?.assignedFieldOfficer) {
+      fieldOfficerUser = await ctx.db.get(issue.assignedFieldOfficer);
+    }
+
+    if (issue?.assignedUnitOfficer) {
+      unitOfficerUser = await ctx.db.get(issue.assignedUnitOfficer);
+    }
+
+    return {
+      id: publicIssue._id,
+      issueId: publicIssue.issueId,
+
+      issueCode: publicIssue.issueCode,
+      title: publicIssue.title,
+      description: publicIssue.description,
+
+      category: publicIssue.category,
+      status: publicIssue.status,
+
+      ward: publicIssue.ward,
+
+      address: publicIssue.address,
+      city: publicIssue.city,
+      state: publicIssue.state,
+      postal: publicIssue.postal,
+
+      latitude: publicIssue.latitude,
+      longitude: publicIssue.longitude,
+
+      createdAt: publicIssue.createdAt,
+      reviewedAt: publicIssue.reviewedAt,
+      resolvedAt: publicIssue.resolvedAt,
+      rejectedAt: publicIssue.rejectedAt,
+
+      citizenRating: issue?.citizenRating ?? null,
+
+      publicCompletionNote: publicIssue.publicCompletionNote,
+      rejectionReason: publicIssue.rejectionReason,
+
+      photosBefore: publicIssue.photosBefore,
+      photosAfter: publicIssue.photosAfter,
+
+      publicVisible: publicIssue.publicVisible,
+      publishStatus: publicIssue.publishStatus,
+
+      moderatedBy: unitOfficerUser?.fullName || 'Unit Officer',
+      resolvedBy: fieldOfficerUser?.fullName || 'Field Officer Team',
+    };
+  },
+});
+
 export const publishPublicIssue = mutation({
   args: {
     id: v.id('publicIssues'),

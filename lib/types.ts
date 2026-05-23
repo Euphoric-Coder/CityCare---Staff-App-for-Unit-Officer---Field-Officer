@@ -584,12 +584,14 @@ export interface PublicIssue {
   summary: string;
   before_images: string[];
   after_images: string[];
+  foVisible: boolean;
   created_at?: string;
   reviewed_at?: string;
   resolved_by: string;
   resolved_date: string;
   moderated_by: string;
   moderated_at: string;
+  publicCompletionNote: string;
   public_visible: boolean;
   publish_status: PublicIssueStatus;
   rejection_reason?: string;

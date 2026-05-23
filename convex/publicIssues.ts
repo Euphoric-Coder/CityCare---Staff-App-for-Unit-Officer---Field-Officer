@@ -197,3 +197,97 @@ export const getPublicIssues = query({
     );
   },
 });
+
+export const publishPublicIssue = mutation({
+  args: {
+    id: v.id('publicIssues'),
+    title: v.string(),
+    publicCompletionNote: v.string(),
+    foVisible: v.optional(v.boolean()),
+    moderatedAt: v.number(),
+  },
+
+  handler: async (ctx, args) => {
+    const publicIssue = await ctx.db.get(args.id);
+
+    if (!publicIssue) {
+      throw new Error('Public issue not found');
+    }
+
+    await ctx.db.patch(args.id, {
+      title: args.title.trim(),
+      publicCompletionNote: args.publicCompletionNote.trim(),
+
+      publicVisible: true,
+      publishStatus: 'published',
+
+      foVisible: args.foVisible,
+      moderatedAt: args.moderatedAt,
+      createdPublicAt: args.moderatedAt,
+    });
+
+    return {
+      success: true,
+      id: args.id,
+      message: 'Issue published successfully',
+    };
+  },
+});
+
+export const unpublishPublicIssue = mutation({
+  args: {
+    id: v.id('publicIssues'),
+  },
+
+  handler: async (ctx, args) => {
+    const publicIssue = await ctx.db.get(args.id);
+
+    if (!publicIssue) {
+      throw new Error('Public issue not found');
+    }
+
+    await ctx.db.patch(args.id, {
+      publicCompletionNote: null,
+      publicVisible: false,
+      publishStatus: 'draft',
+      moderatedAt: new Date().getTime(),
+    });
+
+    return {
+      success: true,
+      id: args.id,
+      message: 'Issue moved back to draft',
+    };
+  },
+});
+
+export const saveDraftPublicIssue = mutation({
+  args: {
+    id: v.id('publicIssues'),
+    title: v.string(),
+    publicCompletionNote: v.optional(v.string()),
+    foVisible: v.boolean(),
+  },
+
+  handler: async (ctx, args) => {
+    const publicIssue = await ctx.db.get(args.id);
+
+    if (!publicIssue) {
+      throw new Error('Public issue not found');
+    }
+
+    await ctx.db.patch(args.id, {
+      title: args.title,
+      publicCompletionNote: args.publicCompletionNote,
+      foVisible: args.foVisible,
+      publicVisible: false,
+      publishStatus: 'draft',
+    });
+
+    return {
+      success: true,
+      id: args.id,
+      message: 'Draft saved successfully',
+    };
+  },
+});

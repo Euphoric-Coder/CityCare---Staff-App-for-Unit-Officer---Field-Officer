@@ -28,7 +28,7 @@ import { publicIssues as initialPublicIssues } from 'lib/mockData';
 import IssueModerationCard from 'components/Public/IssueModerateCard';
 import ModerationBottomSheet from 'components/Public/ModerationButtonSheet';
 import PublicPreviewModal from 'components/Public/PublicPreviewModal';
-import { useQuery } from 'convex/react';
+import { useMutation, useQuery } from 'convex/react';
 import { api } from 'convex/_generated/api';
 import { useUser } from 'context/UserContext';
 import { Id } from 'convex/_generated/dataModel';
@@ -131,6 +131,12 @@ export default function PublicModerationScreen() {
     unitOfficerId: user?.id as Id<'users'>,
   });
 
+  const publishPublicIssue = useMutation(api.publicIssues.publishPublicIssue);
+
+  const unpublishPublicIssue = useMutation(api.publicIssues.unpublishPublicIssue);
+
+  const saveDraftPublicIssue = useMutation(api.publicIssues.saveDraftPublicIssue);
+
   const issues = mapToMobilePublicIssues(rawIssues ?? []);
 
   const showToast = useCallback(
@@ -146,25 +152,61 @@ export default function PublicModerationScreen() {
     [toastOpacity]
   );
 
-  const handlePublish = useCallback((updated: PublicIssue) => {
-    console.log('Publish issue:', {
-      ...updated,
-      publish_status: 'published',
-      public_visible: true,
-    });
+  const handlePublish = useCallback(
+    async (updated: PublicIssue) => {
+      try {
+        await publishPublicIssue({
+          id: updated.id as Id<'publicIssues'>,
+          title: updated.title.trim(),
+          publicCompletionNote: updated.publicCompletionNote?.trim() || '',
+          foVisible: updated.foVisible,
+          moderatedAt: new Date().getTime(),
+        });
 
-    setModeratingIssue(null);
-  }, []);
+        setModeratingIssue(null);
+        showToast('Issue successfully published to public dashboard');
+      } catch (error) {
+        console.error('Failed to publish issue:', error);
+        showToast('Failed to publish issue');
+      }
+    },
+    [publishPublicIssue, showToast]
+  );
 
-  const handleSaveDraft = useCallback((updated: PublicIssue) => {
-    console.log('Save draft:', updated);
+  const handleSaveDraft = useCallback(
+    async (updated: PublicIssue) => {
+      try {
+        await saveDraftPublicIssue({
+          id: updated.id as Id<'publicIssues'>,
+          title: updated.title.trim(),
+          publicCompletionNote: updated.publicCompletionNote?.trim() || '',
+          foVisible: updated.foVisible ?? true,
+        });
 
-    setModeratingIssue(null);
-  }, []);
+        setModeratingIssue(null);
+        showToast('Draft saved successfully');
+      } catch (error) {
+        console.error('Failed to save draft:', error);
+        showToast('Failed to save draft');
+      }
+    },
+    [saveDraftPublicIssue, showToast]
+  );
 
-  const handleUnpublish = useCallback((id: string) => {
-    console.log('Unpublish issue ID:', id);
-  }, []);
+  const handleUnpublish = useCallback(
+    async (id: string) => {
+      try {
+        await unpublishPublicIssue({ id: id as Id<'publicIssues'> });
+
+        showToast('Issue moved back to drafts');
+        setModeratingIssue(null);
+      } catch (error) {
+        console.error('Failed to unpublish issue:', error);
+        showToast('Failed to unpublish issue');
+      }
+    },
+    [unpublishPublicIssue, showToast]
+  );
 
   const FILTERS: {
     key: FilterTab;
@@ -420,6 +462,7 @@ export default function PublicModerationScreen() {
           isDark={isDark}
           onClose={() => setModeratingIssue(null)}
           onPublish={handlePublish}
+          onUnpublish={handleUnpublish}
           onSaveDraft={handleSaveDraft}
         />
       )}

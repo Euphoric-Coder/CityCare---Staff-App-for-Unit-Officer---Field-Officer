@@ -11,6 +11,7 @@ import {
   Platform,
   StyleSheet,
   Image,
+  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -31,6 +32,7 @@ import {
   Quote,
   Check,
   Edit3,
+  CircleX,
 } from 'lucide-react-native';
 import { BlurView } from 'expo-blur';
 import { PublicIssue } from 'lib/types';
@@ -51,6 +53,7 @@ interface ModerationBottomSheetProps {
   isDark: boolean;
   onClose: () => void;
   onPublish: (updated: PublicIssue) => void;
+  onUnpublish: (id: string) => void;
   onSaveDraft: (updated: PublicIssue) => void;
 }
 
@@ -130,6 +133,7 @@ export default function ModerationBottomSheet({
   isDark,
   onClose,
   onPublish,
+  onUnpublish,
   onSaveDraft,
 }: ModerationBottomSheetProps) {
   const [titleMode, setTitleMode] = useState<'original' | 'moderated'>('moderated');
@@ -140,6 +144,7 @@ export default function ModerationBottomSheet({
 
   const [resolvedBy, setResolvedBy] = useState(issue.resolved_by || '');
   const [isPrivateResolvedBy, setIsPrivateResolvedBy] = useState(true);
+  const [actionPrompt, setActionPrompt] = useState<'none' | 'unpublish' | 'draft'>('none');
 
   const categoryLabel = CATEGORY_LABEL_MAP[issue.category] ?? issue.category;
   const privateResolvedByText = `Field Officer - ${categoryLabel} Unit`;
@@ -194,6 +199,14 @@ export default function ModerationBottomSheet({
 
   const handleSaveDraft = () => {
     onSaveDraft(buildUpdated());
+  };
+
+  const confirmUnpublish = () => {
+    setActionPrompt('unpublish');
+  };
+
+  const confirmSaveDraft = () => {
+    setActionPrompt('draft');
   };
 
   const hasImages = issue.before_images?.length > 0 || issue.after_images?.length > 0;
@@ -480,7 +493,11 @@ export default function ModerationBottomSheet({
                   </View>
 
                   <TextInput
-                    value={isPrivateResolvedBy ? privateResolvedByText : resolvedBy}
+                    value={
+                      isPrivateResolvedBy
+                        ? privateResolvedByText
+                        : `${resolvedBy} (FO ${categoryLabel} Unit)`
+                    }
                     onChangeText={setResolvedBy}
                     editable={!isPrivateResolvedBy}
                     className="text-[14px] font-medium"
@@ -597,16 +614,21 @@ export default function ModerationBottomSheet({
               </ScrollView>
 
               {/* Footer actions */}
-              <View
-                className="flex-row gap-3 px-5 pt-5"
-                style={{
+              <ScrollView
+                scrollEnabled={false}
+                keyboardShouldPersistTaps="handled"
+                contentContainerStyle={{
+                  flexDirection: 'row',
+                  gap: 12,
+                  paddingHorizontal: 20,
+                  paddingTop: 20,
                   paddingBottom: insets.bottom > 0 ? insets.bottom + 12 : 24,
                   borderTopWidth: 1,
                   borderTopColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
                   backgroundColor: isDark ? 'rgba(15,23,42,0.4)' : 'rgba(255,255,255,0.4)',
                 }}>
                 <TouchableOpacity
-                  onPress={handleSaveDraft}
+                  onPress={confirmSaveDraft}
                   activeOpacity={0.75}
                   className="flex-1 items-center justify-center rounded-2xl border py-4"
                   style={{
@@ -623,27 +645,138 @@ export default function ModerationBottomSheet({
                   </View>
                 </TouchableOpacity>
 
-                <TouchableOpacity
-                  onPress={handlePublish}
-                  disabled={!hasMinWords}
-                  activeOpacity={0.85}
-                  style={[styles.publishBtn, { flex: 1.5, opacity: hasMinWords ? 1 : 0.6 }]}>
-                  <LinearGradient
-                    colors={['#0D9488', '#0891B2']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.publishBtnGrad}>
-                    <Globe color="#FFFFFF" size={16} strokeWidth={2.5} />
-                    <Text className="text-[14px] font-extrabold text-white">
-                      {hasMinWords ? 'Publish Now' : 'Need more words'}
-                    </Text>
-                    {hasMinWords && (
-                      <ChevronRight color="rgba(255,255,255,0.7)" size={15} strokeWidth={2.5} />
-                    )}
-                  </LinearGradient>
-                </TouchableOpacity>
-              </View>
+                {issue.publish_status === 'published' ? (
+                  <TouchableOpacity
+                    onPress={confirmUnpublish}
+                    activeOpacity={0.85}
+                    style={[styles.publishBtn, { flex: 1.5 }]}>
+                    <LinearGradient
+                      colors={['#EF4444', '#DC2626']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={styles.publishBtnGrad}>
+                      <CircleX color="#FFFFFF" size={16} strokeWidth={2.5} />
+                      <Text className="text-[14px] font-extrabold text-white">Unpublish</Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity
+                    onPress={handlePublish}
+                    disabled={!hasMinWords}
+                    activeOpacity={0.85}
+                    style={[styles.publishBtn, { flex: 1.5, opacity: hasMinWords ? 1 : 0.6 }]}>
+                    <LinearGradient
+                      colors={['#0D9488', '#0891B2']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={styles.publishBtnGrad}>
+                      <Globe color="#FFFFFF" size={16} strokeWidth={2.5} />
+                      <Text className="text-[14px] font-extrabold text-white">
+                        {hasMinWords ? 'Publish Now' : 'Need more words'}
+                      </Text>
+                      {hasMinWords && (
+                        <ChevronRight color="rgba(255,255,255,0.7)" size={15} strokeWidth={2.5} />
+                      )}
+                    </LinearGradient>
+                  </TouchableOpacity>
+                )}
+              </ScrollView>
             </View>
+
+            {/* Custom Dialog Overlay */}
+            {actionPrompt !== 'none' && (
+              <View
+                style={[
+                  StyleSheet.absoluteFill,
+                  { justifyContent: 'center', alignItems: 'center', zIndex: 100 },
+                ]}>
+                <View
+                  style={{ backgroundColor: 'rgba(0,0,0,0.3)', ...StyleSheet.absoluteFillObject }}
+                />
+                <BlurView
+                  intensity={isDark ? 20 : 10}
+                  tint={isDark ? 'dark' : 'light'}
+                  style={StyleSheet.absoluteFill}
+                />
+
+                <View
+                  className="w-[85%] overflow-hidden rounded-[28px] border shadow-2xl"
+                  style={{
+                    backgroundColor: isDark ? 'rgba(30,41,59,0.95)' : 'rgba(255,255,255,0.95)',
+                    borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 10 },
+                    shadowOpacity: 0.25,
+                    shadowRadius: 20,
+                  }}>
+                  <View className="items-center px-6 pb-6 pt-8">
+                    <View
+                      className="mb-4 h-16 w-16 items-center justify-center rounded-full"
+                      style={{
+                        backgroundColor:
+                          actionPrompt === 'unpublish'
+                            ? isDark
+                              ? '#450A0A'
+                              : '#FEE2E2'
+                            : isDark
+                              ? '#1E3A8A'
+                              : '#DBEAFE',
+                      }}>
+                      <AlertTriangle
+                        color={actionPrompt === 'unpublish' ? '#EF4444' : '#3B82F6'}
+                        size={32}
+                        strokeWidth={2.5}
+                      />
+                    </View>
+                    <Text
+                      className="mb-2 text-center text-[22px] font-black tracking-tight"
+                      style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>
+                      {actionPrompt === 'unpublish' ? 'Unpublish Issue?' : 'Save as Draft?'}
+                    </Text>
+                    <Text
+                      className="text-center text-[15px] font-medium leading-[22px]"
+                      style={{ color: isDark ? '#94A3B8' : '#64748B' }}>
+                      {actionPrompt === 'unpublish'
+                        ? 'If you proceed, this issue will be unpublished and immediately removed from the public transparency portal.'
+                        : 'If you proceed, this issue will be saved as a draft and hidden from public view until published.'}
+                    </Text>
+                  </View>
+
+                  <View
+                    className="flex-row border-t"
+                    style={{ borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }}>
+                    <TouchableOpacity
+                      onPress={() => setActionPrompt('none')}
+                      activeOpacity={0.7}
+                      className="flex-1 items-center justify-center border-r py-5"
+                      style={{
+                        borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+                      }}>
+                      <Text
+                        className="text-[16px] font-bold"
+                        style={{ color: isDark ? '#94A3B8' : '#64748B' }}>
+                        Cancel
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      onPress={() => {
+                        setActionPrompt('none');
+                        if (actionPrompt === 'unpublish') onUnpublish(issue.id);
+                        else handleSaveDraft();
+                      }}
+                      activeOpacity={0.7}
+                      className="flex-1 items-center justify-center py-5">
+                      <Text
+                        className="text-[16px] font-black"
+                        style={{ color: actionPrompt === 'unpublish' ? '#EF4444' : '#3B82F6' }}>
+                        {actionPrompt === 'unpublish' ? 'Unpublish' : 'Save Draft'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            )}
           </Animated.View>
         </KeyboardAvoidingView>
       </View>

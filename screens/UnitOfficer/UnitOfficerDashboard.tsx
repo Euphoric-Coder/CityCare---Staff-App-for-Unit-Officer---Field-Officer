@@ -92,6 +92,7 @@ import { api } from 'convex/_generated/api';
 import { mapIssueToUI } from 'lib/issueMapper';
 import { useUser } from 'context/UserContext';
 import { Id } from 'convex/_generated/dataModel';
+import { buildDuplicateGroupsFromIssues } from 'lib/duplicateDetection';
 
 interface UnitOfficerDashboardProps {
   user: User;
@@ -1826,7 +1827,6 @@ export default function UnitOfficerDashboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterVisible, setFilterVisible] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [duplicateGroups, setDuplicateGroups] = useState<DuplicateGroup[]>(mockDuplicateGroups);
 
   const unreadNotifCount = notifications?.filter((n) => !n.read).length;
 
@@ -1859,6 +1859,18 @@ export default function UnitOfficerDashboard() {
     // @ts-ignore
     user?.id ? { userId: user.id } : 'skip'
   );
+
+  const duplicateGroups = useMemo(() => {
+    if (!rawIssues) return [];
+
+    const activeIssues = rawIssues.filter((issue) => {
+      const status = issue?.status?.toLowerCase().trim();
+
+      return status !== 'resolved' && status !== 'rejected';
+    });
+
+    return buildDuplicateGroupsFromIssues(activeIssues);
+  }, [rawIssues]);
 
   const isLoading = rawIssues === undefined;
 
@@ -2147,11 +2159,7 @@ export default function UnitOfficerDashboard() {
             <DuplicateDetectionBanner
               groups={duplicateGroups}
               // @ts-ignore
-              onGroupResolved={(groupId) =>
-                setDuplicateGroups((prev) =>
-                  prev.map((g) => (g.id === groupId ? { ...g, resolved: true } : g))
-                )
-              }
+              onGroupResolved={(groupId) => console.log(groupId)}
             />
 
             {/* Search */}

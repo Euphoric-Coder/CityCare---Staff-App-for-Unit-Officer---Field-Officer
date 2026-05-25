@@ -280,6 +280,7 @@ export interface Issue {
 
   citizenName?: string;
   citizenEmail?: string | null;
+  citizenPhone?: number | null;
   isAnonymous: boolean;
 
   // ---- Media ----
@@ -560,16 +561,6 @@ export interface AppNotification {
   issueId?: string;
 }
 
-export interface DuplicateGroup {
-  id: string;
-  citizenName: string;
-  citizenPhone: string;
-  issues: Issue[];
-  detectedAt: string;
-  similarityReason: string;
-  resolved: boolean;
-}
-
 export type PublicIssueStatus = 'draft' | 'published';
 
 export interface PublicIssue {
@@ -596,4 +587,51 @@ export interface PublicIssue {
   publish_status: PublicIssueStatus;
   rejection_reason?: string;
   view_count?: number;
+}
+
+export interface DuplicatePairMetrics {
+  issueAId: string;
+  issueBId: string;
+
+  overallScore: number;
+  duplicateScore: number;
+  duplicateLevel: 'Possible Duplicate' | 'Strong Duplicate' | 'Almost Certain Duplicate';
+
+  distanceMeters: number;
+  titleSimilarity: number;
+  descriptionSimilarity: number;
+  locationSimilarity: number;
+  categoryMatch: boolean;
+  subCategoryMatch: boolean;
+  proximitySimilarity: number;
+
+  matchedSubCategories: string[];
+  reasons: string[];
+}
+
+export interface DuplicateGroupMetrics {
+  bestOverallScore: number;
+  averageOverallScore: number;
+  bestDuplicateScore: number;
+  minimumDistanceMeters: number;
+  pairCount: number;
+  reasons: string[];
+}
+
+export interface DuplicateGroup {
+  id: string;
+
+  citizenId: string;
+  citizenName: string;
+  citizenEmail: string;
+  citizenPhone: string;
+
+  detectedAt: string;
+  similarityReason: string;
+  resolved: boolean;
+
+  issues: Issue[];
+
+  similarityMetrics: DuplicateGroupMetrics;
+  pairMetrics: DuplicatePairMetrics[];
 }

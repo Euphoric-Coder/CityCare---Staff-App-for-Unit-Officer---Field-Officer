@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, useColorScheme } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, useColorScheme, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
   TriangleAlert as AlertTriangle,
@@ -8,9 +8,29 @@ import {
   User,
   Copy,
   Zap,
+  MapPin,
+  ChevronUp,
+  Droplets,
+  Trash2,
+  Recycle,
+  Package,
+  HeartPulse,
+  MoreHorizontal,
+  Tag,
 } from 'lucide-react-native';
 import { DuplicateGroup, Issue } from 'lib/types';
-import DuplicateMergeModal from 'components/UnitOfficer/DuplicateMergeModal';
+import DuplicateMergeModal from './DuplicateMergeModal';
+
+const CATEGORIES = [
+  { value: "road", label: "Road & Infrastructure", icon: MapPin, color: "text-blue-600 dark:text-blue-400" },
+  { value: "electricity", label: "Electricity & Lighting", icon: Zap, color: "text-yellow-600 dark:text-yellow-400" },
+  { value: "water", label: "Water Supply", icon: Droplets, color: "text-cyan-600 dark:text-cyan-400" },
+  { value: "sanitation", label: "Sanitation & Waste", icon: Trash2, color: "text-green-600 dark:text-green-400" },
+  { value: "drainage", label: "Drainage & Sewer", icon: Recycle, color: "text-purple-600 dark:text-purple-400" },
+  { value: "solid_waste", label: "Solid Waste Management", icon: Package, color: "text-orange-600 dark:text-orange-400" },
+  { value: "public_health", label: "Public Health", icon: HeartPulse, color: "text-red-600 dark:text-red-400" },
+  { value: "other", label: "Other", icon: MoreHorizontal, color: "text-gray-600 dark:text-gray-400" },
+];
 
 interface DuplicateDetectionBannerProps {
   groups: DuplicateGroup[];
@@ -34,138 +54,197 @@ export default function DuplicateDetectionBanner({
     setSelectedGroup(null);
   };
 
-  const handleReject = (issueId: string, groupId: string) => {
+  const handleReject = (issueIds: string[] | string, groupId: string) => {
     onGroupResolved(groupId);
     setSelectedGroup(null);
   };
 
   return (
-    <>
-      <View className="mb-1 overflow-hidden rounded-2xl" style={styles.shadow}>
-        <LinearGradient
-          colors={isDark ? ['#1C1500', '#181000'] : ['#FFFBEB', '#FEF9ED']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.gradientBase}
-        />
+    <View className="mb-6">
+      {/* Outer shadow wrapper for radiant ambient glow */}
+      <View
+        style={{
+          shadowColor: isDark ? '#000000' : '#D97706',
+          shadowOffset: { width: 0, height: 6 },
+          shadowOpacity: isDark ? 0.4 : 0.2,
+          shadowRadius: 12,
+          elevation: 8,
+          borderRadius: 24,
+          backgroundColor: Platform.OS === 'android' ? (isDark ? '#250E02' : '#FFFBEB') : undefined,
+        }}>
+        <View className="relative overflow-hidden rounded-[24px] border-[1.5px] border-amber-300/60 dark:border-amber-600/50 bg-transparent">
+          {/* Dynamic Rich Background Gradient */}
+          <LinearGradient
+            colors={isDark ? ['#451A03', '#250E02'] : ['#FFFBEB', '#FEF3C7']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={StyleSheet.absoluteFill}
+          />
 
-        <View
-          className="overflow-hidden rounded-2xl border border-amber-200 dark:border-amber-900/60"
-          style={styles.innerWrap}>
-          {/* Accent */}
-          <View className="w-1 bg-amber-400 dark:bg-amber-500" />
+          {/* Premium Specular Glass Highlight */}
+          <LinearGradient
+            colors={
+              isDark
+                ? ['rgba(255,255,255,0.15)', 'transparent']
+                : ['rgba(251, 251, 227, 0.4)', 'transparent']
+            }
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 60 }}
+          />
 
-          <View className="flex-1 p-3.5">
-            {/* Header */}
+          <View className="flex-1 p-5">
+            {/* Intelligence Header */}
             <TouchableOpacity
               onPress={() => setExpanded((v) => !v)}
               activeOpacity={0.85}
-              className="flex-row items-center gap-2.5">
-              <View className="h-9 w-9 items-center justify-center rounded-xl bg-amber-100 dark:bg-amber-950/80">
-                <AlertTriangle color="#F59E0B" size={17} strokeWidth={2.5} />
+              className="flex-row items-center gap-4">
+              {/* Deep Glass Icon Well */}
+              <View className="h-12 w-12 items-center justify-center rounded-[16px] bg-amber-500/20">
+                <View className="absolute inset-0 rounded-[16px] border-[1.5px] border-white/40 dark:border-white/10" />
+                <AlertTriangle color={isDark ? '#FCD34D' : '#D97706'} size={24} strokeWidth={2.5} />
               </View>
 
-              <View className="flex-1">
+              <View className="flex-1 justify-center pr-2">
                 <View className="mb-0.5 flex-row items-center gap-2">
-                  <Text className="flex-1 text-[13px] font-extrabold text-amber-900 dark:text-amber-200">
-                    Potential Duplicate Issues Detected
+                  <Text className="flex-1 text-[15px] font-black tracking-tight text-amber-900 dark:text-amber-100">
+                    Potential Duplicates
                   </Text>
 
-                  <View className="h-[22px] min-w-[22px] items-center justify-center rounded-full bg-amber-400 px-1.5">
-                    <Text className="text-[10px] font-extrabold text-white">
-                      {activeGroups.length}
-                    </Text>
+                  {/* Glowing Micro-Badge */}
+                  <View
+                    className="items-center justify-center rounded-full bg-amber-500 px-2 py-0.5"
+                    style={{
+                      shadowColor: isDark ? '#000000' : '#D97706',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: isDark ? 0.5 : 0.35,
+                      shadowRadius: 4,
+                      elevation: 3,
+                    }}>
+                    <Text className="text-[11px] font-black text-white">{activeGroups.length}</Text>
                   </View>
                 </View>
 
-                <Text className="text-[11px] font-medium text-amber-700 dark:text-amber-600">
+                <Text className="text-[13px] font-bold tracking-tight text-amber-700/80 dark:text-amber-400/80">
                   {activeGroups.length === 1
-                    ? '1 group · same citizen'
-                    : `${activeGroups.length} groups · similar reports`}
+                    ? '1 group detected · Same citizen'
+                    : `${activeGroups.length} groups detected · Similar reports`}
                 </Text>
               </View>
 
-              <View className="flex-row items-center">
-                <Text className="text-[12px] font-bold text-amber-600 dark:text-amber-400">
-                  {expanded ? 'Hide' : 'Review'}
-                </Text>
+              {/* Rotatable Toggle */}
+              <View className="h-8 w-8 items-center justify-center rounded-full bg-amber-200/50 dark:bg-amber-900/50">
                 {expanded ? (
-                  <ChevronDown size={14} color="#D97706" />
+                  <ChevronUp size={18} color={isDark ? '#FCD34D' : '#D97706'} strokeWidth={4} />
                 ) : (
-                  <ChevronRight size={14} color="#D97706" />
+                  <ChevronDown size={18} color={isDark ? '#FCD34D' : '#D97706'} strokeWidth={4} />
                 )}
               </View>
             </TouchableOpacity>
 
-            {/* Expanded */}
+            {/* Expanded Nested Glass Cards */}
             {expanded && (
-              <View className="mt-3 gap-2">
+              <View className="mt-5 gap-3">
                 {activeGroups.map((group, idx) => (
                   <View key={group.id}>
-                    {idx > 0 && <View className="mb-2 h-px bg-amber-100 dark:bg-amber-900/40" />}
+                    {idx > 0 && (
+                      <View className="mb-3 h-[1.5px] w-full bg-amber-200/50 dark:bg-amber-900/40" />
+                    )}
 
-                    {/* ROW */}
-                    <View className="flex-row items-center rounded-xl border border-amber-100 bg-amber-50 px-3 py-2.5 dark:border-amber-900/40 dark:bg-amber-950/50">
-                      {/* ICON */}
-                      <View className="h-7 w-7 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/60">
-                        <User color="#F59E0B" size={13} />
-                      </View>
-
-                      {/* TEXT */}
-                      <View className="ml-2.5 flex-1 pr-3">
-                        <View className="flex-row flex-wrap items-center">
-                          <Text className="text-[13px] font-bold text-amber-900 dark:text-amber-200">
-                            {group.citizenName}
-                          </Text>
-
-                          <View className="ml-1.5 flex-row items-center rounded-md bg-amber-100 px-1.5 py-0.5 dark:bg-amber-900/50">
-                            <Copy color="#F59E0B" size={8} />
-                            <Text className="ml-1 text-[9px] font-bold text-amber-600 dark:text-amber-400">
-                              {group.issues.length} issues
-                            </Text>
-                          </View>
+                    {/* Nested Glass Card */}
+                    <View className="rounded-[20px] border-[2px] border-amber-400/60 bg-amber-50/80 p-3.5 dark:border-amber-500/50 dark:bg-amber-950/40">
+                      <View className="flex-row items-start">
+                        <View className="h-10 w-10 items-center justify-center rounded-[14px] bg-amber-100/80 dark:bg-amber-900/60">
+                          <User
+                            color={isDark ? '#FCD34D' : '#D97706'}
+                            size={20}
+                            strokeWidth={2.5}
+                          />
                         </View>
 
-                        <Text
-                          className="mt-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-700"
-                          numberOfLines={1}>
-                          {group.issues[0].category} · {group.issues[0].location.split(',')[0]}
+                        <View className="ml-3 flex-1 pr-1">
+                          <View className="mb-1 flex-row flex-wrap items-center">
+                            <Text className="text-[15px] font-black tracking-tight text-amber-900 dark:text-amber-100">
+                              {group.citizenName}
+                            </Text>
+
+                            <View className="ml-2 flex-row items-center rounded-md bg-amber-200/70 px-1.5 py-0.5 dark:bg-amber-900/80">
+                              <Copy
+                                color={isDark ? '#FCD34D' : '#D97706'}
+                                size={10}
+                                strokeWidth={2.5}
+                              />
+                              <Text className="ml-1 text-[10px] font-bold text-amber-800 dark:text-amber-300">
+                                {group.issues.length} issues
+                              </Text>
+                            </View>
+                          </View>
+
+                          <View className="flex-row items-center gap-1.5 mt-0.5">
+                            {(() => {
+                              const catValue = group.issues[0].category;
+                              const cat = CATEGORIES.find((c) => c.value === catValue);
+                              const label = cat ? cat.label : catValue;
+                              const IconCmp = cat ? cat.icon : Tag;
+                              return (
+                                <>
+                                  <IconCmp size={12} color={isDark ? '#FBBF24' : '#92400E'} strokeWidth={2.5} />
+                                  <Text className="text-[12px] font-bold tracking-tight text-amber-800/90 dark:text-amber-400">
+                                    {label}
+                                  </Text>
+                                </>
+                              );
+                            })()}
+                          </View>
+                        </View>
+                      </View>
+
+                      {/* Full Location Details Container */}
+                      <View className="mt-3 flex-row items-start rounded-[12px] bg-amber-100/50 p-2.5 dark:bg-amber-950/40">
+                        <MapPin
+                          color={isDark ? '#FCD34D' : '#D97706'}
+                          size={14}
+                          style={{ marginTop: 1 }}
+                        />
+                        <Text className="ml-2 flex-1 text-[12px] font-bold leading-[18px] text-amber-800/80 dark:text-amber-500/90">
+                          {group.issues[0].location}
                         </Text>
                       </View>
 
-                      {/* ✅ FIXED RESOLVE BUTTON */}
-                      <TouchableOpacity
-                        onPress={() => setSelectedGroup(group)}
-                        activeOpacity={0.85}
-                        className="self-center overflow-hidden rounded-xl">
-                        <LinearGradient
-                          colors={['#F59E0B', '#D97706']}
-                          start={{ x: 0, y: 0 }}
-                          end={{ x: 1, y: 0 }}
-                          style={{
-                            minHeight: 38,
-                            paddingHorizontal: 14,
-                            borderRadius: 12,
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}>
-                          <View style={{ marginRight: 6 }}>
-                            <Zap color="#FFFFFF" size={12} />
-                          </View>
-
-                          <Text
+                      {/* Glowing Full-Width Resolve Button */}
+                      <View
+                        className="mt-3"
+                        style={{
+                          shadowColor: isDark ? '#000000' : '#D97706',
+                          shadowOffset: { width: 0, height: 4 },
+                          shadowOpacity: isDark ? 0.4 : 0.2,
+                          shadowRadius: 8,
+                          elevation: 4,
+                          borderRadius: 14,
+                          backgroundColor: Platform.OS === 'android' ? (isDark ? '#D97706' : '#F59E0B') : undefined,
+                        }}>
+                        <TouchableOpacity
+                          onPress={() => setSelectedGroup(group)}
+                          activeOpacity={0.85}
+                          className="overflow-hidden rounded-[14px]">
+                          <LinearGradient
+                            colors={['#F59E0B', '#D97706']}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
                             style={{
-                              color: '#FFFFFF',
-                              fontSize: 12,
-                              fontWeight: '700',
-                              lineHeight: 16,
-                              includeFontPadding: false,
+                              paddingHorizontal: 16,
+                              paddingVertical: 12,
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              justifyContent: 'center',
                             }}>
-                            Resolve
-                          </Text>
-                        </LinearGradient>
-                      </TouchableOpacity>
+                            <Zap color="#FFFFFF" size={14} fill="#FFFFFF" />
+                            <Text className="ml-1.5 text-[14px] font-black tracking-tight text-white">
+                              Resolve Duplicates
+                            </Text>
+                          </LinearGradient>
+                        </TouchableOpacity>
+                      </View>
                     </View>
                   </View>
                 ))}
@@ -180,25 +259,9 @@ export default function DuplicateDetectionBanner({
           group={selectedGroup}
           onClose={() => setSelectedGroup(null)}
           onMerge={(keepIssue, deleteId) => handleMerge(keepIssue, deleteId, selectedGroup.id)}
-          onReject={(issueId) => handleReject(issueId, selectedGroup.id)}
+          onReject={(issueIds) => handleReject(issueIds, selectedGroup.id)}
         />
       )}
-    </>
+    </View>
   );
 }
-
-const styles = StyleSheet.create({
-  shadow: {
-    shadowColor: '#F59E0B',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.18,
-    shadowRadius: 10,
-    elevation: 4,
-  },
-  gradientBase: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  innerWrap: {
-    flexDirection: 'row',
-  },
-});

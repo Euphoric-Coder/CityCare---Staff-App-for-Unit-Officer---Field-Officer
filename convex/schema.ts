@@ -270,7 +270,9 @@ export default defineSchema({
     .index('by_reporter', ['reportedBy'])
     .index('by_status', ['status'])
     .index('by_city', ['city'])
-    .index('by_category', ['category']),
+    .index('by_category', ['category'])
+    .index('by_assigned_unit_officer', ['assignedUnitOfficer'])
+    .index('by_assigned_field_officer', ['assignedFieldOfficer']),
 
   issueUpdates: defineTable({
     // Reference
@@ -385,4 +387,37 @@ export default defineSchema({
     .index('by_resolved_at', ['resolvedAt'])
     .index('by_rejected_at', ['rejectedAt'])
     .index('by_created_at', ['createdAt']),
+
+  messages: defineTable({
+    conversationId: v.id('conversations'),
+    fromId: v.id('users'),
+    toId: v.id('users'),
+    message: v.string(),
+    createdAt: v.number(),
+    read: v.boolean(),
+    issueIds: v.optional(v.array(v.id('issues'))),
+    fromRole: v.string(),
+    fromName: v.string(),
+    isDeleted: v.optional(v.boolean()),
+  })
+    .index('by_conversation', ['conversationId'])
+    .index('by_receiver', ['toId'])
+    .index('by_sender', ['fromId']),
+
+  conversations: defineTable({
+    participantIds: v.array(v.id('users')),
+    lastMessage: v.optional(v.string()),
+    lastMessageTime: v.optional(v.number()),
+    lastMessageSenderId: v.optional(v.id('users')),
+    unreadCountMap: v.optional(
+      v.record(v.id('users'), v.number())
+    ),
+    issueRef: v.optional(
+      v.object({
+        issueId: v.id('issues'),
+        issueTitle: v.string(),
+        status: v.string(),
+      })
+    ),
+  }).index('by_participants', ['participantIds']),
 });

@@ -479,13 +479,11 @@ export interface User {
 export interface OfficialUser {
   id: string;
   name: string;
-  role: 'Admin' | 'CityAdmin' | 'UnitOfficer' | 'FieldOfficer';
+  role: 'Admin' | 'CityAdmin' | 'UnitOfficer' | 'FieldOfficer' | string;
   designation: string;
   department: string;
-  ward?: string;
+  city?: string;
   avatar: string;
-  isOnline: boolean;
-  lastSeen?: string;
 }
 
 export interface DirectMessage {

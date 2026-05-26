@@ -22,7 +22,7 @@ import SignInScreen from 'components/SignInScreen';
 import UnitOfficerDashboard from 'screens/UnitOfficer/UnitOfficerDashboard';
 import IssueDetailScreen from 'screens/UnitOfficer/IssueDetailScreen';
 import AnalyticsTab from 'screens/UnitOfficer/AnalyticsTab';
-import MessagesTab from 'components/MessagesTab';
+import MessagesTab from 'components/OfficerMessaging/MessagesTab';
 import FieldDashboardScreen from 'screens/FieldOfficer/FieldDashboardScreen';
 import FieldIssueDetailScreen from 'screens/FieldOfficer/FieldIssueDetailScreen';
 import FieldProfileTab from 'screens/FieldOfficer/FieldProfileTab';
@@ -30,8 +30,9 @@ import { getToken, getUserData, User, removeToken } from 'lib/auth';
 import './global.css';
 import ProfileTab from 'screens/UnitOfficer/ProfileTab';
 import ChangePasswordScreen from 'screens/ChangePasswordScreen';
-import { ConvexProvider, ConvexReactClient } from 'convex/react';
-import { UserContext } from 'context/UserContext';
+import { ConvexProvider, ConvexReactClient, useQuery } from 'convex/react';
+import { api } from './convex/_generated/api';
+import { UserContext, useUser } from 'context/UserContext';
 import PublicModerationScreen from 'screens/PublicModerationScreen';
 
 type RootStackParamList = {
@@ -86,6 +87,12 @@ function UnitOfficerTabNavigator({ user, onSignOut }: TabNavigatorProps) {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const tabBarHeight = 60 + insets.bottom;
+  
+  const conversations = useQuery(api.directMessages.getUserConversations, { userId: user.id as any }) || [];
+  const unreadCount = conversations.reduce((acc, conv) => {
+    return acc + (conv.unreadCountMap ? (conv.unreadCountMap as any)[user.id] || 0 : 0);
+  }, 0);
+
   return (
     <Tab.Navigator
       screenOptions={{
@@ -126,14 +133,14 @@ function UnitOfficerTabNavigator({ user, onSignOut }: TabNavigatorProps) {
           tabBarIcon: ({ color, size }) => <Globe size={size} color={color} />,
         }}
       />
-      {/* <Tab.Screen
+      <Tab.Screen
         name="Messages"
         component={MessagesTab}
         options={{
           tabBarIcon: ({ color, size }) => <MessageSquare size={size} color={color} />,
-          tabBarBadge: 2,
+          tabBarBadge: unreadCount > 0 ? unreadCount : undefined,
         }}
-      /> */}
+      />
       <Tab.Screen
         name="Analytics"
         component={AnalyticsTab}
@@ -157,6 +164,12 @@ function FieldOfficerTabNavigator({ user, onSignOut }: TabNavigatorProps) {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const tabBarHeight = 60 + insets.bottom;
+  
+  const conversations = useQuery(api.directMessages.getUserConversations, { userId: user.id as any }) || [];
+  const unreadCount = conversations.reduce((acc, conv) => {
+    return acc + (conv.unreadCountMap ? (conv.unreadCountMap as any)[user.id] || 0 : 0);
+  }, 0);
+
   return (
     <Tab.Navigator
       screenOptions={{
@@ -191,14 +204,14 @@ function FieldOfficerTabNavigator({ user, onSignOut }: TabNavigatorProps) {
         }}
       />
       {/* TODO - add messages tabs for field officers as well once implemented */}
-      {/* <Tab.Screen
+      <Tab.Screen
         name="Messages"
         component={MessagesTab}
         options={{
           tabBarIcon: ({ color, size }) => <MessageSquare size={size} color={color} />,
-          tabBarBadge: 2,
+          tabBarBadge: unreadCount > 0 ? unreadCount : undefined,
         }}
-      /> */}
+      />
       <Tab.Screen
         name="Profile"
         options={{

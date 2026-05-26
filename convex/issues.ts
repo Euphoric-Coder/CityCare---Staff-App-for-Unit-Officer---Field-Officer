@@ -599,3 +599,27 @@ export const autoAssignIssues = internalMutation({
     return `Assigned ${issues.length} issues successfully`;
   },
 });
+
+export const getIssuesByOfficial = query({
+  args: {
+    officialId: v.id('users'),
+  },
+
+  handler: async (ctx, args) => {
+    const unitOfficerIssues = await ctx.db
+      .query('issues')
+      .withIndex('by_assigned_unit_officer', (q) => q.eq('assignedUnitOfficer', args.officialId))
+      .collect();
+
+    const fieldOfficerIssues = await ctx.db
+      .query('issues')
+      .withIndex('by_assigned_field_officer', (q) => q.eq('assignedFieldOfficer', args.officialId))
+      .collect();
+
+    const merged = [...unitOfficerIssues, ...fieldOfficerIssues];
+
+    const uniqueIssues = Array.from(new Map(merged.map((issue) => [issue._id, issue])).values());
+
+    return uniqueIssues.sort((a, b) => b.createdAt - a.createdAt);
+  },
+});

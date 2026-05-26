@@ -10,6 +10,7 @@
 
 import type * as auth from "../auth.js";
 import type * as crons from "../crons.js";
+import type * as directMessages from "../directMessages.js";
 import type * as duplicateIssues from "../duplicateIssues.js";
 import type * as fieldOfficers from "../fieldOfficers.js";
 import type * as issueUpdates from "../issueUpdates.js";
@@ -32,6 +33,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   crons: typeof crons;
+  directMessages: typeof directMessages;
   duplicateIssues: typeof duplicateIssues;
   fieldOfficers: typeof fieldOfficers;
   issueUpdates: typeof issueUpdates;

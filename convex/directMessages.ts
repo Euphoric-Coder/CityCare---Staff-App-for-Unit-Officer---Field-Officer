@@ -211,6 +211,9 @@ export const getAllOfficials = query({
     // Fetch Admins and City Admins
     const allUsers = await ctx.db.query('users').collect();
     const admins = allUsers.filter(u => u.role === 'admin' || u.role === 'city_admin');
+    
+    const fallbackAvatar = process.env.EXPO_PUBLIC_AVATAR || "https://ik.imagekit.io/o3jhcpnqcj/Patient-Profile-Photo/avatar.png?updatedAt=1758129736253";
+
     for (const admin of admins) {
       officials.push({
         id: admin._id,
@@ -219,7 +222,7 @@ export const getAllOfficials = query({
         designation: admin.role === 'admin' ? 'Deputy Commissioner' : 'City Administrator',
         department: 'Municipal Corporation',
         city: 'Varanasi', // Fallback or could be fetched if stored in users
-        avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(admin.fullName)}&background=random`,
+        avatar: fallbackAvatar,
       });
     }
 
@@ -232,6 +235,12 @@ export const getAllOfficials = query({
     for (const uo of unitOfficers) {
       const user = await ctx.db.get(uo.userId);
       if (user) {
+        let avatarUrl = fallbackAvatar;
+        if (uo.profilePicture) {
+          const url = await ctx.storage.getUrl(uo.profilePicture);
+          if (url) avatarUrl = url;
+        }
+        
         officials.push({
           id: user._id,
           name: uo.fullName,
@@ -239,7 +248,7 @@ export const getAllOfficials = query({
           designation: 'Unit Officer',
           department: uo.department || 'Municipal Corporation',
           city: uo.city,
-          avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(uo.fullName)}&background=random`,
+          avatar: avatarUrl,
         });
       }
     }
@@ -253,6 +262,12 @@ export const getAllOfficials = query({
     for (const fo of fieldOfficers) {
       const user = await ctx.db.get(fo.userId);
       if (user) {
+        let avatarUrl = fallbackAvatar;
+        if (fo.profilePicture) {
+          const url = await ctx.storage.getUrl(fo.profilePicture);
+          if (url) avatarUrl = url;
+        }
+
         officials.push({
           id: user._id,
           name: fo.fullName,
@@ -260,7 +275,7 @@ export const getAllOfficials = query({
           designation: 'Field Officer',
           department: fo.department || 'Municipal Corporation',
           city: fo.city,
-          avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(fo.fullName)}&background=random`,
+          avatar: avatarUrl,
         });
       }
     }

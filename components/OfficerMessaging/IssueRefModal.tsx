@@ -95,8 +95,8 @@ export default function IssueRefModal({ issueId, onClose }: Props) {
             </TouchableOpacity>
           </View>
 
-          {/* Content Body */}
-          <View className="flex-1 bg-white dark:bg-slate-900 rounded-t-[32px] overflow-hidden z-10 shadow-inner">
+          {/* Elevated Modal Content */}
+          <View className="flex-1 bg-white dark:bg-slate-900 rounded-t-[32px] overflow-hidden z-10 border-t border-white/20">
             <ScrollView
               showsVerticalScrollIndicator={false}
               contentContainerStyle={{ padding: 24, paddingBottom: 40 }}>
@@ -168,8 +168,8 @@ export default function IssueRefModal({ issueId, onClose }: Props) {
               </Text>
               <View className="mb-8 rounded-[24px] border border-slate-200/60 bg-slate-50/80 p-5 dark:border-slate-800/60 dark:bg-slate-800/30">
                 <View className="gap-5">
-                  <View className="flex-row items-start gap-4">
-                    <View className="h-10 w-10 items-center justify-center rounded-full bg-white shadow-sm border border-slate-100 dark:bg-slate-800 dark:border-slate-700">
+                  <View className="flex-row items-center gap-3">
+                    <View className="h-10 w-10 items-center justify-center rounded-full bg-white border border-slate-100 dark:bg-slate-800 dark:border-slate-700" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 1 }}>
                        <MapPin size={16} color="#0F766E" strokeWidth={2.5} />
                     </View>
                     <View className="flex-1 justify-center py-0.5">
@@ -179,7 +179,7 @@ export default function IssueRefModal({ issueId, onClose }: Props) {
                   </View>
                   
                   <View className="flex-row items-center gap-4 border-t border-slate-200/60 pt-5 dark:border-slate-700/60">
-                    <View className="h-10 w-10 items-center justify-center rounded-full bg-white shadow-sm border border-slate-100 dark:bg-slate-800 dark:border-slate-700">
+                    <View className="h-10 w-10 items-center justify-center rounded-full bg-white border border-slate-100 dark:bg-slate-800 dark:border-slate-700">
                        <Calendar size={16} color="#0F766E" strokeWidth={2.5} />
                     </View>
                     <View className="flex-1 justify-center py-0.5">
@@ -195,7 +195,7 @@ export default function IssueRefModal({ issueId, onClose }: Props) {
                   </View>
 
                   <View className="flex-row items-center gap-4 border-t border-slate-200/60 pt-5 dark:border-slate-700/60">
-                    <View className="h-10 w-10 items-center justify-center rounded-full bg-white shadow-sm border border-slate-100 dark:bg-slate-800 dark:border-slate-700">
+                    <View className="h-10 w-10 items-center justify-center rounded-full bg-white border border-slate-100 dark:bg-slate-800 dark:border-slate-700">
                        <User size={16} color="#0F766E" strokeWidth={2.5} />
                     </View>
                     <View className="flex-1 justify-center py-0.5">
@@ -206,7 +206,7 @@ export default function IssueRefModal({ issueId, onClose }: Props) {
 
                   {issue.assignedOfficer && (
                     <View className="flex-row items-center gap-4 border-t border-slate-200/60 pt-5 dark:border-slate-700/60">
-                      <View className="h-10 w-10 items-center justify-center rounded-full bg-white shadow-sm border border-slate-100 dark:bg-slate-800 dark:border-slate-700">
+                      <View className="h-10 w-10 items-center justify-center rounded-full bg-white border border-slate-100 dark:bg-slate-800 dark:border-slate-700">
                          <Briefcase size={16} color="#0F766E" strokeWidth={2.5} />
                       </View>
                       <View className="flex-1 justify-center py-0.5">
@@ -218,7 +218,7 @@ export default function IssueRefModal({ issueId, onClose }: Props) {
 
                   {issue.slaDeadline && (
                     <View className="flex-row items-center gap-4 border-t border-slate-200/60 pt-5 dark:border-slate-700/60">
-                      <View className="h-10 w-10 items-center justify-center rounded-full bg-white shadow-sm border border-slate-100 dark:bg-slate-800 dark:border-slate-700">
+                      <View className="h-10 w-10 items-center justify-center rounded-full bg-white border border-slate-100 dark:bg-slate-800 dark:border-slate-700">
                          <Clock size={16} color="#0F766E" strokeWidth={2.5} />
                       </View>
                       <View className="flex-1 justify-center py-0.5">

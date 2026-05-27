@@ -8,6 +8,7 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
+  useColorScheme,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -190,19 +191,36 @@ function IssueChip({
   issueId,
   issueTitle,
   onPress,
+  isOwn = false,
 }: {
   issueId: string;
   issueTitle: string;
   onPress: () => void;
+  isOwn?: boolean;
 }) {
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+
   return (
     <TouchableOpacity
       onPress={onPress}
-      activeOpacity={0.7}
-      className="mb-2 flex-row items-center gap-1.5 rounded-xl border border-sky-300/50 bg-sky-50/80 px-3 py-2 dark:border-sky-700/50 dark:bg-sky-900/20">
-      <Tag size={11} color="#0891B2" strokeWidth={2.5} />
-      {/* <Text className="text-xs font-extrabold text-sky-600 dark:text-sky-400">{issueId}</Text> */}
-      <Text className="flex-1 text-xs text-sky-700 dark:text-sky-300" numberOfLines={1}>
+      activeOpacity={0.8}
+      style={isOwn ? { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 } : {}}
+      className={`mb-1.5 self-start flex-row items-center gap-2 rounded-[16px] px-3.5 py-2 border ${
+        isOwn 
+          ? 'bg-white border-white dark:bg-slate-900/60 dark:border-slate-800/80' 
+          : 'bg-teal-50/80 border-teal-200/60 dark:bg-slate-900/50 dark:border-slate-700/60'
+      }`}>
+      <View 
+        style={!isOwn ? { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 1 } : {}}
+        className={`h-6 w-6 items-center justify-center rounded-full ${
+          isOwn 
+            ? 'bg-teal-100 dark:bg-teal-500/20' 
+            : 'bg-white border border-slate-100 dark:bg-slate-800 dark:border-slate-700'
+        }`}>
+        <Tag size={12} color={(isOwn && isDark) ? '#2DD4BF' : '#0F766E'} strokeWidth={2.5} />
+      </View>
+      <Text className={`text-[10px] font-black uppercase tracking-widest shrink ${isOwn ? 'text-[#0F766E] dark:text-teal-300' : 'text-[#0F766E] dark:text-teal-400'}`} numberOfLines={1}>
         {issueTitle}
       </Text>
     </TouchableOpacity>
@@ -354,96 +372,121 @@ export default function MessagesTab() {
   if (screen === 'new') {
     return (
       <SafeAreaView className="flex-1 bg-slate-50 dark:bg-slate-950" edges={['top']}>
-        <View className="flex-row items-center gap-3 border-b border-slate-100 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
-          <TouchableOpacity
-            onPress={() => setScreen('list')}
-            className="h-9 w-9 items-center justify-center rounded-2xl bg-slate-100 dark:bg-slate-800"
-            activeOpacity={0.7}>
-            <ArrowLeft size={18} color="#64748B" strokeWidth={2.5} />
-          </TouchableOpacity>
-          <Text className="flex-1 text-base font-extrabold text-slate-800 dark:text-slate-100">
-            New Conversation
+        {/* Advanced Header */}
+        <View className="px-5 pb-4 pt-4 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800/80 z-10" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 2 }}>
+          <View className="flex-row items-center justify-between mb-4">
+            <TouchableOpacity
+              onPress={() => setScreen('list')}
+              className="h-10 w-10 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800"
+              activeOpacity={0.7}>
+              <ArrowLeft size={20} color="#64748B" strokeWidth={2.5} />
+            </TouchableOpacity>
+            <View className="h-10 w-10 items-center justify-center rounded-full bg-teal-50 dark:bg-teal-900/20">
+              <Plus size={20} color="#0F766E" strokeWidth={2.5} />
+            </View>
+          </View>
+          <Text className="text-[28px] font-black tracking-tight text-slate-800 dark:text-slate-100">
+            New Message
+          </Text>
+          <Text className="text-[14px] font-medium text-slate-500 dark:text-slate-400 mt-1">
+            Find an official to start a secure conversation.
           </Text>
         </View>
 
-        <View className="mx-4 mt-4 flex-row items-center gap-3 rounded-2xl border border-slate-100 bg-white px-4 py-3 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <Search size={17} color="#94A3B8" strokeWidth={2.5} />
-          <TextInput
-            className="flex-1 text-sm font-medium text-slate-800 dark:text-slate-200"
-            placeholder="Search officials by name or department..."
-            placeholderTextColor="#94A3B8"
-            value={newSearchQuery}
-            onChangeText={setNewSearchQuery}
-          />
-          {newSearchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setNewSearchQuery('')} activeOpacity={0.7}>
-              <X size={16} color="#94A3B8" strokeWidth={2.5} />
-            </TouchableOpacity>
-          )}
+        {/* Elevated Search Bar */}
+        <View className="px-5 pt-5 pb-1">
+          <View 
+            style={{ shadowColor: '#94a3b8', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 2 }}
+            className="flex-row items-center gap-3 rounded-[20px] bg-white px-4 py-3.5 border border-slate-100 dark:border-slate-800 dark:bg-slate-900/80">
+            <Search size={18} color="#94A3B8" strokeWidth={2.5} />
+            <TextInput
+              className="flex-1 text-[15px] font-bold text-slate-800 dark:text-slate-200 p-0"
+              placeholder="Search by name, dept..."
+              placeholderTextColor="#94A3B8"
+              value={newSearchQuery}
+              onChangeText={setNewSearchQuery}
+            />
+            {newSearchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setNewSearchQuery('')} activeOpacity={0.7} className="h-6 w-6 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800">
+                <X size={12} color="#64748B" strokeWidth={3} />
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
 
         <ScrollView
-          className="mt-3 flex-1"
-          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32 }}
+          className="mt-2 flex-1"
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}
           showsVerticalScrollIndicator={false}>
           {Object.entries(
             filteredNewOfficials.reduce<Record<string, OfficialUser[]>>((acc, o) => {
-              const g =
-                o.role === 'Admin' || o.role === 'CityAdmin' ? 'Administration' : 'Field Officers';
+              let g = 'Field Officers';
+              if (o.role === 'Admin' || o.role === 'CityAdmin') g = 'Administration';
+              else if (o.role === 'UnitOfficer') g = 'Unit Officers';
+              
               if (!acc[g]) acc[g] = [];
               acc[g].push(o);
               return acc;
             }, {})
           ).map(([group, officials]) => (
-            <View key={group}>
-              <Text className="mb-2 ml-1 mt-4 text-xs font-extrabold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+            <View key={group} className="mt-6">
+              <Text className="mb-3 ml-2 text-[11px] font-black uppercase tracking-widest text-[#0F766E] dark:text-teal-400">
                 {group}
               </Text>
-              {officials.map((official) => {
-                const roleCfg = ROLE_CONFIG[official.role] ?? ROLE_CONFIG.FieldOfficer;
-                const deptCat = getCategoryForDept(official.department);
-                const DeptIcon = deptCat.icon;
-                return (
-                  <TouchableOpacity
-                    key={official.id}
-                    className="mb-2.5 flex-row items-center gap-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900"
-                    activeOpacity={0.75}
-                    onPress={() => {
-                      setProfileOfficial(official);
-                      setScreen('profile');
-                    }}>
-                    <AvatarWithStatus uri={official.avatar} size={46} />
-                    <View className="flex-1 gap-0.5">
-                      <Text className="text-[15px] font-bold text-slate-800 dark:text-slate-100">
-                        {official.name}
-                      </Text>
-                      <View className="flex-row items-center gap-1">
-                        <DeptIcon size={12} color={deptCat.iconColor} />
-                        <Text className={`text-xs font-medium ${deptCat.color}`} numberOfLines={1}>
-                          {deptCat.label}
-                        </Text>
+              <View className="gap-3">
+                {officials.map((official) => {
+                  const roleCfg = ROLE_CONFIG[official.role] ?? ROLE_CONFIG.FieldOfficer;
+                  const deptCat = getCategoryForDept(official.department);
+                  const DeptIcon = deptCat.icon;
+                  return (
+                    <TouchableOpacity
+                      key={official.id}
+                      className="flex-row items-center gap-4 rounded-[24px] border border-slate-100 bg-white p-4 dark:border-slate-800/80 dark:bg-slate-900/80"
+                      style={{ shadowColor: '#0f172a', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 }}
+                      activeOpacity={0.75}
+                      onPress={() => {
+                        setProfileOfficial(official);
+                        setScreen('profile');
+                      }}>
+                      <AvatarWithStatus uri={official.avatar} size={52} />
+                      <View className="flex-1 justify-center gap-1">
+                        <View className="flex-row items-center justify-between">
+                          <Text className="text-[16px] font-black text-slate-800 dark:text-slate-100 flex-1 mr-2" numberOfLines={1}>
+                            {official.name}
+                          </Text>
+                          <View className={`rounded-xl px-2.5 py-1 border ${roleCfg.bgClass.replace('bg-', 'border-').replace('/30', '/50')} ${roleCfg.bgClass}`}>
+                            <Text className={`text-[9px] font-black uppercase tracking-widest ${roleCfg.textClass}`}>
+                              {roleCfg.label}
+                            </Text>
+                          </View>
+                        </View>
+                        
+                        <View className="flex-row items-center gap-2 mt-0.5">
+                          <View className={`h-6 w-6 items-center justify-center rounded-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50`}>
+                            <DeptIcon size={11} color={deptCat.iconColor} />
+                          </View>
+                          <Text className={`text-[12px] font-bold ${deptCat.color} flex-1`} numberOfLines={1}>
+                            {deptCat.label}
+                          </Text>
+                        </View>
                       </View>
-                      <View
-                        className={`mt-0.5 self-start rounded-lg px-2 py-0.5 ${roleCfg.bgClass}`}>
-                        <Text className={`text-[10px] font-bold ${roleCfg.textClass}`}>
-                          {roleCfg.label}
-                        </Text>
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
             </View>
           ))}
 
           {filteredNewOfficials.length === 0 && (
-            <View className="items-center justify-center gap-3 py-16">
-              <Users size={52} color="#CBD5E1" strokeWidth={1.5} />
-              <Text className="text-base font-bold text-slate-500 dark:text-slate-400">
+            <View className="items-center justify-center gap-3 py-20">
+              <View className="h-24 w-24 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800">
+                <Users size={40} color="#CBD5E1" strokeWidth={1.5} />
+              </View>
+              <Text className="text-[18px] font-black tracking-tight text-slate-800 dark:text-slate-200">
                 No officials found
               </Text>
-              <Text className="px-8 text-center text-sm text-slate-400 dark:text-slate-500">
-                Try a different search term
+              <Text className="px-8 text-center text-[14px] font-medium text-slate-500 dark:text-slate-400">
+                Try searching for a different name or department.
               </Text>
             </View>
           )}
@@ -632,6 +675,7 @@ export default function MessagesTab() {
                             <IssueChip
                               issueId={msg.issueRef.issueId}
                               issueTitle={msg.issueRef.issueTitle}
+                              isOwn={isOwn}
                               onPress={() => setIssueRefModalId(msg.issueRef!.issueId)}
                             />
                           </View>
@@ -752,14 +796,14 @@ export default function MessagesTab() {
   return (
     <SafeAreaView className="flex-1 bg-[#0F766E] dark:bg-slate-900" edges={['top']}>
       <View className="flex-1 bg-slate-50 dark:bg-slate-950">
-        <View className="relative z-10 overflow-hidden rounded-b-[40px] bg-[#0F766E] px-6 pb-12 pt-8 shadow-2xl shadow-teal-900/30 dark:bg-slate-900">
+        <View className="relative z-10 overflow-hidden rounded-b-[40px] bg-[#0F766E] px-6 pb-12 pt-8 dark:bg-slate-900" style={{ shadowColor: '#134E4A', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 20, elevation: 15 }}>
           {/* Abstract decorative shapes */}
           <View className="absolute -right-12 -top-12 h-48 w-48 rounded-full bg-teal-400/20" />
           <View className="absolute -bottom-24 -left-12 h-64 w-64 rounded-full bg-teal-900/30" />
           
           <View className="relative z-10 mb-6 flex-row items-center justify-between">
             <View>
-              <Text className="text-[38px] font-black tracking-tighter text-white shadow-sm">
+              <Text className="text-[38px] font-black tracking-tighter text-white" style={{ textShadowColor: 'rgba(0,0,0,0.1)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 }}>
                 Messages
               </Text>
               <Text className="mt-1 text-[13px] font-bold uppercase tracking-widest text-teal-100/90">
@@ -768,14 +812,14 @@ export default function MessagesTab() {
             </View>
             <TouchableOpacity
               onPress={() => setScreen('new')}
-              className="h-14 w-14 items-center justify-center rounded-full border-2 border-white/30 bg-white/20 shadow-lg shadow-black/10"
+              className="h-14 w-14 items-center justify-center rounded-full border-2 border-white/30 bg-white/20" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 5 }}
               activeOpacity={0.8}>
               <Plus size={26} color="#FFFFFF" strokeWidth={3} />
             </TouchableOpacity>
           </View>
           {totalUnread > 0 && (
-            <View className="relative z-10 flex-row items-center gap-2.5 self-start rounded-full border border-white/20 bg-white/20 px-5 py-2.5 shadow-sm">
-              <View className="h-2.5 w-2.5 rounded-full bg-[#FBBF24] shadow-sm shadow-[#FBBF24]/50" />
+            <View className="relative z-10 flex-row items-center gap-2.5 self-start rounded-full border border-white/20 bg-white/20 px-5 py-2.5" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 2 }}>
+              <View className="h-2.5 w-2.5 rounded-full bg-[#FBBF24]" style={{ shadowColor: '#FBBF24', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.5, shadowRadius: 2, elevation: 1 }} />
               <Text className="text-[14px] font-extrabold tracking-wide text-white">
                 {totalUnread} new message{totalUnread > 1 ? 's' : ''}
               </Text>
@@ -783,7 +827,7 @@ export default function MessagesTab() {
           )}
         </View>
 
-        <View className="mx-6 -mt-8 z-20 flex-row items-center gap-3 rounded-[24px] border-[1.5px] border-slate-100 bg-white/95 px-5 py-4 shadow-xl shadow-slate-300/60 dark:border-slate-700 dark:bg-slate-800 dark:shadow-none">
+        <View className="mx-6 -mt-8 z-20 flex-row items-center gap-3 rounded-[24px] border-[1.5px] border-slate-100 bg-white/95 px-5 py-4 dark:border-slate-700 dark:bg-slate-800" style={{ shadowColor: '#cbd5e1', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 20, elevation: 10 }}>
           <Search size={20} color="#94A3B8" strokeWidth={3} />
           <TextInput
             className="flex-1 text-[16px] font-bold text-slate-800 dark:text-slate-200"
@@ -819,7 +863,7 @@ export default function MessagesTab() {
             return (
               <TouchableOpacity
                 key={conv.id}
-                className="mb-4 overflow-hidden rounded-[32px] bg-white shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
+                className="mb-4 overflow-hidden rounded-[32px] bg-white dark:bg-slate-900"
                 style={{ elevation: 3 }}
                 onPress={() => {
                   setSelectedConvId(conv.id);
@@ -833,7 +877,7 @@ export default function MessagesTab() {
                 <View className="p-5 pl-6">
                   <View className="flex-row items-center gap-4">
                     {other && (
-                      <View className="relative rounded-full shadow-sm shadow-slate-200/50">
+                      <View className="relative rounded-full" style={{ shadowColor: '#e2e8f0', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.5, shadowRadius: 4, elevation: 2 }}>
                         <AvatarWithStatus uri={other.avatar} size={64} />
                       </View>
                     )}
@@ -868,7 +912,7 @@ export default function MessagesTab() {
                             {formatTime(conv.lastMessageTime)}
                           </Text>
                           {conv.unreadCount > 0 && (
-                            <View className="min-w-[24px] items-center justify-center rounded-full bg-rose-500 px-2 py-1 shadow-sm shadow-rose-500/30">
+                            <View className="min-w-[24px] items-center justify-center rounded-full bg-rose-500 px-2 py-1" style={{ shadowColor: '#f43f5e', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 3, elevation: 2 }}>
                               <Text className="text-[11px] font-black text-white">
                                 {conv.unreadCount}
                               </Text>
@@ -931,7 +975,7 @@ export default function MessagesTab() {
               {!searchQuery && (
                 <TouchableOpacity
                   onPress={() => setScreen('new')}
-                  className="mt-4 flex-row items-center gap-2 rounded-full bg-[#0F766E] px-8 py-4 shadow-lg shadow-teal-600/30"
+                  className="mt-4 flex-row items-center gap-2 rounded-full bg-[#0F766E] px-8 py-4" style={{ shadowColor: '#0d9488', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 10, elevation: 5 }}
                   activeOpacity={0.8}>
                   <Plus size={18} color="#FFFFFF" strokeWidth={3} />
                   <Text className="text-[15px] font-black text-white">Start Chat</Text>

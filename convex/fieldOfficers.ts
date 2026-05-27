@@ -5,10 +5,48 @@ import { Id } from './_generated/dataModel';
 export const getFieldOfficerByUserId = query({
   args: { userId: v.id('users') },
   handler: async (ctx, args) => {
-    return await ctx.db
+    const officer = await ctx.db
       .query('fieldOfficers')
       .withIndex('by_user', (q) => q.eq('userId', args.userId))
       .unique();
+      
+    if (!officer) return null;
+    
+    let profilePictureUrl = null;
+    if (officer.profilePicture) {
+      profilePictureUrl = await ctx.storage.getUrl(officer.profilePicture);
+    }
+    
+    return {
+      ...officer,
+      profilePictureUrl,
+    };
+  },
+});
+
+export const updateFieldOfficerProfilePicture = mutation({
+  args: {
+    userId: v.id('users'),
+    profilePicture: v.optional(v.id('_storage')),
+  },
+  handler: async (ctx, args) => {
+    const officer = await ctx.db
+      .query('fieldOfficers')
+      .withIndex('by_user', (q) => q.eq('userId', args.userId))
+      .unique();
+      
+    if (!officer) throw new Error('Field Officer not found');
+    
+    // Delete old profile picture from storage
+    if (officer.profilePicture) {
+      await ctx.storage.delete(officer.profilePicture);
+    }
+    
+    await ctx.db.patch(officer._id, {
+      profilePicture: args.profilePicture,
+    });
+    
+    return { success: true };
   },
 });
 

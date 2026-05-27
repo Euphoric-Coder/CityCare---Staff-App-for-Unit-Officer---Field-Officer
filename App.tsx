@@ -87,8 +87,9 @@ function UnitOfficerTabNavigator({ user, onSignOut }: TabNavigatorProps) {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const tabBarHeight = 60 + insets.bottom;
-  
-  const conversations = useQuery(api.directMessages.getUserConversations, { userId: user.id as any }) || [];
+
+  const conversations =
+    useQuery(api.directMessages.getUserConversations, { userId: user.id as any }) || [];
   const unreadCount = conversations.reduce((acc, conv) => {
     return acc + (conv.unreadCountMap ? (conv.unreadCountMap as any)[user.id] || 0 : 0);
   }, 0);
@@ -164,8 +165,9 @@ function FieldOfficerTabNavigator({ user, onSignOut }: TabNavigatorProps) {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const tabBarHeight = 60 + insets.bottom;
-  
-  const conversations = useQuery(api.directMessages.getUserConversations, { userId: user.id as any }) || [];
+
+  const conversations =
+    useQuery(api.directMessages.getUserConversations, { userId: user.id as any }) || [];
   const unreadCount = conversations.reduce((acc, conv) => {
     return acc + (conv.unreadCountMap ? (conv.unreadCountMap as any)[user.id] || 0 : 0);
   }, 0);
@@ -221,6 +223,7 @@ function FieldOfficerTabNavigator({ user, onSignOut }: TabNavigatorProps) {
           <FieldProfileTab
             profile={{
               name: user.name,
+              userId: user.id,
               ward: 'Ward 12 - South Zone',
               phone: '+91 98765 43210',
               email: user.email,

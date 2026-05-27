@@ -44,6 +44,7 @@ export default defineSchema({
 
   unitOfficers: defineTable({
     userId: v.id('users'),
+    profilePicture: v.optional(v.id('_storage')),
 
     fullName: v.string(),
     email: v.string(),
@@ -78,6 +79,7 @@ export default defineSchema({
 
   fieldOfficers: defineTable({
     userId: v.id('users'),
+    profilePicture: v.optional(v.id('_storage')),
 
     fullName: v.string(),
     email: v.string(),

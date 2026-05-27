@@ -69,67 +69,87 @@ export default function OfficialProfileScreen({ official, onBack, onStartConvers
 
   return (
     <SafeAreaView className="flex-1 bg-slate-50 dark:bg-slate-950" edges={['top']}>
-      <View className="flex-row items-center gap-3 border-b border-slate-100 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
+      {/* Stunning Geometric Header Backdrop */}
+      <View 
+        style={{ shadowColor: '#134e4a', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 20, elevation: 10 }}
+        className="absolute top-0 left-0 right-0 h-48 bg-[#0F766E] z-0 overflow-hidden">
+         <View className="absolute -right-12 -top-12 h-48 w-48 rounded-full bg-teal-400/20" />
+         <View className="absolute -bottom-24 -left-12 h-64 w-64 rounded-full bg-teal-900/30" />
+      </View>
+
+      <View className="flex-row items-center justify-between px-5 pt-4 pb-4 z-10">
         <TouchableOpacity
           onPress={onBack}
-          className="h-9 w-9 items-center justify-center rounded-2xl bg-slate-100 dark:bg-slate-800"
+          className="h-10 w-10 items-center justify-center rounded-full bg-white/20 border border-white/30"
+          style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 }}
           activeOpacity={0.7}>
-          <ArrowLeft size={18} color="#64748B" strokeWidth={2.5} />
+          <ArrowLeft size={20} color="#FFFFFF" strokeWidth={2.5} />
         </TouchableOpacity>
-        <Text className="flex-1 text-base font-extrabold text-slate-800 dark:text-slate-100">
-          Official Profile
+        <Text className="text-[16px] font-black tracking-widest uppercase text-white mr-2">
+          Profile
         </Text>
       </View>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 32 }}>
-        <View className="mx-4 mt-4 rounded-3xl border border-slate-100 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <View className="mb-4 items-center">
-            <View className="relative mb-3">
-              <Image source={{ uri: official.avatar }} className="h-24 w-24 rounded-full" />
-            </View>
-            <Text className="mb-1 text-xl font-extrabold text-slate-900 dark:text-slate-50">
-              {official.name}
-            </Text>
-            <View style={{ backgroundColor: roleCfg.bg }} className="mb-2 rounded-lg px-3 py-1">
-              <Text style={{ color: roleCfg.color }} className="text-sm font-bold">
-                {roleCfg.label}
-              </Text>
+        contentContainerStyle={{ paddingBottom: 40, paddingTop: 10 }}
+        className="z-10">
+        
+        {/* Profile Card & Avatar Wrapper */}
+        <View className="mx-5 z-20">
+          {/* Avatar breaking out (rendered as sibling to prevent Android elevation clipping) */}
+          <View className="items-center z-30" style={{ elevation: 10, marginBottom: -64 }}>
+            <View className="rounded-full bg-white dark:bg-slate-900 p-2" style={{ shadowColor: '#0f172a', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 6 }}>
+              <Image source={{ uri: official.avatar }} className="h-28 w-28 rounded-full" />
             </View>
           </View>
 
-          <View className="gap-3 border-t border-slate-100 pt-4 dark:border-slate-800">
-            <View className="flex-row items-center gap-3">
-              <View className="h-8 w-8 items-center justify-center rounded-xl bg-sky-50 dark:bg-sky-900/30">
-                <Briefcase size={15} color="#0891B2" strokeWidth={2.5} />
+          {/* Elevated Card Background */}
+          <View 
+            style={{ shadowColor: '#0f172a', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.1, shadowRadius: 16, elevation: 5 }}
+            className="rounded-[32px] border border-slate-100 bg-white px-6 pb-6 pt-[72px] dark:border-slate-800/80 dark:bg-slate-900">
+            <View className="items-center mb-5">
+              <Text className="text-[24px] font-black text-slate-800 dark:text-slate-100 text-center leading-tight">
+                {official.name}
+              </Text>
+              <View className="mt-2.5 rounded-xl px-4 py-1.5 border" style={{ backgroundColor: roleCfg.bg, borderColor: roleCfg.color + '40' }}>
+                <Text style={{ color: roleCfg.color }} className="text-[11px] font-black uppercase tracking-widest">
+                  {roleCfg.label}
+                </Text>
               </View>
-              <View>
-                <Text className="text-xs text-slate-400 dark:text-slate-500">Designation</Text>
-                <Text className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+            </View>
+
+          <View className="gap-4 border-t border-slate-100/60 pt-5 dark:border-slate-800/60">
+            <View className="flex-row items-center gap-4">
+              <View className="h-10 w-10 items-center justify-center rounded-[14px] bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/50">
+                <Briefcase size={18} color="#0891B2" strokeWidth={2.5} />
+              </View>
+              <View className="flex-1">
+                <Text className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Designation</Text>
+                <Text className="text-[15px] font-black text-slate-700 dark:text-slate-300 mt-0.5">
                   {official.designation}
                 </Text>
               </View>
             </View>
-            <View className="flex-row items-center gap-3">
-              <View className="h-8 w-8 items-center justify-center rounded-xl bg-sky-50 dark:bg-sky-900/30">
-                <Building2 size={15} color="#0891B2" strokeWidth={2.5} />
+            <View className="flex-row items-center gap-4">
+              <View className="h-10 w-10 items-center justify-center rounded-[14px] bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/50">
+                <Building2 size={18} color="#0891B2" strokeWidth={2.5} />
               </View>
-              <View>
-                <Text className="text-xs text-slate-400 dark:text-slate-500">Department</Text>
-                <Text className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+              <View className="flex-1">
+                <Text className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Department</Text>
+                <Text className="text-[15px] font-black text-slate-700 dark:text-slate-300 mt-0.5">
                   {official.department}
                 </Text>
               </View>
             </View>
             {official.city && (
-              <View className="flex-row items-center gap-3">
-                <View className="h-8 w-8 items-center justify-center rounded-xl bg-sky-50 dark:bg-sky-900/30">
-                  <MapPin size={15} color="#0891B2" strokeWidth={2.5} />
+              <View className="flex-row items-center gap-4">
+                <View className="h-10 w-10 items-center justify-center rounded-[14px] bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/50">
+                  <MapPin size={18} color="#0891B2" strokeWidth={2.5} />
                 </View>
-                <View>
-                  <Text className="text-xs text-slate-400 dark:text-slate-500">City</Text>
-                  <Text className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                <View className="flex-1">
+                  <Text className="text-[10px] font-bold uppercase tracking-widest text-slate-400">City</Text>
+                  <Text className="text-[15px] font-black text-slate-700 dark:text-slate-300 mt-0.5">
                     {official.city}
                   </Text>
                 </View>
@@ -137,45 +157,51 @@ export default function OfficialProfileScreen({ official, onBack, onStartConvers
             )}
           </View>
         </View>
+        </View>
 
+        {/* Assigned Issues */}
         {relatedIssues.length > 0 && (
-          <View className="mx-4 mt-4">
-            <Text className="mb-2 ml-1 text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
-              Assigned Issues
+          <View className="mx-5 mt-8">
+            <Text className="mb-4 ml-2 text-[12px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
+              Assigned Issues ({relatedIssues.length})
             </Text>
-            <View className="gap-2">
+            <View className="gap-3">
               {relatedIssues.map((issue) => {
                 const statusColor = STATUS_COLORS[issue.status] ?? '#94A3B8';
                 return (
                   <View
                     key={issue.id}
-                    className="rounded-2xl border border-slate-100 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-                    <View className="mb-1 flex-row items-start justify-between">
-                      <Text className="text-xs font-bold text-sky-600 dark:text-sky-400">
+                    style={{ shadowColor: '#0f172a', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 }}
+                    className="rounded-[20px] border border-slate-100 bg-white p-4 dark:border-slate-800/80 dark:bg-slate-900">
+                    <View className="mb-2 flex-row items-start justify-between">
+                      <Text className="text-[11px] font-black uppercase tracking-widest text-[#0F766E] dark:text-teal-400">
                         {issue.id}
                       </Text>
                       <View
-                        style={{ backgroundColor: statusColor + '15' }}
-                        className="flex-row items-center gap-1 rounded-full px-2 py-0.5">
+                        style={{ backgroundColor: statusColor + '15', borderColor: statusColor + '30' }}
+                        className="flex-row items-center gap-1.5 rounded-full border px-2.5 py-1">
                         <View
                           style={{ backgroundColor: statusColor }}
-                          className="h-1.5 w-1.5 rounded-full"
+                          className="h-2 w-2 rounded-full"
                         />
-                        <Text style={{ color: statusColor }} className="text-xs font-semibold">
+                        <Text style={{ color: statusColor }} className="text-[10px] font-black uppercase tracking-wider">
                           {issue.status}
                         </Text>
                       </View>
                     </View>
                     <Text
-                      className="text-sm font-semibold text-slate-800 dark:text-slate-100"
-                      numberOfLines={1}>
+                      className="text-[15px] font-black text-slate-800 dark:text-slate-100 leading-tight mb-3"
+                      numberOfLines={2}>
                       {issue.title}
                     </Text>
-                    <Text
-                      className="mt-0.5 text-xs text-slate-500 dark:text-slate-400"
-                      numberOfLines={1}>
-                      📍 {issue.location}
-                    </Text>
+                    <View className="flex-row items-center gap-2 bg-slate-50 dark:bg-slate-800/50 rounded-xl p-2.5 border border-slate-100 dark:border-slate-700/50">
+                      <MapPin size={14} color="#64748B" strokeWidth={2.5} />
+                      <Text
+                        className="flex-1 text-[12px] font-bold text-slate-600 dark:text-slate-400"
+                        numberOfLines={1}>
+                        {issue.location}
+                      </Text>
+                    </View>
                   </View>
                 );
               })}
@@ -183,34 +209,39 @@ export default function OfficialProfileScreen({ official, onBack, onStartConvers
           </View>
         )}
 
-        <View className="mx-4 mt-5">
-          <Text className="mb-3 ml-1 text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
+        {/* Start Conversation */}
+        <View className="mx-5 mt-8">
+          <Text className="mb-4 ml-2 text-[12px] font-black uppercase tracking-widest text-[#0F766E] dark:text-teal-400">
             Start Conversation
           </Text>
 
           {selectedIssue && (
-            <View className="mb-3 flex-row items-center gap-3 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 dark:border-sky-800 dark:bg-sky-900/20">
-              <Tag size={14} color="#0891B2" strokeWidth={2.5} />
+            <View className="mb-4 flex-row items-center gap-3 rounded-[20px] border border-teal-200/60 bg-teal-50 px-4 py-3.5 dark:border-slate-700/80 dark:bg-slate-900">
+              <View className="h-8 w-8 items-center justify-center rounded-full bg-teal-100 dark:bg-slate-800">
+                <Tag size={14} color="#0F766E" strokeWidth={2.5} className="dark:text-teal-400" />
+              </View>
               <View className="flex-1">
-                <Text className="text-xs font-bold text-sky-700 dark:text-sky-300">
+                <Text className="text-[10px] font-black uppercase tracking-widest text-teal-600 dark:text-teal-500 mb-0.5">
                   {selectedIssue.id}
                 </Text>
-                <Text className="text-xs text-sky-600 dark:text-sky-400" numberOfLines={1}>
+                <Text className="text-[14px] font-bold text-slate-800 dark:text-slate-200" numberOfLines={1}>
                   {selectedIssue.title}
                 </Text>
               </View>
               <TouchableOpacity
                 onPress={() => setSelectedIssue(null)}
-                className="h-6 w-6 items-center justify-center rounded-full bg-sky-200 dark:bg-sky-800"
+                className="h-8 w-8 items-center justify-center rounded-full bg-teal-200/50 dark:bg-slate-800"
                 activeOpacity={0.7}>
-                <X size={12} color="#0891B2" strokeWidth={2.5} />
+                <X size={14} color="#0F766E" strokeWidth={3} className="dark:text-slate-400" />
               </TouchableOpacity>
             </View>
           )}
 
-          <View className="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
+          <View 
+            style={{ shadowColor: '#0f172a', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 }}
+            className="overflow-hidden rounded-[24px] border border-slate-200 bg-white dark:border-slate-700/80 dark:bg-slate-900">
             <TextInput
-              className="min-h-[100px] px-4 pb-3 pt-4 text-sm text-slate-800 dark:text-slate-200"
+              className="min-h-[120px] px-5 pb-4 pt-5 text-[15px] font-medium text-slate-800 dark:text-slate-200"
               placeholder={`Send a message to ${official.name.split(' ')[0]}...`}
               placeholderTextColor="#94A3B8"
               value={message}
@@ -218,13 +249,13 @@ export default function OfficialProfileScreen({ official, onBack, onStartConvers
               multiline
               textAlignVertical="top"
             />
-            <View className="flex-row items-center justify-between border-t border-slate-100 px-4 pb-3 pt-2 dark:border-slate-800">
+            <View className="flex-row items-center justify-between border-t border-slate-100 px-4 pb-4 pt-3 dark:border-slate-800/80">
               <TouchableOpacity
                 onPress={() => setShowIssuePicker(true)}
-                className="flex-row items-center gap-1.5 rounded-xl bg-sky-50 px-3 py-2 dark:bg-sky-900/30"
+                className="flex-row items-center gap-2 rounded-xl bg-slate-50 px-4 py-2.5 border border-slate-100 dark:border-slate-700 dark:bg-slate-800"
                 activeOpacity={0.7}>
-                <Tag size={13} color="#0891B2" strokeWidth={2.5} />
-                <Text className="text-xs font-bold text-sky-700 dark:text-sky-300">
+                <Tag size={14} color="#64748B" strokeWidth={2.5} />
+                <Text className="text-[12px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300">
                   {selectedIssue ? 'Change Issue' : 'Link Issue'}
                 </Text>
               </TouchableOpacity>
@@ -233,14 +264,15 @@ export default function OfficialProfileScreen({ official, onBack, onStartConvers
                 onPress={handleSend}
                 disabled={!message.trim()}
                 activeOpacity={0.8}
-                className={`flex-row items-center gap-2 rounded-xl px-5 py-2.5 ${message.trim() ? 'bg-teal-600' : 'bg-slate-200 dark:bg-slate-700'}`}>
+                style={message.trim() ? { shadowColor: '#0F766E', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 2 } : {}}
+                className={`flex-row items-center gap-2 rounded-[16px] px-6 py-3 ${message.trim() ? 'bg-[#0F766E]' : 'bg-slate-200 dark:bg-slate-800'}`}>
                 <MessageSquarePlus
-                  size={15}
+                  size={16}
                   color={message.trim() ? '#FFFFFF' : '#94A3B8'}
                   strokeWidth={2.5}
                 />
                 <Text
-                  className={`text-sm font-bold ${message.trim() ? 'text-white' : 'text-slate-400'}`}>
+                  className={`text-[13px] font-black uppercase tracking-widest ${message.trim() ? 'text-white' : 'text-slate-400'}`}>
                   Start Chat
                 </Text>
               </TouchableOpacity>

@@ -10,6 +10,9 @@ import {
   Alert,
   useColorScheme,
   Platform,
+  ActivityIndicator,
+  Image,
+  Modal,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
@@ -31,10 +34,18 @@ import {
   Activity,
   Target,
   Calendar,
+  Camera,
+  Image as ImageIcon,
+  X,
+  Trash2,
 } from 'lucide-react-native';
 import { removeToken } from 'lib/auth';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { useMutation, useQuery } from 'convex/react';
+import { api } from 'convex/_generated/api';
+import { Id } from 'convex/_generated/dataModel';
+import * as ImagePicker from 'expo-image-picker';
 
 interface FieldProfileTabProps {
   profile: OfficerProfile;
@@ -45,9 +56,11 @@ interface OfficerProfile {
   name: string;
   ward: string;
   phone: string;
-  email: string;
   rating: number;
+  email: string;
   total_resolved: number;
+  profilePictureUrl?: string | null;
+  userId: string;
 }
 
 function StatCard({
@@ -153,9 +166,18 @@ const PERFORMANCE_BADGES = [
 
 export default function FieldProfileTab({ profile, onLogout }: FieldProfileTabProps) {
   const [loggingOut, setLoggingOut] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [showImagePicker, setShowImagePicker] = useState(false);
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const insets = useSafeAreaInsets();
+  
+  const fieldOfficer = useQuery(api.fieldOfficers.getFieldOfficerByUserId, { 
+    userId: profile.userId as Id<'users'> 
+  });
+  
+  const generateUploadUrl = useMutation(api.issuesMedia.generateUploadUrl);
+  const updateProfilePicture = useMutation(api.fieldOfficers.updateFieldOfficerProfilePicture);
 
   const initials = profile.name
     .split(' ')
@@ -197,6 +219,101 @@ export default function FieldProfileTab({ profile, onLogout }: FieldProfileTabPr
       ],
       { cancelable: true }
     );
+  };
+  
+  const handleImageCaptured = async (uri: string) => {
+    try {
+      setShowImagePicker(false);
+      setIsUploading(true);
+      
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      
+      const postUrl = await generateUploadUrl();
+      const resultUpload = await fetch(postUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'image/jpeg' },
+        body: blob,
+      });
+      
+      if (!resultUpload.ok) {
+        throw new Error('Failed to upload image');
+      }
+      
+      const { storageId } = await resultUpload.json();
+      
+      await updateProfilePicture({
+        userId: profile.userId as Id<'users'>,
+        profilePicture: storageId,
+      });
+      
+      Alert.alert('Success', 'Profile picture updated successfully!');
+    } catch (error) {
+      console.error('Error uploading profile picture:', error);
+      Alert.alert('Error', 'Failed to update profile picture. Please try again.');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleRemovePhoto = async () => {
+    try {
+      setShowImagePicker(false);
+      setIsUploading(true);
+      await updateProfilePicture({
+        userId: profile.userId as Id<'users'>,
+      });
+      Alert.alert('Success', 'Profile picture removed successfully!');
+    } catch (error) {
+      console.error('Error removing profile picture:', error);
+      Alert.alert('Error', 'Failed to remove profile picture. Please try again.');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleOpenGallery = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Gallery permission is required to select photos');
+        return;
+      }
+      
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+      
+      if (!result.canceled && result.assets[0]) {
+        await handleImageCaptured(result.assets[0].uri);
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to open gallery. Please try again.');
+    }
+  };
+
+  const handleOpenCamera = async () => {
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Camera permission is required to take photos');
+        return;
+      }
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+      if (!result.canceled && result.assets[0]) {
+        await handleImageCaptured(result.assets[0].uri);
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to open camera. Please try again.');
+    }
   };
   return (
     // @ts-ignore
@@ -246,15 +363,46 @@ export default function FieldProfileTab({ profile, onLogout }: FieldProfileTabPr
 
           {/* Avatar */}
           <View style={styles.avatarRing}>
-            <LinearGradient
-              colors={
-                isDark
-                  ? ['#1E293B', '#020617'] // dark glass effect
-                  : ['#FFFFFF', '#E0F2FE']
-              }
-              style={styles.avatarInner}>
-              <Text style={styles.avatarInitials}>{initials}</Text>
-            </LinearGradient>
+            <TouchableOpacity 
+              activeOpacity={0.8} 
+              onPress={() => setShowImagePicker(true)}
+              disabled={isUploading}
+              style={{ flex: 1, width: '100%', height: '100%' }}
+            >
+              <LinearGradient
+                colors={
+                  isDark
+                    ? ['#1E293B', '#020617'] // dark glass effect
+                    : ['#FFFFFF', '#E0F2FE']
+                }
+                style={[styles.avatarInner, { overflow: 'hidden' }]}>
+                {isUploading ? (
+                  <ActivityIndicator color={isDark ? '#38BDF8' : '#0EA5A4'} />
+                ) : fieldOfficer?.profilePictureUrl ? (
+                  <Image 
+                    source={{ uri: fieldOfficer.profilePictureUrl }} 
+                    style={{ width: '100%', height: '100%' }} 
+                    resizeMode="cover" 
+                  />
+                ) : (
+                  <Text style={styles.avatarInitials}>{initials}</Text>
+                )}
+                
+                {/* Camera Icon Overlay */}
+                {!isUploading && (
+                  <View style={{
+                    position: 'absolute',
+                    bottom: 0,
+                    width: '100%',
+                    backgroundColor: 'rgba(0,0,0,0.5)',
+                    paddingVertical: 4,
+                    alignItems: 'center'
+                  }}>
+                    <Camera size={12} color="#FFF" />
+                  </View>
+                )}
+              </LinearGradient>
+            </TouchableOpacity>
           </View>
 
           {/* Name */}
@@ -615,6 +763,91 @@ export default function FieldProfileTab({ profile, onLogout }: FieldProfileTabPr
           </Text>
         </View>
       </ScrollView>
+
+      {/* ── Image Picker Modal ── */}
+      <Modal
+        visible={showImagePicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowImagePicker(false)}>
+        <View className="flex-1 justify-end bg-black/50">
+          <View className="gap-3 rounded-t-3xl bg-white px-5 pb-10 pt-6 dark:bg-slate-900">
+            <View className="mb-2 flex-row items-center justify-between">
+              <View>
+                <Text className="text-[20px] font-extrabold text-slate-900 dark:text-slate-100">
+                  Update Profile Photo
+                </Text>
+                <Text className="mt-0.5 text-[13px] font-medium text-slate-400 dark:text-slate-500">
+                  Choose how to add your photo
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setShowImagePicker(false)}
+                style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)' }}
+                className="items-center justify-center rounded-full p-2"
+                activeOpacity={0.7}>
+                <X color={isDark ? '#94A3B8' : '#64748B'} size={20} strokeWidth={2.5} />
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              onPress={handleOpenCamera}
+              activeOpacity={0.82}
+              className="flex-row items-center gap-4 rounded-2xl border border-teal-100 bg-teal-50 p-4 dark:border-teal-800/50 dark:bg-teal-900/20">
+              <View className="h-14 w-14 items-center justify-center rounded-2xl bg-white shadow-sm dark:bg-slate-800">
+                <Camera color="#0EA5A4" size={26} strokeWidth={2.5} />
+              </View>
+              <View className="flex-1">
+                <Text className="text-[15px] font-extrabold text-teal-900 dark:text-teal-100">
+                  Take Photo
+                </Text>
+                <Text className="text-[12px] font-semibold text-teal-600/80 dark:text-teal-500/80">
+                  Use your camera
+                </Text>
+              </View>
+              <ChevronRight size={16} color="#CBD5E1" strokeWidth={2} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={handleOpenGallery}
+              activeOpacity={0.82}
+              className="flex-row items-center gap-4 rounded-2xl border border-teal-100 bg-teal-50 p-4 dark:border-teal-800/50 dark:bg-teal-900/20">
+              <View className="h-14 w-14 items-center justify-center rounded-2xl bg-white shadow-sm dark:bg-slate-800">
+                <ImageIcon color="#0EA5A4" size={26} strokeWidth={2.5} />
+              </View>
+              <View className="flex-1">
+                <Text className="text-[15px] font-extrabold text-teal-900 dark:text-teal-100">
+                  Choose from Gallery
+                </Text>
+                <Text className="text-[12px] font-semibold text-teal-600/80 dark:text-teal-500/80">
+                  Select an existing photo
+                </Text>
+              </View>
+              <ChevronRight size={16} color="#CBD5E1" strokeWidth={2} />
+            </TouchableOpacity>
+
+            {fieldOfficer?.profilePictureUrl && (
+              <TouchableOpacity
+                onPress={handleRemovePhoto}
+                activeOpacity={0.82}
+                className="flex-row items-center gap-4 rounded-2xl border border-red-100 bg-red-50 p-4 dark:border-red-900/30 dark:bg-red-950/20">
+                <View className="h-14 w-14 items-center justify-center rounded-2xl bg-white shadow-sm dark:bg-slate-800">
+                  <Trash2 color="#EF4444" size={26} strokeWidth={2.5} />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-[15px] font-extrabold text-red-600 dark:text-red-400">
+                    Remove Photo
+                  </Text>
+                  <Text className="text-[12px] font-semibold text-red-500/80 dark:text-red-400/80">
+                    Delete current profile picture
+                  </Text>
+                </View>
+                <ChevronRight size={16} color="#CBD5E1" strokeWidth={2} />
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }

@@ -116,6 +116,17 @@ function InfoRow({ icon, label, value, last, iconBg }: InfoRowProps) {
   );
 }
 
+const DEPARTMENT_LABELS: Record<string, string> = {
+  road: "Road & Infrastructure",
+  electricity: "Electricity & Lighting",
+  water: "Water Supply",
+  sanitation: "Sanitation & Waste",
+  drainage: "Drainage & Sewer",
+  solid_waste: "Solid Waste Management",
+  public_health: "Public Health",
+  other: "Other",
+};
+
 export default function ProfileTab({
   user,
   onSignOut,
@@ -140,7 +151,8 @@ export default function ProfileTab({
   const userEmail = unitOfficer?.email || user.email;
   const role = user.role;
 
-  const department = unitOfficer?.department || 'Road & Infrastructure';
+  const rawDepartment = unitOfficer?.department || '';
+  const department = rawDepartment ? (DEPARTMENT_LABELS[rawDepartment] || rawDepartment) : 'N/A';
   const city = unitOfficer?.city || 'Varanasi';
   const district = unitOfficer?.district || 'Varanasi District';
   const state = unitOfficer?.state || 'Uttar Pradesh';

@@ -159,3 +159,20 @@ export const markMessagesAsRead = mutation({
     return updatedCount;
   },
 });
+
+export const getUnreadIssueMessagesCount = query({
+  args: {
+    issueId: v.id('issues'),
+    userId: v.id('users'),
+  },
+  handler: async (ctx, args) => {
+    const messages = await ctx.db
+      .query('issueMessages')
+      .withIndex('by_issue', (q) => q.eq('issueId', args.issueId))
+      .collect();
+
+    return messages.filter(
+      (m) => m.recipientId === args.userId && !m.isRead
+    ).length;
+  },
+});

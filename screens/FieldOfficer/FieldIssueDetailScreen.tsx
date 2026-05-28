@@ -382,7 +382,13 @@ export default function FieldIssueDetailScreen() {
     [issue]
   );
   // const unreadMsgCount = issueMessages.filter((m) => !m.read && m.fromRole === 'Citizen').length;
-  const unreadMsgCount = 100;
+  
+  const unreadMsgCountQuery = useQuery(
+    api.messages.getUnreadIssueMessagesCount,
+    issue?.id && user?.id ? { issueId: issue.id as Id<'issues'>, userId: user.id as Id<'users'> } : 'skip'
+  );
+  
+  const unreadMsgCount = unreadMsgCountQuery || 0;
 
   const handleBack = () => navigation.goBack();
 

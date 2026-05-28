@@ -473,7 +473,13 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
   );
 
   // const unreadMsgCount = issueMessages.filter((m) => !m.read && m.fromRole === 'Citizen').length;
-  const unreadMsgCount = 100;
+  
+  const unreadMsgCountQuery = useQuery(
+    api.messages.getUnreadIssueMessagesCount,
+    issue?._id && user?.id ? { issueId: issue._id as Id<'issues'>, userId: user.id as Id<'users'> } : 'skip'
+  );
+  
+  const unreadMsgCount = unreadMsgCountQuery || 0;
 
   const launchCamera = useCallback(async () => {
     try {

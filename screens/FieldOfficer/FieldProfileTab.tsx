@@ -164,6 +164,17 @@ const PERFORMANCE_BADGES = [
   },
 ];
 
+const DEPARTMENT_LABELS: Record<string, string> = {
+  road: "Road & Infrastructure",
+  electricity: "Electricity & Lighting",
+  water: "Water Supply",
+  sanitation: "Sanitation & Waste",
+  drainage: "Drainage & Sewer",
+  solid_waste: "Solid Waste Management",
+  public_health: "Public Health",
+  other: "Other",
+};
+
 export default function FieldProfileTab({ profile, onLogout }: FieldProfileTabProps) {
   const [loggingOut, setLoggingOut] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -179,17 +190,31 @@ export default function FieldProfileTab({ profile, onLogout }: FieldProfileTabPr
   const generateUploadUrl = useMutation(api.issuesMedia.generateUploadUrl);
   const updateProfilePicture = useMutation(api.fieldOfficers.updateFieldOfficerProfilePicture);
 
-  const initials = profile.name
+  const officerName = fieldOfficer?.fullName || profile.name;
+  const officerEmail = fieldOfficer?.email || profile.email;
+  const officerPhone = fieldOfficer?.phone || profile.phone;
+  const rawDepartment = fieldOfficer?.department || '';
+  const departmentLabel = rawDepartment ? (DEPARTMENT_LABELS[rawDepartment] || rawDepartment) : 'N/A';
+  const city = fieldOfficer?.city || 'N/A';
+  const district = fieldOfficer?.district || 'N/A';
+  const state = fieldOfficer?.state || 'N/A';
+  const specialisations = fieldOfficer?.specialisations || [];
+  
+  const rating = fieldOfficer?.rating ?? profile.rating;
+  const efficiencyScore = fieldOfficer?.efficiencyScore ?? 92;
+  const activeIssues = fieldOfficer?.currentActiveIssues ?? 3;
+  const maxCapacity = fieldOfficer?.maxIssueCapacity ?? 15;
+  const totalResolved = fieldOfficer?.totalResolvedIssues ?? profile.total_resolved;
+  const avgResolutionHrs = fieldOfficer?.avgResolutionTime ?? 18;
+  const onTimeRate = fieldOfficer?.onTimeCompletionRate ?? 96;
+  const lastLogin = fieldOfficer?.lastLogin;
+
+  const initials = officerName
     .split(' ')
     .map((n) => n[0])
     .slice(0, 2)
-    .join('');
-
-  const successRate = Math.round((profile.total_resolved / (profile.total_resolved + 12)) * 100);
-  const activeIssues = 3;
-  const avgResolutionHrs = 18;
-  const slaCompliance = 92;
-  const thisMonthResolved = 24;
+    .join('')
+    .toUpperCase();
 
   const handleLogout = () => {
     Alert.alert(
@@ -406,8 +431,8 @@ export default function FieldProfileTab({ profile, onLogout }: FieldProfileTabPr
           </View>
 
           {/* Name */}
-          <Text className="mb-1 mt-4 text-[26px] font-black tracking-tight text-white">
-            {profile.name}
+          <Text className="mb-1 mt-4 text-[26px] font-black tracking-tight text-white text-center px-4">
+            {officerName}
           </Text>
 
           {/* Role badge */}
@@ -429,12 +454,12 @@ export default function FieldProfileTab({ profile, onLogout }: FieldProfileTabPr
                 key={s}
                 size={16}
                 color="#FCD34D"
-                fill={s <= Math.round(profile.rating) ? '#FCD34D' : 'transparent'}
+                fill={s <= Math.round(rating) ? '#FCD34D' : 'transparent'}
                 strokeWidth={2}
               />
             ))}
             <Text className="ml-1 text-[14px] font-extrabold text-amber-200">
-              {profile.rating.toFixed(1)}
+              {rating.toFixed(1)}
             </Text>
           </View>
 
@@ -460,7 +485,7 @@ export default function FieldProfileTab({ profile, onLogout }: FieldProfileTabPr
             icon={
               <CheckCircle size={18} color={isDark ? '#2DD4BF' : '#0EA5A4'} strokeWidth={2.5} />
             }
-            value={String(profile.total_resolved)}
+            value={String(totalResolved)}
             label="Total Resolved"
             color={isDark ? '#2DD4BF' : '#0EA5A4'}
             bgColor={isDark ? '#042F2E' : '#F0FDFA'}
@@ -468,7 +493,7 @@ export default function FieldProfileTab({ profile, onLogout }: FieldProfileTabPr
 
           <StatCard
             icon={<Activity size={18} color={isDark ? '#FBBF24' : '#F59E0B'} strokeWidth={2.5} />}
-            value={String(activeIssues)}
+            value={`${activeIssues}/${maxCapacity}`}
             label="Active Issues"
             color={isDark ? '#FBBF24' : '#F59E0B'}
             bgColor={isDark ? '#451A03' : '#FEF3C7'}
@@ -476,8 +501,8 @@ export default function FieldProfileTab({ profile, onLogout }: FieldProfileTabPr
 
           <StatCard
             icon={<TrendingUp size={18} color={isDark ? '#34D399' : '#10B981'} strokeWidth={2.5} />}
-            value={`${successRate}%`}
-            label="Success Rate"
+            value={`${efficiencyScore}%`}
+            label="Efficiency"
             color={isDark ? '#34D399' : '#10B981'}
             bgColor={isDark ? '#022C22' : '#D1FAE5'}
           />
@@ -504,11 +529,11 @@ export default function FieldProfileTab({ profile, onLogout }: FieldProfileTabPr
                 <View style={[styles.ringOuter, { borderColor: '#0EA5A4' + '30' }]} />
                 <View style={[styles.ringFilled, { borderColor: '#0EA5A4' }]} />
                 <Text className="absolute text-[16px] font-black text-teal-600 dark:text-teal-400">
-                  {slaCompliance}%
+                  {onTimeRate}%
                 </Text>
               </View>
               <Text className="mt-3 text-center text-[11px] font-bold text-slate-500 dark:text-slate-400">
-                SLA{'\n'}Compliance
+                On-Time{'\n'}Rate
               </Text>
             </View>
 
@@ -528,7 +553,7 @@ export default function FieldProfileTab({ profile, onLogout }: FieldProfileTabPr
               </Text>
             </View>
 
-            {/* This Month */}
+            {/* Capacity */}
             <View
               className="flex-1 items-center rounded-2xl bg-emerald-50 p-4 dark:bg-emerald-900/20"
               style={styles.metricBox}>
@@ -536,11 +561,11 @@ export default function FieldProfileTab({ profile, onLogout }: FieldProfileTabPr
                 <View style={[styles.ringOuter, { borderColor: '#10B981' + '30' }]} />
                 <View style={[styles.ringFilled, { borderColor: '#10B981' }]} />
                 <Text className="absolute text-[16px] font-black text-emerald-600 dark:text-emerald-400">
-                  {thisMonthResolved}
+                  {maxCapacity}
                 </Text>
               </View>
               <Text className="mt-3 text-center text-[11px] font-bold text-slate-500 dark:text-slate-400">
-                This{'\n'}Month
+                Max{'\n'}Capacity
               </Text>
             </View>
           </View>
@@ -661,32 +686,79 @@ export default function FieldProfileTab({ profile, onLogout }: FieldProfileTabPr
           </View>
         </View>
 
-        {/* ── Contact Information ── */}
+        {/* ── Officer Details ── */}
         <View className="mb-4 rounded-3xl bg-white p-5 dark:bg-slate-900" style={styles.card}>
-          <View className="mb-3 flex-row items-center gap-2.5">
+          <View className="mb-4 flex-row items-center gap-2.5">
             <View className="h-8 w-8 items-center justify-center rounded-xl bg-teal-50 dark:bg-teal-900/30">
               <User size={16} color="#0EA5A4" strokeWidth={2.5} />
             </View>
             <Text className="text-[15px] font-extrabold tracking-tight text-slate-800 dark:text-slate-100">
-              Contact Information
+              Officer Details
             </Text>
           </View>
 
           <InfoRow
+            icon={<Activity size={17} color="#0EA5A4" strokeWidth={2.5} />}
+            label="Department"
+            value={departmentLabel}
+          />
+          <InfoRow
             icon={<MapPin size={17} color="#0EA5A4" strokeWidth={2.5} />}
-            label="Ward / Zone"
-            value={profile.ward}
+            label="City"
+            value={city}
+          />
+          <InfoRow
+            icon={<MapPin size={17} color="#0EA5A4" strokeWidth={2.5} />}
+            label="District & State"
+            value={`${district}, ${state}`}
           />
           <InfoRow
             icon={<Phone size={17} color="#0EA5A4" strokeWidth={2.5} />}
             label="Phone"
-            value={profile.phone}
+            value={officerPhone}
           />
           <InfoRow
             icon={<Mail size={17} color="#0EA5A4" strokeWidth={2.5} />}
             label="Email"
-            value={profile.email}
+            value={officerEmail}
           />
+          {lastLogin && (
+            <InfoRow
+              icon={<Clock size={17} color="#0EA5A4" strokeWidth={2.5} />}
+              label="Last Login"
+              value={new Date(lastLogin).toLocaleDateString()}
+            />
+          )}
+        </View>
+
+        {/* ── Specialisations ── */}
+        <View className="mb-4 rounded-3xl bg-white p-5 dark:bg-slate-900" style={styles.card}>
+          <View className="mb-4 flex-row items-center gap-2.5">
+            <View className="h-8 w-8 items-center justify-center rounded-xl bg-purple-50 dark:bg-purple-900/30">
+              <Star size={16} color="#A855F7" strokeWidth={2.5} />
+            </View>
+            <Text className="text-[15px] font-extrabold tracking-tight text-slate-800 dark:text-slate-100">
+              Specialisations
+            </Text>
+          </View>
+          
+          <View className="flex-row flex-wrap gap-2.5">
+            {specialisations.length > 0 ? (
+              specialisations.map((spec, index) => (
+                <View 
+                  key={index} 
+                  className="rounded-full bg-purple-50 px-4 py-2 border border-purple-100 dark:bg-purple-900/20 dark:border-purple-800/50">
+                  <Text className="text-[13px] font-bold text-purple-700 dark:text-purple-300">
+                    {spec}
+                  </Text>
+                </View>
+              ))
+            ) : (
+              <Text className="text-[13px] font-medium italic text-slate-500 dark:text-slate-400">
+                No specialisations assigned
+              </Text>
+            )}
+          </View>
         </View>
 
         {/* ── Settings ── */}

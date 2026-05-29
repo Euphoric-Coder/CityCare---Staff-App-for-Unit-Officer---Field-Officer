@@ -13,6 +13,7 @@ import type * as crons from "../crons.js";
 import type * as directMessages from "../directMessages.js";
 import type * as duplicateIssues from "../duplicateIssues.js";
 import type * as fieldOfficers from "../fieldOfficers.js";
+import type * as issueDiscussions from "../issueDiscussions.js";
 import type * as issueUpdates from "../issueUpdates.js";
 import type * as issues from "../issues.js";
 import type * as issuesMedia from "../issuesMedia.js";
@@ -36,6 +37,7 @@ declare const fullApi: ApiFromModules<{
   directMessages: typeof directMessages;
   duplicateIssues: typeof duplicateIssues;
   fieldOfficers: typeof fieldOfficers;
+  issueDiscussions: typeof issueDiscussions;
   issueUpdates: typeof issueUpdates;
   issues: typeof issues;
   issuesMedia: typeof issuesMedia;

@@ -21,26 +21,157 @@ export default defineSchema({
     .index('by_role', ['role']),
 
   citizens: defineTable({
-    userId: v.id('users'),
+  userId: v.id("users"),
 
-    fullName: v.string(),
-    email: v.string(),
-    phone: v.optional(v.string()),
+  fullName: v.string(),
+  email: v.string(),
+  phone: v.optional(v.string()),
 
-    city: v.string(),
-    state: v.string(),
-    region: v.string(),
+  city: v.string(),
+  state: v.string(),
+  region: v.string(),
 
-    postal: v.string(),
-    fullAddress: v.string(),
+  postal: v.string(),
+  fullAddress: v.string(),
 
-    latitude: v.string(),
-    longitude: v.string(),
+  latitude: v.string(),
+  longitude: v.string(),
 
-    points: v.number(),
-  })
-    .index('by_user', ['userId'])
-    .index('by_city', ['city']),
+  // Fast summary total
+  points: v.number(),
+
+  // Gamification summary
+  level: v.optional(v.number()),
+  levelTitle: v.optional(v.string()),
+  badgeCount: v.optional(v.number()),
+
+  // Activity statistics
+  reportsSubmitted: v.optional(v.number()),
+  reportsVerified: v.optional(v.number()),
+  reportsResolved: v.optional(v.number()),
+  reportsRejected: v.optional(v.number()),
+  duplicateReports: v.optional(v.number()),
+
+  commentsAdded: v.optional(v.number()),
+  upvotesReceived: v.optional(v.number()),
+
+  // Optional evidence statistics
+  videoEvidenceAdded: v.optional(v.number()),
+
+  // Streaks
+  currentStreak: v.optional(v.number()),
+  longestStreak: v.optional(v.number()),
+  lastActivityAt: v.optional(v.number()),
+
+  createdAt: v.optional(v.number()),
+  updatedAt: v.optional(v.number()),
+})
+  .index("by_user", ["userId"])
+  .index("by_city", ["city"])
+  .index("by_points", ["points"])
+  .index("by_city_points", ["city", "points"])
+  .index("by_region_points", ["region", "points"]),
+
+  citizenPointTransactions: defineTable({
+  citizenId: v.id("citizens"),
+  userId: v.id("users"),
+
+  type: v.union(
+    v.literal("issue_submitted"),
+    v.literal("video_evidence_added"),
+    v.literal("issue_verified"),
+    v.literal("issue_assigned"),
+    v.literal("issue_resolved"),
+    v.literal("issue_closed"),
+    v.literal("issue_rejected"),
+    v.literal("duplicate_report"),
+    v.literal("issue_withdrawn"),
+    v.literal("comment_added"),
+    v.literal("comment_liked"),
+    v.literal("report_upvoted"),
+    v.literal("streak_bonus"),
+    v.literal("badge_bonus"),
+    v.literal("manual_adjustment")
+  ),
+
+  points: v.number(),
+  reason: v.string(),
+
+  relatedIssueId: v.optional(v.id("issues")),
+  relatedCommentId: v.optional(v.id("issueDiscussionForum")),
+  relatedReplyId: v.optional(v.id("issueDiscussionReplies")),
+  relatedBadgeId: v.optional(v.id("badges")),
+
+  metadata: v.optional(
+    v.object({
+      previousPoints: v.optional(v.number()),
+      newPoints: v.optional(v.number()),
+      officerId: v.optional(v.string()),
+      duplicateGroupId: v.optional(v.string()),
+      source: v.optional(v.string()),
+    })
+  ),
+
+  createdAt: v.number(),
+})
+  .index("by_citizen", ["citizenId"])
+  .index("by_user", ["userId"])
+  .index("by_type", ["type"])
+  .index("by_issue", ["relatedIssueId"])
+  .index("by_citizen_type", ["citizenId", "type"])
+  .index("by_citizen_created", ["citizenId", "createdAt"]),
+
+  badges: defineTable({
+  code: v.string(),
+
+  name: v.string(),
+  description: v.string(),
+
+  icon: v.string(),
+
+  category: v.union(
+    v.literal("reporting"),
+    v.literal("resolution"),
+    v.literal("community"),
+    v.literal("streak"),
+    v.literal("quality"),
+    v.literal("special")
+  ),
+
+  requiredPoints: v.optional(v.number()),
+  requiredCount: v.optional(v.number()),
+
+  isActive: v.boolean(),
+
+  createdAt: v.number(),
+  updatedAt: v.optional(v.number()),
+})
+  .index("by_code", ["code"])
+  .index("by_category", ["category"])
+  .index("by_active", ["isActive"]),
+
+  citizenBadges: defineTable({
+  citizenId: v.id("citizens"),
+  userId: v.id("users"),
+
+  badgeId: v.id("badges"),
+  badgeCode: v.string(),
+
+  earnedAt: v.number(),
+
+  relatedIssueId: v.optional(v.id("issues")),
+
+  metadata: v.optional(
+    v.object({
+      reason: v.optional(v.string()),
+      pointsAwarded: v.optional(v.number()),
+    })
+  ),
+})
+  .index("by_citizen", ["citizenId"])
+  .index("by_user", ["userId"])
+  .index("by_badge", ["badgeId"])
+  .index("by_citizen_badge_code", ["citizenId", "badgeCode"]),
 
   unitOfficers: defineTable({
     userId: v.id('users'),

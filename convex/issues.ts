@@ -1,3 +1,4 @@
+import { awardCitizenPoints, checkAndAwardCitizenBadges } from 'lib/gamificationAwards';
 import { Id } from './_generated/dataModel';
 import { internalMutation, mutation, query } from './_generated/server';
 import { v } from 'convex/values';
@@ -71,7 +72,7 @@ export const createIssue = mutation({
 
     const issueCode = `${prefix}-${randomPart}`;
 
-    await ctx.db.insert('issues', {
+    const issueId = await ctx.db.insert('issues', {
       // --- Core ---
       issueCode,
 
@@ -137,6 +138,43 @@ export const createIssue = mutation({
 
       createdAt: Date.now(),
     });
+
+      const citizen = await ctx.db
+      .query("citizens")
+      .withIndex("by_user", (q) => q.eq("userId", args.reportedBy))
+      .first();
+
+      if (citizen) {
+        await awardCitizenPoints(ctx, {
+          citizenId: citizen._id,
+          userId: citizen.userId,
+          type: "issue_submitted",
+          relatedIssueId: issueId,
+          reason: "Citizen submitted a civic issue",
+          metadata: {
+            source: "issue_creation",
+          },
+        });
+
+        if (args.videos) {
+          await awardCitizenPoints(ctx, {
+            citizenId: citizen._id,
+            userId: citizen.userId,
+            type: "video_evidence_added",
+            relatedIssueId: issueId,
+            reason: "Citizen added video evidence to strengthen the issue report",
+            metadata: {
+              source: "issue_creation",
+            },
+          });
+        }
+
+        await checkAndAwardCitizenBadges(ctx, {
+          citizenId: citizen._id,
+          userId: citizen.userId,
+          relatedIssueId: issueId,
+        });
+      }
 
     return {
       success: true,

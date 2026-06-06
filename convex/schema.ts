@@ -138,17 +138,39 @@ export default defineSchema({
     v.literal("special")
   ),
 
-  requiredPoints: v.optional(v.number()),
-  requiredCount: v.optional(v.number()),
+  criteriaType: v.union(
+    v.literal("reports_submitted"),
+    v.literal("video_evidence_added"),
+    v.literal("reports_verified"),
+    v.literal("reports_resolved"),
+    v.literal("comments_added"),
+    v.literal("upvotes_received"),
+    v.literal("current_streak"),
+    v.literal("longest_streak"),
+    v.literal("points_reached"),
+    v.literal("manual")
+  ),
+
+  requiredCount: v.number(),
+
+  rewardPoints: v.number(),
 
   isActive: v.boolean(),
+
+  // true = default/system badge, cannot be deactivated
+  // false = custom/admin-created badge, can be deactivated
+  isSystemBadge: v.boolean(),
+
+  createdByAdminId: v.optional(v.id("users")),
 
   createdAt: v.number(),
   updatedAt: v.optional(v.number()),
 })
   .index("by_code", ["code"])
   .index("by_category", ["category"])
-  .index("by_active", ["isActive"]),
+  .index("by_active", ["isActive"])
+  .index("by_system", ["isSystemBadge"])
+  .index("by_criteria", ["criteriaType"]),
 
   citizenBadges: defineTable({
   citizenId: v.id("citizens"),

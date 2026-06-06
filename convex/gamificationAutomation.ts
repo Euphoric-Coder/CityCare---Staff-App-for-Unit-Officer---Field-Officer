@@ -3,14 +3,51 @@ import { internalMutation } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 import { awardCitizenPoints } from "lib/gamificationAwards";
 
+type MutationCtx = any;
+
 function normalizeStatus(status = "") {
   return status.toString().toLowerCase().trim();
 }
 
 function hasVideoEvidence(issue: any) {
-  return Boolean(
-    issue.videos
-  );
+  return Boolean(issue.videos);
+}
+
+function getCitizenCriteriaValue(citizen: any, criteriaType: string) {
+  switch (criteriaType) {
+    case "reports_submitted":
+      return citizen.reportsSubmitted ?? 0;
+
+    case "video_evidence_added":
+      return citizen.videoEvidenceAdded ?? 0;
+
+    case "reports_verified":
+      return citizen.reportsVerified ?? 0;
+
+    case "reports_resolved":
+      return citizen.reportsResolved ?? 0;
+
+    case "comments_added":
+      return citizen.commentsAdded ?? 0;
+
+    case "upvotes_received":
+      return citizen.upvotesReceived ?? 0;
+
+    case "current_streak":
+      return citizen.currentStreak ?? 0;
+
+    case "longest_streak":
+      return citizen.longestStreak ?? 0;
+
+    case "points_reached":
+      return citizen.points ?? 0;
+
+    case "manual":
+      return 0;
+
+    default:
+      return 0;
+  }
 }
 
 export const rebuildAllCitizenStats = internalMutation({
@@ -77,9 +114,7 @@ export const rebuildAllCitizenStats = internalMutation({
         (transaction) => transaction.type === "duplicate_report"
       ).length;
 
-      const commentsAdded = comments.filter(
-        (comment) => !comment.isHidden
-      ).length;
+      const commentsAdded = comments.filter((comment) => !comment.isHidden).length;
 
       const videoEvidenceAdded = issues.filter(hasVideoEvidence).length;
 
@@ -119,15 +154,6 @@ export const rebuildAllCitizenStats = internalMutation({
   },
 });
 
-type MutationCtx = any;
-
-async function getBadgeByCode(ctx: MutationCtx, badgeCode: string) {
-  return await ctx.db
-    .query("badges")
-    .withIndex("by_code", (q: any) => q.eq("code", badgeCode))
-    .first();
-}
-
 async function hasCitizenBadge(
   ctx: MutationCtx,
   citizenId: Id<"citizens">,
@@ -148,31 +174,29 @@ async function awardCronBadge(
   args: {
     citizenId: Id<"citizens">;
     userId: Id<"users">;
-    badgeCode: string;
+    badge: any;
     reason: string;
   }
 ) {
   const alreadyEarned = await hasCitizenBadge(
     ctx,
     args.citizenId,
-    args.badgeCode
+    args.badge.code
   );
 
   if (alreadyEarned) {
     return {
       awarded: false,
-      badgeCode: args.badgeCode,
+      badgeCode: args.badge.code,
       reason: "Badge already earned",
     };
   }
 
-  const badge = await getBadgeByCode(ctx, args.badgeCode);
-
-  if (!badge || !badge.isActive) {
+  if (!args.badge.isActive) {
     return {
       awarded: false,
-      badgeCode: args.badgeCode,
-      reason: "Badge not found or inactive",
+      badgeCode: args.badge.code,
+      reason: "Badge is inactive",
     };
   }
 
@@ -180,14 +204,14 @@ async function awardCronBadge(
     citizenId: args.citizenId,
     userId: args.userId,
 
-    badgeId: badge._id,
-    badgeCode: badge.code,
+    badgeId: args.badge._id,
+    badgeCode: args.badge.code,
 
     earnedAt: Date.now(),
 
     metadata: {
       reason: args.reason,
-      pointsAwarded: POINT_RULES.badge_bonus,
+      pointsAwarded: args.badge.rewardPoints ?? POINT_RULES.badge_bonus,
     },
   });
 
@@ -204,8 +228,9 @@ async function awardCronBadge(
     citizenId: args.citizenId,
     userId: args.userId,
     type: "badge_bonus",
-    reason: `Badge earned: ${badge.name}`,
-    relatedBadgeId: badge._id,
+    points: args.badge.rewardPoints ?? POINT_RULES.badge_bonus,
+    reason: `Badge earned: ${args.badge.name}`,
+    relatedBadgeId: args.badge._id,
     metadata: {
       source: "badge_cron",
     },
@@ -213,81 +238,9 @@ async function awardCronBadge(
 
   return {
     awarded: true,
-    badgeCode: args.badgeCode,
-    badgeName: badge.name,
+    badgeCode: args.badge.code,
+    badgeName: args.badge.name,
   };
-}
-
-async function checkCitizenBadgeEligibility(ctx: MutationCtx, citizen: any) {
-  const awardedBadges = [];
-
-  if ((citizen.reportsSubmitted ?? 0) >= 1) {
-    const result = await awardCronBadge(ctx, {
-      citizenId: citizen._id,
-      userId: citizen.userId,
-      badgeCode: "first_reporter",
-      reason: "Submitted first civic issue",
-    });
-
-    if (result.awarded) awardedBadges.push(result);
-  }
-
-  if ((citizen.videoEvidenceAdded ?? 0) >= 1) {
-    const result = await awardCronBadge(ctx, {
-      citizenId: citizen._id,
-      userId: citizen.userId,
-      badgeCode: "evidence_builder",
-      reason: "Added video evidence to strengthen a civic report",
-    });
-
-    if (result.awarded) awardedBadges.push(result);
-  }
-
-  if ((citizen.reportsVerified ?? 0) >= 5) {
-    const result = await awardCronBadge(ctx, {
-      citizenId: citizen._id,
-      userId: citizen.userId,
-      badgeCode: "verified_voice",
-      reason: "Had 5 reports verified by officers",
-    });
-
-    if (result.awarded) awardedBadges.push(result);
-  }
-
-  if ((citizen.reportsResolved ?? 0) >= 5) {
-    const result = await awardCronBadge(ctx, {
-      citizenId: citizen._id,
-      userId: citizen.userId,
-      badgeCode: "problem_solver",
-      reason: "Contributed to 5 resolved civic issues",
-    });
-
-    if (result.awarded) awardedBadges.push(result);
-  }
-
-  if ((citizen.currentStreak ?? 0) >= 7) {
-    const result = await awardCronBadge(ctx, {
-      citizenId: citizen._id,
-      userId: citizen.userId,
-      badgeCode: "seven_day_streak",
-      reason: "Maintained a 7-day civic participation streak",
-    });
-
-    if (result.awarded) awardedBadges.push(result);
-  }
-
-  if ((citizen.points ?? 0) >= 1000) {
-    const result = await awardCronBadge(ctx, {
-      citizenId: citizen._id,
-      userId: citizen.userId,
-      badgeCode: "city_hero",
-      reason: "Reached 1000 citizen points",
-    });
-
-    if (result.awarded) awardedBadges.push(result);
-  }
-
-  return awardedBadges;
 }
 
 export const rebuildCitizenBadges = internalMutation({
@@ -295,6 +248,11 @@ export const rebuildCitizenBadges = internalMutation({
 
   handler: async (ctx) => {
     const citizens = await ctx.db.query("citizens").collect();
+
+    const activeBadges = await ctx.db
+      .query("badges")
+      .withIndex("by_active", (q) => q.eq("isActive", true))
+      .collect();
 
     let checkedCitizens = 0;
     let totalBadgesAwarded = 0;
@@ -311,10 +269,29 @@ export const rebuildCitizenBadges = internalMutation({
         continue;
       }
 
-      const citizenAwardedBadges = await checkCitizenBadgeEligibility(
-        ctx,
-        citizen
-      );
+      const citizenAwardedBadges = [];
+
+      for (const badge of activeBadges) {
+        if (badge.criteriaType === "manual") {
+          continue;
+        }
+
+        const citizenValue = getCitizenCriteriaValue(citizen, badge.criteriaType);
+        const requiredCount = badge.requiredCount ?? 0;
+
+        if (citizenValue >= requiredCount) {
+          const result = await awardCronBadge(ctx, {
+            citizenId: citizen._id,
+            userId: citizen.userId,
+            badge,
+            reason: `Criteria met: ${badge.criteriaType} reached ${requiredCount}`,
+          });
+
+          if (result.awarded) {
+            citizenAwardedBadges.push(result);
+          }
+        }
+      }
 
       checkedCitizens += 1;
       totalBadgesAwarded += citizenAwardedBadges.length;
@@ -331,6 +308,7 @@ export const rebuildCitizenBadges = internalMutation({
 
     return {
       checkedCitizens,
+      activeBadgesChecked: activeBadges.length,
       totalBadgesAwarded,
       awarded,
       skipped,

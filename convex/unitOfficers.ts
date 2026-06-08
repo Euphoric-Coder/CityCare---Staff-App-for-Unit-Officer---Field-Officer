@@ -962,3 +962,142 @@ export const extendSLADeadline = mutation({
     return { success: true };
   },
 });
+
+export const rejectDuplicateIssues = mutation({
+  args: {
+    issueIds: v.array(v.id("issues")),
+
+    reason: v.optional(v.string()),
+    comment: v.optional(v.string()),
+
+    UOName: v.string(),
+    rejectedBy: v.id("users"),
+  },
+
+  handler: async (ctx, args) => {
+    const now = Date.now();
+
+    const rejectionReason = args.reason ?? "Duplicate issue detected";
+    const rejectionComment =
+      args.comment ??
+      "This issue has been rejected because it appears to be a duplicate of another active issue reported by the same citizen.";
+
+    const results = [];
+
+    for (const issueId of args.issueIds) {
+      const issue = await ctx.db.get(issueId);
+
+      if (!issue) {
+        results.push({
+          issueId,
+          success: false,
+          skipped: true,
+          reason: "Issue not found",
+        });
+        continue;
+      }
+
+      if (issue.status === "rejected") {
+        results.push({
+          issueId,
+          success: false,
+          skipped: true,
+          reason: "Issue already rejected",
+        });
+        continue;
+      }
+
+      const previousStatus = issue.status;
+
+      const issueCode =
+        issue.issueCode ??
+        String(issue._id);
+
+      const issueName =
+        issue.title ??
+        "Untitled Issue";
+
+      const reporterId =
+        issue.reportedBy
+
+      if (!reporterId) {
+        results.push({
+          issueId,
+          success: false,
+          skipped: true,
+          reason: "Reporter ID not found",
+        });
+        continue;
+      }
+
+      await ctx.db.patch(issueId, {
+        status: "rejected",
+
+        rejection: {
+          reason: rejectionReason,
+          comment: rejectionComment,
+          rejectedBy: args.rejectedBy,
+          rejectedAt: now,
+        },
+
+        assignedFieldOfficer: null,
+      });
+
+      await ctx.db.insert("issueUpdates", {
+        issueId,
+        status: "rejected",
+        comment:
+          previousStatus === "reopened"
+            ? `The duplicate issue "${issueName}" with Issue Code "${issueCode}" has been rejected again by the Unit Officer ${args.UOName} after being reopened by the citizen.\nReason: ${rejectionReason}\nComment: ${rejectionComment}`
+            : `The duplicate issue "${issueName}" with Issue Code "${issueCode}" has been rejected by the Unit Officer ${args.UOName}.\nReason: ${rejectionReason}\nComment: ${rejectionComment}`,
+        updatedBy: args.rejectedBy,
+        role: "unit_officer",
+        attachments: [],
+        scope: "citizen",
+        createdAt: now,
+      });
+
+      await ctx.db.insert("notifications", {
+        userId: reporterId,
+        issueId,
+        title: `Duplicate Issue Rejected - "${issueName} (${issueCode})"`,
+        message:
+          previousStatus === "reopened"
+            ? `Your reopened issue "${issueName}" with Issue Code "${issueCode}" has been rejected again because it appears to be a duplicate of another active issue.`
+            : `Your issue "${issueName}" with Issue Code "${issueCode}" has been rejected because it appears to be a duplicate of another active issue.`,
+        type: "rejected",
+        read: false,
+        createdAt: now,
+      });
+
+      await ctx.db.insert("notifications", {
+        userId: args.rejectedBy,
+        issueId,
+        title: `Duplicate Issue Rejected - "${issueName} (${issueCode})"`,
+        message: `You have successfully rejected the duplicate issue "${issueName}" with Issue Code "${issueCode}".`,
+        type: "rejected",
+        read: false,
+        createdAt: now,
+      });
+
+      results.push({
+        issueId,
+        success: true,
+        skipped: false,
+        previousStatus,
+        newStatus: "rejected",
+      });
+    }
+
+    const rejectedCount = results.filter((item) => item.success).length;
+    const skippedCount = results.filter((item) => item.skipped).length;
+
+    return {
+      success: true,
+      rejectedCount,
+      skippedCount,
+      totalRequested: args.issueIds.length,
+      results,
+    };
+  },
+});

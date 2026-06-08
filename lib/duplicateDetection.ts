@@ -503,7 +503,7 @@ function buildMobileIssue(issue: RawIssue): Issue | null {
   };
 }
 
-function compareIssues(issueA: Issue, issueB: Issue): DuplicatePairMetrics {
+export function compareIssues(issueA: Issue, issueB: Issue): DuplicatePairMetrics {
   const distanceMeters = haversineDistanceMeters(
     issueA.coordinates.latitude,
     issueA.coordinates.longitude,
@@ -755,4 +755,136 @@ export function buildDuplicateGroupsFromIssues(rawIssues: RawIssue[]): Duplicate
   return groups.sort(
     (a, b) => b.similarityMetrics.bestDuplicateScore - a.similarityMetrics.bestDuplicateScore
   );
+}
+
+export function getDuplicateFlagsByIssueId(rawIssues: RawIssue[], issueId: string) {
+  if (!issueId) {
+    return {
+      issueId,
+      hasDuplicateFlags: false,
+      duplicateGroupCount: 0,
+      duplicateIssueCount: 0,
+      groups: [],
+    };
+  }
+
+  const duplicateGroups = buildDuplicateGroupsFromIssues(rawIssues);
+
+  const matchedGroups = duplicateGroups
+    .filter((group) => group.issues.some((issue) => issue.id === issueId))
+    .map((group) => {
+      const currentIssue = group.issues.find((issue) => issue.id === issueId);
+
+      const relatedIssues = group.issues.filter((issue) => issue.id !== issueId);
+
+      const relatedPairMetrics = group.pairMetrics.filter(
+        (pair) => pair.issueAId === issueId || pair.issueBId === issueId
+      );
+
+      const bestDuplicateScore = relatedPairMetrics.length
+        ? Math.max(...relatedPairMetrics.map((pair) => pair.duplicateScore))
+        : group.similarityMetrics.bestDuplicateScore;
+
+      const bestOverallScore = relatedPairMetrics.length
+        ? Math.max(...relatedPairMetrics.map((pair) => pair.overallScore))
+        : group.similarityMetrics.bestOverallScore;
+
+      const averageOverallScore = relatedPairMetrics.length
+        ? relatedPairMetrics.reduce((sum, pair) => sum + pair.overallScore, 0) /
+          relatedPairMetrics.length
+        : group.similarityMetrics.averageOverallScore;
+
+      const minimumDistanceMeters = relatedPairMetrics.length
+        ? Math.min(...relatedPairMetrics.map((pair) => pair.distanceMeters))
+        : group.similarityMetrics.minimumDistanceMeters;
+
+      const duplicateLevel = getDuplicateLevel(bestDuplicateScore);
+
+      return {
+        groupId: group.id,
+
+        citizenId: group.citizenId,
+        citizenName: group.citizenName,
+        citizenEmail: group.citizenEmail,
+        citizenPhone: group.citizenPhone,
+
+        detectedAt: group.detectedAt,
+        similarityReason: group.similarityReason,
+        resolved: group.resolved,
+
+        currentIssue,
+
+        duplicateIssues: relatedIssues,
+
+        metrics: {
+          threshold: DUPLICATE_THRESHOLD,
+
+          bestDuplicateScore,
+          bestOverallScore: Number(bestOverallScore.toFixed(2)),
+          averageOverallScore: Number(averageOverallScore.toFixed(2)),
+          minimumDistanceMeters: Math.round(minimumDistanceMeters),
+
+          duplicateLevel,
+          strongDuplicate: bestDuplicateScore >= 80,
+          almostCertainDuplicate: bestDuplicateScore >= 90,
+
+          pairCount: relatedPairMetrics.length,
+
+          reasons: [
+            ...new Set(relatedPairMetrics.flatMap((pair) => pair.reasons)),
+          ],
+        },
+
+        pairMetrics: relatedPairMetrics.map((pair) => {
+          const matchedIssueId =
+            pair.issueAId === issueId ? pair.issueBId : pair.issueAId;
+
+          const matchedIssue = group.issues.find(
+            (issue) => issue.id === matchedIssueId
+          );
+
+          return {
+            ...pair,
+
+            matchedIssueId,
+            matchedIssue,
+
+            distanceMeters: Math.round(pair.distanceMeters),
+
+            titleSimilarityPercentage: Math.round(pair.titleSimilarity * 100),
+            descriptionSimilarityPercentage: Math.round(
+              pair.descriptionSimilarity * 100
+            ),
+            locationSimilarityPercentage: Math.round(
+              pair.locationSimilarity * 100
+            ),
+            proximitySimilarityPercentage: Math.round(
+              pair.proximitySimilarity * 100
+            ),
+
+            strongDuplicate: pair.duplicateScore >= 80,
+            almostCertainDuplicate: pair.duplicateScore >= 90,
+          };
+        }),
+      };
+    });
+
+  const duplicateIssueIds = new Set<string>();
+
+  matchedGroups.forEach((group) => {
+    group.duplicateIssues.forEach((issue) => {
+      duplicateIssueIds.add(issue.id);
+    });
+  });
+
+  return {
+    issueId,
+
+    hasDuplicateFlags: matchedGroups.length > 0,
+
+    duplicateGroupCount: matchedGroups.length,
+    duplicateIssueCount: duplicateIssueIds.size,
+
+    groups: matchedGroups,
+  };
 }

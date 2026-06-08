@@ -75,6 +75,9 @@ import {
   ExternalLink,
   Maximize2,
   MessageCircle,
+  Copy,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import {
@@ -105,6 +108,8 @@ import { useUser } from 'context/UserContext';
 import { Id } from 'convex/_generated/dataModel';
 import { mockCitizenMessages } from 'lib/mockData';
 import CitizenMessagingInterface from 'components/CitizenMessagingInterface';
+import { getDuplicateFlagsByIssueId } from 'lib/duplicateDetection';
+import DuplicateIssueCard from 'components/UnitOfficer/DuplicateIssueCard';
 
 interface IssueDetailScreenProps {
   route: { params: { issueId: string } };
@@ -404,7 +409,6 @@ function PhotoCarousel({
     </View>
   );
 }
-
 export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
   const user = useUser();
   const navigation = useNavigation();
@@ -418,11 +422,25 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
   const [activeVideoIndex, setActiveVideoIndex] = useState(0);
   const [playingVideo, setPlayingVideo] = useState<number | null>(null);
 
+
+  const rawIssues = useQuery(
+      api.unitOfficers.getUnitOfficerIssues,
+      // @ts-ignore
+      user?.id ? { userId: user.id } : 'skip'
+    );
+
   const issueUpdates = useQuery(
     api.issueUpdates.getByIssueId,
     // @ts-ignore
     true ? { issueId: issueId } : 'skip'
   );
+
+  const duplicateFlags = getDuplicateFlagsByIssueId(
+    rawIssues?.filter((i:any)=>i.status === "pending" || i.status === "reopened") as any || [],
+    issueId as string || ""
+  );
+
+  console.log(duplicateFlags);
 
   // @ts-ignore
   const issue = useQuery(api.unitOfficers.getIssueById, { issueId });
@@ -434,6 +452,8 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
 
   // Verify Issue Mutation
   const verifyIssue = useMutation(api.unitOfficers.verifyIssue);
+
+  const duplicateRejectIssues = useMutation(api.unitOfficers.rejectDuplicateIssues);
 
   // Reject Issue Mutation
   const rejectIssue = useMutation(api.unitOfficers.rejectIssue);
@@ -686,7 +706,7 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
   const handleAssign = async (officerId: string) => {
     if (!assignedFO) return;
 
-    const officer = assignedFO.find((o) => o?._id === officerId);
+    const officer = assignedFO.find((o: any) => o?._id === officerId);
     if (!officer || !mappedIssue || !user) return;
 
     const isReassign = assignModalMode === 'reassign';
@@ -767,7 +787,7 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
             issueId: mappedIssue!.id,
             status: 'reopened',
             comment: 'Issue reopened for further action.',
-            role: 'Citizen',
+            role: 'citizen',
             attachments: [],
             updatedBy: 'citizen-1',
             scope: 'citizen',
@@ -1683,6 +1703,38 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
               </View>
             );
           })()}
+
+          <DuplicateIssueCard
+            duplicateFlags={duplicateFlags}
+            isDark={isDark}
+            statusHex={statusStyle.hex}
+            onMerge={(keepIssueId, deleteIssueIds, groupId) => {
+              console.log("Duplicate merge requested:", {
+                keepIssueId,
+                deleteIssueIds,
+                groupId,
+              });
+
+              Alert.alert(
+                "Merge Requested",
+                "Duplicate merge action has been captured. Backend merge mutation can be connected next."
+              );
+            }}
+            onReject={async (issueIds, groupId) => {
+              if (!user?.id || !user?.name) {
+                throw new Error("Missing Unit Officer details.");
+              }
+
+              await duplicateRejectIssues({
+                issueIds: issueIds as Id<"issues">[],
+                UOName: user.name,
+                rejectedBy: user.id as Id<"users">,
+                reason: "Duplicate issue detected",
+                comment:
+                  "This issue has been rejected because it appears to be a duplicate of another active issue reported by the same citizen.",
+              });
+            }}
+          />
 
           {/* CATEGORY CARD*/}
           <View
@@ -2636,7 +2688,7 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
                       </Text>
                     </View>
                   ) : (
-                    (issueUpdates ?? []).map((upd, index: number) => {
+                    (issueUpdates ?? []).map((upd: any, index: number) => {
                       const updDotColor = STATUS_DOT_COLORS[upd.status] ?? '#94A3B8';
                       const isLatest = index === 0;
                       const isLast = index === (issueUpdates?.length ?? 0) - 1;
@@ -3221,7 +3273,7 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
               <SLAOverduePanel
                 issue={mappedIssue}
                 fieldOfficers={assignedFO.filter(
-                  (officer) => officer?._id !== assignedOfficerData?._id
+                  (officer: any) => officer?._id !== assignedOfficerData?._id
                 )}
                 onReassign={handleSLAReassign}
                 onReject={handleSLAReject}

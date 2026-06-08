@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, useColorScheme, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, useColorScheme, Platform, Modal } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
   TriangleAlert as AlertTriangle,
@@ -17,6 +17,8 @@ import {
   HeartPulse,
   MoreHorizontal,
   Tag,
+  CheckCircle,
+  XCircle,
 } from 'lucide-react-native';
 import { DuplicateGroup, Issue } from 'lib/types';
 import DuplicateMergeModal from './DuplicateMergeModal';
@@ -35,51 +37,223 @@ const CATEGORIES = [
 interface DuplicateDetectionBannerProps {
   groups: DuplicateGroup[];
   onGroupResolved: (groupId: string) => void;
+  onReject: (issueIds: string[], groupId: string) => Promise<void>;
 }
 
 export default function DuplicateDetectionBanner({
   groups,
   onGroupResolved,
+  onReject,
 }: DuplicateDetectionBannerProps) {
   const [expanded, setExpanded] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState<DuplicateGroup | null>(null);
+  const [rejectDialog, setRejectDialog] = useState<{
+    visible: boolean;
+    success: boolean;
+    title: string;
+    message: string;
+  }>({ visible: false, success: true, title: '', message: '' });
 
   const isDark = useColorScheme() === 'dark';
 
   const activeGroups = groups.filter((g) => !g.resolved);
-  if (activeGroups.length === 0) return null;
 
-  const handleMerge = (keepIssue: Issue, deleteIssueId: string, groupId: string) => {
-    onGroupResolved(groupId);
-    setSelectedGroup(null);
+  const premiumStatusDialog = (
+    <Modal
+      visible={rejectDialog.visible}
+      transparent
+      animationType="fade"
+      statusBarTranslucent
+      onRequestClose={() => setRejectDialog((prev) => ({ ...prev, visible: false }))}
+    >
+      <View className="flex-1 items-center justify-center bg-slate-950/60 p-8">
+        <TouchableOpacity
+          activeOpacity={1}
+          style={StyleSheet.absoluteFill}
+          onPress={() => setRejectDialog((prev) => ({ ...prev, visible: false }))}
+        />
+
+        <View
+          style={{
+            borderColor: isDark
+              ? rejectDialog.success
+                ? 'rgba(16,185,129,0.25)'
+                : 'rgba(239,68,68,0.25)'
+              : rejectDialog.success
+                ? 'rgba(16,185,129,0.15)'
+                : 'rgba(239,68,68,0.15)',
+            borderWidth: 1.5,
+            shadowColor: rejectDialog.success ? '#10B981' : '#EF4444',
+            shadowOffset: { width: 0, height: 20 },
+            shadowOpacity: isDark ? 0.4 : 0.15,
+            shadowRadius: 40,
+            elevation: 25,
+            width: '100%',
+            maxWidth: 360,
+            borderRadius: 36,
+            overflow: 'hidden',
+            backgroundColor: isDark ? '#0f172a' : '#FFFFFF',
+          }}
+        >
+          <LinearGradient
+            colors={
+              isDark
+                ? rejectDialog.success
+                  ? ['#064E3B', '#0f172a']
+                  : ['#7F1D1D', '#0f172a']
+                : rejectDialog.success
+                  ? ['#ECFDF5', '#FFFFFF']
+                  : ['#FEF2F2', '#FFFFFF']
+            }
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={{ paddingVertical: 36, paddingHorizontal: 28, alignItems: 'center' }}
+          >
+            {/* Icon */}
+            <View
+              style={{
+                width: 64,
+                height: 64,
+                borderRadius: 22,
+                backgroundColor: rejectDialog.success
+                  ? isDark ? 'rgba(16,185,129,0.15)' : '#D1FAE5'
+                  : isDark ? 'rgba(239,68,68,0.15)' : '#FEE2E2',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 20,
+              }}
+            >
+              {rejectDialog.success ? (
+                <CheckCircle
+                  size={32}
+                  color={isDark ? '#34D399' : '#059669'}
+                  strokeWidth={2.5}
+                />
+              ) : (
+                <XCircle
+                  size={32}
+                  color={isDark ? '#F87171' : '#DC2626'}
+                  strokeWidth={2.5}
+                />
+              )}
+            </View>
+
+            {/* Title */}
+            <Text
+              className="text-center text-[18px] font-black tracking-tight mb-2"
+              style={{
+                color: rejectDialog.success
+                  ? isDark ? '#34D399' : '#065F46'
+                  : isDark ? '#F87171' : '#991B1B',
+              }}
+            >
+              {rejectDialog.title}
+            </Text>
+
+            {/* Message */}
+            <Text
+              className="text-center text-[14px] font-semibold leading-[20px] mb-7"
+              style={{
+                color: isDark ? '#94A3B8' : '#64748B',
+              }}
+            >
+              {rejectDialog.message}
+            </Text>
+
+            {/* Dismiss Button */}
+            <TouchableOpacity
+              onPress={() => setRejectDialog((prev) => ({ ...prev, visible: false }))}
+              activeOpacity={0.85}
+              style={{
+                width: '100%',
+                borderRadius: 16,
+                overflow: 'hidden',
+                shadowColor: rejectDialog.success ? '#10B981' : '#EF4444',
+                shadowOffset: { width: 0, height: 6 },
+                shadowOpacity: isDark ? 0.4 : 0.2,
+                shadowRadius: 12,
+                elevation: 6,
+              }}
+            >
+              <LinearGradient
+                colors={
+                  rejectDialog.success
+                    ? ['#10B981', '#059669']
+                    : ['#EF4444', '#DC2626']
+                }
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={{
+                  paddingVertical: 14,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Text className="text-[15px] font-black tracking-wide text-white">
+                  {rejectDialog.success ? 'Done' : 'Dismiss'}
+                </Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </LinearGradient>
+        </View>
+      </View>
+    </Modal>
+  );
+
+  // If there are no groups and the dialog is not visible, we can safely render nothing.
+  if (activeGroups.length === 0 && !rejectDialog.visible) return null;
+
+  const handleMerge = (keepIssue: string, deleteIssueIds: string[], groupId: string) => {
+    console.log("Selected Merge: ", keepIssue);
+    console.log("Delete IDs: ", deleteIssueIds);
+    console.log("Group ID: ", groupId);
+    // onGroupResolved(groupId);
+    // setSelectedGroup(null);
   };
 
-  const handleReject = (issueIds: string[] | string, groupId: string) => {
-    onGroupResolved(groupId);
-    setSelectedGroup(null);
+  const handleReject = async (issueIds: string[], groupId: string) => {
+    try {
+      await onReject(issueIds, groupId);
+      setRejectDialog({
+        visible: true,
+        success: true,
+        title: 'Duplicate Issues Rejected',
+        message: `${issueIds.length} duplicate issue${issueIds.length > 1 ? 's have' : ' has'} been rejected successfully.`,
+      });
+      onGroupResolved(groupId);
+      setSelectedGroup(null);
+    } catch (error) {
+      console.error('Duplicate rejection failed:', error);
+      setRejectDialog({
+        visible: true,
+        success: false,
+        title: 'Rejection Failed',
+        message: 'Failed to reject duplicate issues. Please try again.',
+      });
+    }
   };
 
   return (
-    <View className="mb-6">
-      {/* Outer shadow wrapper for radiant ambient glow */}
-      <View
-        style={{
-          shadowColor: isDark ? '#000000' : '#D97706',
-          shadowOffset: { width: 0, height: 6 },
-          shadowOpacity: isDark ? 0.4 : 0.2,
-          shadowRadius: 12,
-          elevation: 8,
-          borderRadius: 24,
-          backgroundColor: Platform.OS === 'android' ? (isDark ? '#250E02' : '#FFFBEB') : undefined,
-        }}>
-        <View className="relative overflow-hidden rounded-[24px] border-[1.5px] border-amber-300/60 dark:border-amber-600/50 bg-transparent">
-          {/* Dynamic Rich Background Gradient */}
-          <LinearGradient
-            colors={isDark ? ['#451A03', '#250E02'] : ['#FFFBEB', '#FEF3C7']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={StyleSheet.absoluteFill}
-          />
+    <View className={activeGroups.length > 0 ? "mb-6" : ""}>
+      {activeGroups.length > 0 && (
+        <View
+          style={{
+            shadowColor: isDark ? '#000000' : '#D97706',
+            shadowOffset: { width: 0, height: 6 },
+            shadowOpacity: isDark ? 0.4 : 0.2,
+            shadowRadius: 12,
+            elevation: 8,
+            borderRadius: 24,
+            backgroundColor: Platform.OS === 'android' ? (isDark ? '#250E02' : '#FFFBEB') : undefined,
+          }}>
+          <View className="relative overflow-hidden rounded-[24px] border-[1.5px] border-amber-300/60 dark:border-amber-600/50 bg-transparent">
+            {/* Dynamic Rich Background Gradient */}
+            <LinearGradient
+              colors={isDark ? ['#451A03', '#250E02'] : ['#FFFBEB', '#FEF3C7']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
 
           {/* Premium Specular Glass Highlight */}
           <LinearGradient
@@ -253,15 +427,18 @@ export default function DuplicateDetectionBanner({
           </View>
         </View>
       </View>
+      )}
 
-      {selectedGroup && (
+      {selectedGroup && activeGroups.length > 0 && (
         <DuplicateMergeModal
           group={selectedGroup}
           onClose={() => setSelectedGroup(null)}
-          onMerge={(keepIssue, deleteId) => handleMerge(keepIssue, deleteId, selectedGroup.id)}
-          onReject={(issueIds) => handleReject(issueIds, selectedGroup.id)}
+          onMerge={(keepIssue: string, deleteIds: string[], groupId: string) => handleMerge(keepIssue as string, deleteIds as string[], groupId as string)}
+          onReject={(issueIds: string[], groupId: string) => handleReject(issueIds as string[], groupId as string)}
         />
       )}
+
+      {premiumStatusDialog}
     </View>
   );
 }

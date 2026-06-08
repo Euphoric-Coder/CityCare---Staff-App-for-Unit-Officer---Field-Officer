@@ -42,8 +42,8 @@ import { DuplicateGroup, Issue } from 'lib/types';
 interface DuplicateMergeModalProps {
   group: DuplicateGroup;
   onClose: () => void;
-  onMerge: (keepIssue: Issue, deleteIssueId: string) => void;
-  onReject: (issueIds: string[]) => void;
+  onMerge: (keepIssue: string, deleteIssueIds: string[], groupId: string) => void;
+  onReject: (issueIds: string[], groupId: string) => void;
 }
 
 type ModalStep = 'compare' | 'merge' | 'reject';
@@ -379,16 +379,19 @@ export default function DuplicateMergeModal({
     const keepIssue = group.issues.find((i) => i.id === selectedKeep)!;
     const deleteIds = group.issues.filter((i) => i.id !== selectedKeep).map((i) => i.id);
     // onMerge(keepIssue, deleteId);
-    console.log('Keep Issue:', keepIssue);
-    console.log('Delete ID:', deleteIds);
+    // console.log('Keep Issue:', keepIssue);
+    // console.log('Delete ID:', deleteIds);
+    onMerge(keepIssue.id, deleteIds, group.id);
     close();
   };
 
   const handleRejectConfirm = () => {
     if (selectedReject.length === 0) return;
     // onReject(selectedReject);
-    console.log('Selected Reject:', selectedReject);
+    // console.log("Group ID: ", group.id);
+    // console.log('Selected Reject:', selectedReject);
     close();
+    onReject(selectedReject, group.id);
   };
 
   const distMeters = haversineDistanceMeters(

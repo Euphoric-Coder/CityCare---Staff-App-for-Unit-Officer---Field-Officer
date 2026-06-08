@@ -92,7 +92,7 @@ import { api } from 'convex/_generated/api';
 import { mapIssueToUI } from 'lib/issueMapper';
 import { useUser } from 'context/UserContext';
 import { Id } from 'convex/_generated/dataModel';
-import { buildDuplicateGroupsFromIssues } from 'lib/duplicateDetection';
+import { buildDuplicateGroupsFromIssues, getDuplicateFlagsByIssueId } from 'lib/duplicateDetection';
 
 interface UnitOfficerDashboardProps {
   user: User;
@@ -1824,6 +1824,8 @@ export default function UnitOfficerDashboard() {
 
   const deleteNotification = useMutation(api.notifications.deleteNotification);
 
+  const duplicateRejectIssues = useMutation(api.unitOfficers.rejectDuplicateIssues);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [filterVisible, setFilterVisible] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -1866,7 +1868,7 @@ export default function UnitOfficerDashboard() {
     const activeIssues = rawIssues.filter((issue) => {
       const status = issue?.status?.toLowerCase().trim();
 
-      return status !== 'resolved' && status !== 'rejected';
+      return status !== 'assigned' && status !== 'pending_uo_verification' && status !== 'resolved' && status !== 'rejected';
     });
 
     return buildDuplicateGroupsFromIssues(activeIssues);
@@ -2160,6 +2162,20 @@ export default function UnitOfficerDashboard() {
               groups={duplicateGroups}
               // @ts-ignore
               onGroupResolved={(groupId) => console.log(groupId)}
+              onReject={async (issueIds, groupId) => {
+                if (!user?.id || !user?.name) {
+                  throw new Error("Missing Unit Officer details.");
+                }
+
+                await duplicateRejectIssues({
+                  issueIds: issueIds as Id<"issues">[],
+                  UOName: user.name,
+                  rejectedBy: user.id as Id<"users">,
+                  reason: "Duplicate issue detected",
+                  comment:
+                    "This issue has been rejected because it appears to be a duplicate of another active issue reported by the same citizen.",
+                });
+              }}
             />
 
             {/* Search */}

@@ -110,6 +110,8 @@ import { mockCitizenMessages } from 'lib/mockData';
 import CitizenMessagingInterface from 'components/CitizenMessagingInterface';
 import { getDuplicateFlagsByIssueId } from 'lib/duplicateDetection';
 import DuplicateIssueCard from 'components/UnitOfficer/DuplicateIssueCard';
+import { reviewIssueWithGemini } from 'lib/issueReview';
+import AIReviewCard from 'components/UnitOfficer/AIReviewCard';
 
 interface IssueDetailScreenProps {
   route: { params: { issueId: string } };
@@ -422,12 +424,11 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
   const [activeVideoIndex, setActiveVideoIndex] = useState(0);
   const [playingVideo, setPlayingVideo] = useState<number | null>(null);
 
-
   const rawIssues = useQuery(
-      api.unitOfficers.getUnitOfficerIssues,
-      // @ts-ignore
-      user?.id ? { userId: user.id } : 'skip'
-    );
+    api.unitOfficers.getUnitOfficerIssues,
+    // @ts-ignore
+    user?.id ? { userId: user.id } : 'skip'
+  );
 
   const issueUpdates = useQuery(
     api.issueUpdates.getByIssueId,
@@ -436,11 +437,20 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
   );
 
   const duplicateFlags = getDuplicateFlagsByIssueId(
-    rawIssues?.filter((i:any)=>i.status === "pending" || i.status === "reopened") as any || [],
-    issueId as string || ""
+    (rawIssues?.filter((i: any) => i.status === 'pending' || i.status === 'reopened') as any) || [],
+    (issueId as string) || ''
   );
 
-  console.log(duplicateFlags);
+  // const review = await reviewIssueWithGemini({
+  //   unitOfficerDepartment: user?.department,
+  //   title: rawIssues?.title,
+  //   description: rawIssues?.description,
+  //   category: rawIssues?.category,
+  //   subcategory: rawIssues?.subcategory?.[0],
+  //   location: rawIssues?.address,
+  // });
+
+  // console.log(review);
 
   // @ts-ignore
   const issue = useQuery(api.unitOfficers.getIssueById, { issueId });
@@ -493,12 +503,14 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
   );
 
   // const unreadMsgCount = issueMessages.filter((m) => !m.read && m.fromRole === 'Citizen').length;
-  
+
   const unreadMsgCountQuery = useQuery(
     api.messages.getUnreadIssueMessagesCount,
-    issue?._id && user?.id ? { issueId: issue._id as Id<'issues'>, userId: user.id as Id<'users'> } : 'skip'
+    issue?._id && user?.id
+      ? { issueId: issue._id as Id<'issues'>, userId: user.id as Id<'users'> }
+      : 'skip'
   );
-  
+
   const unreadMsgCount = unreadMsgCountQuery || 0;
 
   const launchCamera = useCallback(async () => {
@@ -1709,29 +1721,29 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
             isDark={isDark}
             statusHex={statusStyle.hex}
             onMerge={(keepIssueId, deleteIssueIds, groupId) => {
-              console.log("Duplicate merge requested:", {
+              console.log('Duplicate merge requested:', {
                 keepIssueId,
                 deleteIssueIds,
                 groupId,
               });
 
               Alert.alert(
-                "Merge Requested",
-                "Duplicate merge action has been captured. Backend merge mutation can be connected next."
+                'Merge Requested',
+                'Duplicate merge action has been captured. Backend merge mutation can be connected next.'
               );
             }}
             onReject={async (issueIds, groupId) => {
               if (!user?.id || !user?.name) {
-                throw new Error("Missing Unit Officer details.");
+                throw new Error('Missing Unit Officer details.');
               }
 
               await duplicateRejectIssues({
-                issueIds: issueIds as Id<"issues">[],
+                issueIds: issueIds as Id<'issues'>[],
                 UOName: user.name,
-                rejectedBy: user.id as Id<"users">,
-                reason: "Duplicate issue detected",
+                rejectedBy: user.id as Id<'users'>,
+                reason: 'Duplicate issue detected',
                 comment:
-                  "This issue has been rejected because it appears to be a duplicate of another active issue reported by the same citizen.",
+                  'This issue has been rejected because it appears to be a duplicate of another active issue reported by the same citizen.',
               });
             }}
           />
@@ -3266,6 +3278,17 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
               </View>
             </LinearGradient>
           </View>
+
+          {/* AI ISSUE REVIEW */}
+          {mappedIssue &&
+            !['closed', 'resolved', 'rejected', 'pending_uo_verification'].includes(
+              mappedIssue.status
+            ) && (
+              <AIReviewCard
+                issue={mappedIssue}
+                unitOfficerDepartment={(user as any).department || 'road'}
+              />
+            )}
 
           {/* SLA OVERDUE ACTION PANEL */}
           {isSLAOverdue && assignedFO && (

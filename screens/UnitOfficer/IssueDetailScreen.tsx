@@ -110,7 +110,6 @@ import { mockCitizenMessages } from 'lib/mockData';
 import CitizenMessagingInterface from 'components/CitizenMessagingInterface';
 import { getDuplicateFlagsByIssueId } from 'lib/duplicateDetection';
 import DuplicateIssueCard from 'components/UnitOfficer/DuplicateIssueCard';
-import { reviewIssueWithGemini } from 'lib/issueReview';
 import AIReviewCard from 'components/UnitOfficer/AIReviewCard';
 
 interface IssueDetailScreenProps {
@@ -269,17 +268,6 @@ function SectionCard({ children }: { children: React.ReactNode }) {
         elevation: 6,
       }}>
       {children}
-    </View>
-  );
-}
-
-function SectionHeader({ title, icon }: { title: string; icon?: React.ReactNode }) {
-  return (
-    <View className="flex-row items-center gap-2.5 border-b border-slate-100/50 px-5 pb-4 pt-5 dark:border-slate-800">
-      {icon}
-      <Text className="text-[16px] font-black tracking-tight text-slate-800 dark:text-slate-100">
-        {title}
-      </Text>
     </View>
   );
 }
@@ -1715,6 +1703,17 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
               </View>
             );
           })()}
+
+          {/* AI ISSUE REVIEW */}
+          {mappedIssue &&
+            !['closed', 'resolved', 'rejected', 'pending_uo_verification'].includes(
+              mappedIssue.status
+            ) && (
+              <AIReviewCard
+                issue={mappedIssue}
+                unitOfficerDepartment={(user as any).department || 'road'}
+              />
+            )}
 
           <DuplicateIssueCard
             duplicateFlags={duplicateFlags}
@@ -3278,17 +3277,6 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
               </View>
             </LinearGradient>
           </View>
-
-          {/* AI ISSUE REVIEW */}
-          {mappedIssue &&
-            !['closed', 'resolved', 'rejected', 'pending_uo_verification'].includes(
-              mappedIssue.status
-            ) && (
-              <AIReviewCard
-                issue={mappedIssue}
-                unitOfficerDepartment={(user as any).department || 'road'}
-              />
-            )}
 
           {/* SLA OVERDUE ACTION PANEL */}
           {isSLAOverdue && assignedFO && (

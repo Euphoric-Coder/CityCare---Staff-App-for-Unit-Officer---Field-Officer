@@ -36,6 +36,7 @@ import {
   ShieldAlert,
   Activity,
   Fingerprint,
+  Camera,
 } from 'lucide-react-native';
 import { reviewIssueWithGemini } from 'lib/issueReview';
 
@@ -139,6 +140,7 @@ export default function AIReviewCard({ issue, unitOfficerDepartment }: AIReviewC
         category: issue.category || '',
         subcategory,
         location,
+        images: issue.images || [],
       });
 
       setReview(response);
@@ -357,8 +359,7 @@ export default function AIReviewCard({ issue, unitOfficerDepartment }: AIReviewC
                       ? ['rgba(6,182,212,0.1)', 'transparent']
                       : ['rgba(2,132,199,0.03)', 'transparent']
                   }
-                  style={StyleSheet.absoluteFillObject}
-                  borderRadius={isIOS ? 33 : 40}
+                  style={[StyleSheet.absoluteFillObject, { borderRadius: isIOS ? 33 : 40 }]}
                 />
 
                 {/* Bot Icon */}
@@ -460,14 +461,16 @@ export default function AIReviewCard({ issue, unitOfficerDepartment }: AIReviewC
           <View className="items-center py-6">
             {/* Pulsing Scanner Ring */}
             <Reanimated.View
-              style={[animatedBrainStyle]}
               className="mb-6 items-center justify-center rounded-[24px] border"
-              style={{
-                width: isIOS ? 64 : 80,
-                height: isIOS ? 64 : 80,
-                backgroundColor: isDark ? 'rgba(14,165,233,0.1)' : '#F0F9FF',
-                borderColor: isDark ? 'rgba(14,165,233,0.3)' : '#BAE6FD',
-              }}>
+              style={[
+                animatedBrainStyle,
+                {
+                  width: isIOS ? 64 : 80,
+                  height: isIOS ? 64 : 80,
+                  backgroundColor: isDark ? 'rgba(14,165,233,0.1)' : '#F0F9FF',
+                  borderColor: isDark ? 'rgba(14,165,233,0.3)' : '#BAE6FD',
+                },
+              ]}>
               <Activity
                 color={isDark ? '#38BDF8' : '#0284C7'}
                 size={isIOS ? 24 : 32}
@@ -641,78 +644,74 @@ export default function AIReviewCard({ issue, unitOfficerDepartment }: AIReviewC
             </Reanimated.View>
 
             {/* Row 2: Category Comparison HUD */}
-            <Reanimated.View entering={FadeInDown.delay(200).duration(400)}>
-              <View
-                className="rounded-3xl border p-4"
-                style={{
-                  backgroundColor: isDark ? '#0C1122' : '#F8FAFC',
-                  borderColor: isDark ? 'rgba(30,41,59,0.8)' : '#E2E8F0',
-                }}>
-                <View className="mb-3 flex-row items-center justify-between">
-                  <Text className="text-[8.5px] font-black uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500">
-                    Category Mapping Matrix
-                  </Text>
+            {categoryMismatch && (
+              <Reanimated.View entering={FadeInDown.delay(200).duration(400)}>
+                <View
+                  className="rounded-3xl border p-4"
+                  style={{
+                    backgroundColor: isDark ? '#0C1122' : '#F8FAFC',
+                    borderColor: isDark ? 'rgba(30,41,59,0.8)' : '#E2E8F0',
+                  }}>
+                  <View className="mb-3 flex-row items-center justify-between">
+                    <Text className="text-[8.5px] font-black uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500">
+                      Category Mapping Matrix
+                    </Text>
 
-                  {categoryMismatch && (
                     <View className="flex-row items-center gap-1 rounded border border-amber-500/20 bg-amber-500/10 px-2 py-0.5">
                       <AlertTriangle color="#F59E0B" size={9} strokeWidth={2.5} />
                       <Text className="text-[7.5px] font-black tracking-wide text-amber-600 dark:text-amber-400">
                         CORRECTION RECOMMENDED
                       </Text>
                     </View>
-                  )}
-                </View>
-
-                {/* Classification Flow */}
-                <View className="mb-3.5 flex-row items-center justify-between rounded-2xl border border-slate-200/40 bg-slate-100 p-3.5 dark:border-slate-800/40 dark:bg-slate-900/60">
-                  <View className="flex-1">
-                    <Text className="mb-0.5 text-[8.5px] font-black uppercase tracking-widest text-slate-400">
-                      Current
-                    </Text>
-                    <Text
-                      className={`font-extrabold capitalize text-slate-800 dark:text-slate-200 ${isIOS ? 'text-[12px]' : 'text-[13px]'}`}>
-                      {currentCategory}
-                    </Text>
                   </View>
 
-                  <View className="mx-3 h-7 w-7 items-center justify-center rounded-full bg-slate-200 dark:bg-slate-800">
-                    <ArrowRight
-                      color={categoryMismatch ? '#F59E0B' : '#64748B'}
-                      size={12}
-                      strokeWidth={3}
-                    />
-                  </View>
+                  {/* Classification Flow */}
+                  <View className="mb-3.5 flex-row items-center justify-between rounded-2xl border border-slate-200/40 bg-slate-100 p-3.5 dark:border-slate-800/40 dark:bg-slate-900/60">
+                    <View className="flex-1">
+                      <Text className="mb-0.5 text-[8.5px] font-black uppercase tracking-widest text-slate-400">
+                        Current
+                      </Text>
+                      <Text
+                        className={`font-extrabold capitalize text-slate-800 dark:text-slate-200 ${isIOS ? 'text-[12px]' : 'text-[13px]'}`}>
+                        {currentCategory}
+                      </Text>
+                    </View>
 
-                  <View className="flex-1 items-end">
-                    <Text className="mb-0.5 text-[8.5px] font-black uppercase tracking-widest text-slate-400">
-                      Detected
-                    </Text>
-                    <Text
-                      className={`font-extrabold capitalize ${
-                        categoryMismatch
-                          ? 'text-amber-500 dark:text-amber-400'
-                          : 'text-slate-850 dark:text-slate-200'
-                      } ${isIOS ? 'text-[12px]' : 'text-[13px]'}`}>
-                      {review.detectedCategory ?? review.suggestedCategory ?? currentCategory}
-                    </Text>
-                  </View>
-                </View>
+                    <View className="mx-3 h-7 w-7 items-center justify-center rounded-full bg-slate-200 dark:bg-slate-800">
+                      <ArrowRight
+                        color="#F59E0B"
+                        size={12}
+                        strokeWidth={3}
+                      />
+                    </View>
 
-                {review.suggestedSubcategory && (
-                  <View className="flex-row items-center justify-between border-t border-slate-100 pt-3 dark:border-slate-800/60">
-                    <Text
-                      className={`font-bold text-slate-500 dark:text-slate-400 ${isIOS ? 'text-[11.5px]' : 'text-[12px]'}`}>
-                      Suggested Subcategory
-                    </Text>
-                    <View className="rounded-xl border border-cyan-500/20 bg-cyan-500/10 px-2.5 py-1">
-                      <Text className="text-[10px] font-black text-cyan-600 dark:text-cyan-400">
-                        {review.suggestedSubcategory}
+                    <View className="flex-1 items-end">
+                      <Text className="mb-0.5 text-[8.5px] font-black uppercase tracking-widest text-slate-400">
+                        Detected
+                      </Text>
+                      <Text
+                        className={`font-extrabold capitalize text-amber-500 dark:text-amber-400 ${isIOS ? 'text-[12px]' : 'text-[13px]'}`}>
+                        {review.detectedCategory ?? review.suggestedCategory ?? currentCategory}
                       </Text>
                     </View>
                   </View>
-                )}
-              </View>
-            </Reanimated.View>
+
+                  {review.suggestedSubcategory && (
+                    <View className="flex-row items-center justify-between border-t border-slate-100 pt-3 dark:border-slate-800/60">
+                      <Text
+                        className={`font-bold text-slate-500 dark:text-slate-400 ${isIOS ? 'text-[11.5px]' : 'text-[12px]'}`}>
+                        Suggested Subcategory
+                      </Text>
+                      <View className="rounded-xl border border-cyan-500/20 bg-cyan-500/10 px-2.5 py-1">
+                        <Text className="text-[10px] font-black text-cyan-600 dark:text-cyan-400">
+                          {review.suggestedSubcategory}
+                        </Text>
+                      </View>
+                    </View>
+                  )}
+                </View>
+              </Reanimated.View>
+            )}
 
             {/* Row 3: Priority & Safety Threat Levels */}
             <Reanimated.View
@@ -776,6 +775,99 @@ export default function AIReviewCard({ issue, unitOfficerDepartment }: AIReviewC
                 );
               })()}
             </Reanimated.View>
+
+            {/* Row 3.5: Image Authenticity Assessment */}
+            <Reanimated.View entering={FadeInDown.delay(350).duration(400)} className="gap-2">
+              <Text className="text-[8.5px] font-black uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500">
+                Image Integrity Scan
+              </Text>
+
+              {issue.images && issue.images.length > 0 ? (
+                review.imageAuthentic ? (
+                  <View
+                    style={{
+                      backgroundColor: isDark ? 'rgba(16,185,129,0.05)' : '#F0FDF4',
+                      borderColor: isDark ? 'rgba(16,185,129,0.2)' : '#DCFCE7',
+                      borderRadius: 20,
+                      borderWidth: 1.5,
+                      padding: 14,
+                    }}
+                    className="flex-row items-start gap-3">
+                    <View className="h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/10">
+                      <ShieldCheck
+                        color={isDark ? '#34D399' : '#059669'}
+                        size={18}
+                        strokeWidth={2.5}
+                      />
+                    </View>
+                    <View className="flex-1">
+                      <Text className="mb-0.5 text-[8.5px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                        Images Verified Authentic
+                      </Text>
+                      <Text
+                        className={`font-semibold text-slate-600 dark:text-slate-350 leading-5 ${isIOS ? 'text-[12px]' : 'text-[12.5px]'}`}>
+                        {review.imageAuthenticityReason || 'The photos match the description and appear authentic.'}
+                      </Text>
+                    </View>
+                  </View>
+                ) : (
+                  <View
+                    style={{
+                      backgroundColor: isDark ? 'rgba(239,68,68,0.05)' : '#FEF2F2',
+                      borderColor: isDark ? 'rgba(239,68,68,0.2)' : '#FEE2E2',
+                      borderRadius: 20,
+                      borderWidth: 1.5,
+                      padding: 14,
+                    }}
+                    className="flex-row items-start gap-3">
+                    <View className="h-9 w-9 items-center justify-center rounded-lg bg-rose-500/10">
+                      <ShieldAlert
+                        color={isDark ? '#F87171' : '#E11D48'}
+                        size={18}
+                        strokeWidth={2.5}
+                      />
+                    </View>
+                    <View className="flex-1">
+                      <Text className="mb-0.5 text-[8.5px] font-black uppercase tracking-wider text-rose-600 dark:text-rose-400">
+                        Image Integrity Warning
+                      </Text>
+                      <Text
+                        className={`font-semibold text-slate-600 dark:text-slate-350 leading-5 ${isIOS ? 'text-[12px]' : 'text-[12.5px]'}`}>
+                        {review.imageAuthenticityReason || 'The photos do not match the description or appear inauthentic.'}
+                      </Text>
+                    </View>
+                  </View>
+                )
+              ) : (
+                <View
+                  style={{
+                    backgroundColor: isDark ? '#0C1122' : '#F8FAFC',
+                    borderColor: isDark ? 'rgba(30,41,59,0.8)' : '#E2E8F0',
+                    borderRadius: 20,
+                    borderWidth: 1.5,
+                    padding: 14,
+                  }}
+                  className="flex-row items-start gap-3">
+                  <View className="h-9 w-9 items-center justify-center rounded-lg bg-slate-500/10">
+                    <Camera
+                      color={isDark ? '#94A3B8' : '#64748B'}
+                      size={18}
+                      strokeWidth={2.5}
+                    />
+                  </View>
+                  <View className="flex-1">
+                    <Text className="mb-0.5 text-[8.5px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                      No Media Uploaded
+                    </Text>
+                    <Text
+                      className={`font-semibold text-slate-600 dark:text-slate-350 leading-5 ${isIOS ? 'text-[12px]' : 'text-[12.5px]'}`}>
+                      No images were provided for visual authenticity review.
+                    </Text>
+                  </View>
+                </View>
+              )}
+            </Reanimated.View>
+
 
             {/* Row 4: AI Reasoning Dialog Bubble */}
             {review.reason && (

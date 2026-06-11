@@ -9,14 +9,14 @@ export const getUnitOfficerByUserId = query({
       .query('unitOfficers')
       .withIndex('by_user', (q) => q.eq('userId', args.userId))
       .unique();
-      
+
     if (!officer) return null;
-    
+
     let profilePictureUrl = null;
     if (officer.profilePicture) {
       profilePictureUrl = await ctx.storage.getUrl(officer.profilePicture);
     }
-    
+
     return {
       ...officer,
       profilePictureUrl,
@@ -34,18 +34,18 @@ export const updateUnitOfficerProfilePicture = mutation({
       .query('unitOfficers')
       .withIndex('by_user', (q) => q.eq('userId', args.userId))
       .unique();
-      
+
     if (!officer) throw new Error('Unit Officer not found');
-    
+
     // Delete old profile picture from storage
     if (officer.profilePicture) {
       await ctx.storage.delete(officer.profilePicture);
     }
-    
+
     await ctx.db.patch(officer._id, {
       profilePicture: args.profilePicture,
     });
-    
+
     return { success: true };
   },
 });
@@ -109,6 +109,7 @@ export const getUnitOfficerIssues = query({
         return {
           ...issue,
 
+          department: officer.department,
           citizenDetails: {
             fullName: citizen?.fullName ?? 'Unknown',
             email: citizen?.email ?? 'N/A',
@@ -142,11 +143,20 @@ export const getIssueById = query({
     // Fetch Field Officer using userId stored in issue
     let fieldOfficerDetails = null;
 
+    let department = 'road';
+
     if (issue.assignedFieldOfficer) {
       const fo = await ctx.db
         .query('fieldOfficers')
         .withIndex('by_user', (q) => q.eq('userId', issue.assignedFieldOfficer as Id<'users'>))
         .unique();
+
+      const uo = await ctx.db
+        .query('unitOfficers')
+        .withIndex('by_user', (q) => q.eq('userId', issue.assignedFieldOfficer as Id<'users'>))
+        .unique();
+
+      if (uo) department = uo.department;
 
       if (fo) {
         const foUser = await ctx.db.get(fo.userId);
@@ -199,6 +209,7 @@ export const getIssueById = query({
 
     return {
       ...issue,
+      department,
       citizenDetails: {
         fullName: citizen?.fullName ?? 'Unknown',
         email: citizen?.email ?? 'N/A',
@@ -965,22 +976,22 @@ export const extendSLADeadline = mutation({
 
 export const rejectDuplicateIssues = mutation({
   args: {
-    issueIds: v.array(v.id("issues")),
+    issueIds: v.array(v.id('issues')),
 
     reason: v.optional(v.string()),
     comment: v.optional(v.string()),
 
     UOName: v.string(),
-    rejectedBy: v.id("users"),
+    rejectedBy: v.id('users'),
   },
 
   handler: async (ctx, args) => {
     const now = Date.now();
 
-    const rejectionReason = args.reason ?? "Duplicate issue detected";
+    const rejectionReason = args.reason ?? 'Duplicate issue detected';
     const rejectionComment =
       args.comment ??
-      "This issue has been rejected because it appears to be a duplicate of another active issue reported by the same citizen.";
+      'This issue has been rejected because it appears to be a duplicate of another active issue reported by the same citizen.';
 
     const results = [];
 
@@ -992,46 +1003,41 @@ export const rejectDuplicateIssues = mutation({
           issueId,
           success: false,
           skipped: true,
-          reason: "Issue not found",
+          reason: 'Issue not found',
         });
         continue;
       }
 
-      if (issue.status === "rejected") {
+      if (issue.status === 'rejected') {
         results.push({
           issueId,
           success: false,
           skipped: true,
-          reason: "Issue already rejected",
+          reason: 'Issue already rejected',
         });
         continue;
       }
 
       const previousStatus = issue.status;
 
-      const issueCode =
-        issue.issueCode ??
-        String(issue._id);
+      const issueCode = issue.issueCode ?? String(issue._id);
 
-      const issueName =
-        issue.title ??
-        "Untitled Issue";
+      const issueName = issue.title ?? 'Untitled Issue';
 
-      const reporterId =
-        issue.reportedBy
+      const reporterId = issue.reportedBy;
 
       if (!reporterId) {
         results.push({
           issueId,
           success: false,
           skipped: true,
-          reason: "Reporter ID not found",
+          reason: 'Reporter ID not found',
         });
         continue;
       }
 
       await ctx.db.patch(issueId, {
-        status: "rejected",
+        status: 'rejected',
 
         rejection: {
           reason: rejectionReason,
@@ -1043,39 +1049,39 @@ export const rejectDuplicateIssues = mutation({
         assignedFieldOfficer: null,
       });
 
-      await ctx.db.insert("issueUpdates", {
+      await ctx.db.insert('issueUpdates', {
         issueId,
-        status: "rejected",
+        status: 'rejected',
         comment:
-          previousStatus === "reopened"
+          previousStatus === 'reopened'
             ? `The duplicate issue "${issueName}" with Issue Code "${issueCode}" has been rejected again by the Unit Officer ${args.UOName} after being reopened by the citizen.\nReason: ${rejectionReason}\nComment: ${rejectionComment}`
             : `The duplicate issue "${issueName}" with Issue Code "${issueCode}" has been rejected by the Unit Officer ${args.UOName}.\nReason: ${rejectionReason}\nComment: ${rejectionComment}`,
         updatedBy: args.rejectedBy,
-        role: "unit_officer",
+        role: 'unit_officer',
         attachments: [],
-        scope: "citizen",
+        scope: 'citizen',
         createdAt: now,
       });
 
-      await ctx.db.insert("notifications", {
+      await ctx.db.insert('notifications', {
         userId: reporterId,
         issueId,
         title: `Duplicate Issue Rejected - "${issueName} (${issueCode})"`,
         message:
-          previousStatus === "reopened"
+          previousStatus === 'reopened'
             ? `Your reopened issue "${issueName}" with Issue Code "${issueCode}" has been rejected again because it appears to be a duplicate of another active issue.`
             : `Your issue "${issueName}" with Issue Code "${issueCode}" has been rejected because it appears to be a duplicate of another active issue.`,
-        type: "rejected",
+        type: 'rejected',
         read: false,
         createdAt: now,
       });
 
-      await ctx.db.insert("notifications", {
+      await ctx.db.insert('notifications', {
         userId: args.rejectedBy,
         issueId,
         title: `Duplicate Issue Rejected - "${issueName} (${issueCode})"`,
         message: `You have successfully rejected the duplicate issue "${issueName}" with Issue Code "${issueCode}".`,
-        type: "rejected",
+        type: 'rejected',
         read: false,
         createdAt: now,
       });
@@ -1085,7 +1091,7 @@ export const rejectDuplicateIssues = mutation({
         success: true,
         skipped: false,
         previousStatus,
-        newStatus: "rejected",
+        newStatus: 'rejected',
       });
     }
 

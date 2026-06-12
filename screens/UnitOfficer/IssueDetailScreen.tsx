@@ -1712,6 +1712,7 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
               <AIReviewCard
                 issue={mappedIssue}
                 unitOfficerDepartment={(user as any).department || 'road'}
+                duplicateFlags={duplicateFlags}
               />
             )}
 
@@ -1719,6 +1720,7 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
             duplicateFlags={duplicateFlags}
             isDark={isDark}
             statusHex={statusStyle.hex}
+            currentIssueId={mappedIssue?.id}
             onMerge={(keepIssueId, deleteIssueIds, groupId) => {
               console.log('Duplicate merge requested:', {
                 keepIssueId,
@@ -3490,7 +3492,7 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
                     </Text>
                   </View>
                   <Text className="mb-5 text-[13px] leading-5 text-slate-500 dark:text-slate-400">
-                    Reject the citizen's re-open request if the concern is invalid or already
+                    Reject the {"citizen's"} re-open request if the concern is invalid or already
                     resolved. The citizen will be notified.
                   </Text>
                   <TouchableOpacity

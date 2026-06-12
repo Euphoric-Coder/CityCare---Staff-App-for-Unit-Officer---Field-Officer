@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Animated,
   Platform,
+  Clipboard,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Reanimated, {
@@ -37,15 +38,18 @@ import {
   Activity,
   Fingerprint,
   Camera,
+  Copy,
+  X,
 } from 'lucide-react-native';
 import { reviewIssueWithGemini } from 'lib/issueReview';
 
 interface AIReviewCardProps {
   issue: any;
   unitOfficerDepartment: string;
+  duplicateFlags?: any;
 }
 
-const loadingMessages = [
+const loadingMessagesScan = [
   'Initializing cognitive scanning...',
   'Extracting semantics and metadata...',
   'Comparing against department categories...',
@@ -53,15 +57,52 @@ const loadingMessages = [
   'Calibrating risk parameters...',
 ];
 
+const loadingMessagesSuggest = [
+  'Drafting resolution strategy...',
+  'Formulating action comment template...',
+  'Aligning details with operational protocol...',
+  'Reviewing tone and compliance parameters...',
+];
+
 const isIOS = Platform.OS === 'ios';
 
-export default function AIReviewCard({ issue, unitOfficerDepartment }: AIReviewCardProps) {
+export default function AIReviewCard({ issue, unitOfficerDepartment, duplicateFlags }: AIReviewCardProps) {
   const isDark = useColorScheme() === 'dark';
 
   const [loading, setLoading] = useState(false);
+  const [loadingType, setLoadingType] = useState<'scan' | 'suggest' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [review, setReview] = useState<any | null>(null);
+  const [suggestResult, setSuggestResult] = useState<any | null>(null);
+  const [showSuggestChoice, setShowSuggestChoice] = useState(false);
+  const [selectedSuggestType, setSelectedSuggestType] = useState<'verify' | 'reject' | null>(null);
+  const [selectedSuggestSubType, setSelectedSuggestSubType] = useState<string | null>(null);
   const [loadingMsgIndex, setLoadingMsgIndex] = useState(0);
+
+  const [copiedVerify, setCopiedVerify] = useState(false);
+  const [copiedReject, setCopiedReject] = useState(false);
+
+  const copyToClipboard = (text: string, type: 'verify' | 'reject') => {
+    Clipboard.setString(text);
+    if (type === 'verify') {
+      setCopiedVerify(true);
+      setTimeout(() => setCopiedVerify(false), 2000);
+    } else {
+      setCopiedReject(true);
+      setTimeout(() => setCopiedReject(false), 2000);
+    }
+  };
+
+  const handleReset = () => {
+    setReview(null);
+    setSuggestResult(null);
+    setShowSuggestChoice(false);
+    setSelectedSuggestType(null);
+    setSelectedSuggestSubType(null);
+    setError(null);
+  };
+
+  const activeMessages = loadingType === 'suggest' ? loadingMessagesSuggest : loadingMessagesScan;
 
   // Reanimated values for pulsing scanner
   const pulseScale = useSharedValue(1);
@@ -94,6 +135,7 @@ export default function AIReviewCard({ issue, unitOfficerDepartment }: AIReviewC
   // Cycle loading messages
   useEffect(() => {
     let interval: NodeJS.Timeout;
+    const currentMessages = loadingType === 'suggest' ? loadingMessagesSuggest : loadingMessagesScan;
     if (loading) {
       interval = setInterval(() => {
         Animated.timing(fadeAnim, {
@@ -101,7 +143,7 @@ export default function AIReviewCard({ issue, unitOfficerDepartment }: AIReviewC
           duration: 250,
           useNativeDriver: true,
         }).start(() => {
-          setLoadingMsgIndex((prev) => (prev + 1) % loadingMessages.length);
+          setLoadingMsgIndex((prev) => (prev + 1) % currentMessages.length);
           Animated.timing(fadeAnim, {
             toValue: 1,
             duration: 250,
@@ -117,11 +159,12 @@ export default function AIReviewCard({ issue, unitOfficerDepartment }: AIReviewC
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [loading]);
+  }, [loading, loadingType]);
 
-  const handleGenerateReview = async () => {
+  const handleScan = async () => {
     if (!issue) return;
     setLoading(true);
+    setLoadingType('scan');
     setError(null);
 
     const subcategory =
@@ -134,6 +177,7 @@ export default function AIReviewCard({ issue, unitOfficerDepartment }: AIReviewC
 
     try {
       const response = await reviewIssueWithGemini({
+        mode: 'scan',
         unitOfficerDepartment,
         title: issue.title || '',
         description: issue.description || '',
@@ -141,14 +185,81 @@ export default function AIReviewCard({ issue, unitOfficerDepartment }: AIReviewC
         subcategory,
         location,
         images: issue.images || [],
+        duplicateFlags,
       });
 
       setReview(response);
     } catch (err: any) {
-      console.error('AI review generation failed:', err);
-      setError('Unable to compile AI intelligence report.');
+      console.error('AI review scan failed:', err);
+      setError('Unable to compile AI intelligence scan.');
     } finally {
       setLoading(false);
+      setLoadingType(null);
+    }
+  };
+
+  const handleGenerateSuggestion = async (type: 'verify' | 'reject', subType: string) => {
+    if (!issue) return;
+    setLoading(true);
+    setLoadingType('suggest');
+    setError(null);
+    setShowSuggestChoice(false);
+
+    const subcategory =
+      issue.subCategories?.[0] ||
+      issue.subcategory?.[0] ||
+      (Array.isArray(issue.subcategory) ? issue.subcategory[0] : issue.subcategory) ||
+      '';
+
+    const location = issue.location || issue.address || '';
+
+    try {
+      const response = await reviewIssueWithGemini({
+        mode: 'suggest',
+        suggestionType: type,
+        suggestionSubType: subType,
+        unitOfficerDepartment,
+        title: issue.title || '',
+        description: issue.description || '',
+        category: issue.category || '',
+        subcategory,
+        location,
+        images: issue.images || [],
+        duplicateFlags,
+      });
+
+      if (type === 'verify') {
+        setSuggestResult({
+          suggestedVerificationComment: response.suggestedVerificationComment,
+          suggestedRejectionComment: undefined,
+          suggestedRejectionType: undefined,
+        });
+      } else {
+        setSuggestResult({
+          suggestedVerificationComment: undefined,
+          suggestedRejectionComment: response.suggestedRejectionComment,
+          suggestedRejectionType: response.suggestedRejectionType,
+        });
+      }
+    } catch (err: any) {
+      console.error('AI suggestion draft failed:', err);
+      setError('Unable to compile AI suggestion draft.');
+    } finally {
+      setLoading(false);
+      setLoadingType(null);
+      setSelectedSuggestType(null);
+      setSelectedSuggestSubType(null);
+    }
+  };
+
+  const handleSelectSuggestType = (type: 'verify' | 'reject') => {
+    setSelectedSuggestType(type);
+    if (type === 'reject' && duplicateFlags?.hasDuplicateFlags) {
+      setSelectedSuggestSubType('duplicate');
+    } else if (type === 'verify') {
+      setSelectedSuggestSubType('standard');
+    } else {
+      setSelectedSuggestSubType(null);
     }
   };
 
@@ -298,159 +409,350 @@ export default function AIReviewCard({ issue, unitOfficerDepartment }: AIReviewC
           </View>
         </View>
 
-        {/* Refreshes review */}
-        {review && !loading && (
-          <TouchableOpacity
-            onPress={handleGenerateReview}
-            activeOpacity={0.7}
-            className={`items-center justify-center rounded-xl border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900 ${
-              isIOS ? 'h-8 w-8' : 'h-9 w-9'
-            }`}>
-            <RefreshCw
-              color={isDark ? '#38BDF8' : '#0284C7'}
-              size={isIOS ? 13 : 15}
-              strokeWidth={2.5}
-            />
-          </TouchableOpacity>
+        {/* Actions header controls */}
+        {(review || suggestResult) && !loading && (
+          <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+            {review && (
+              <TouchableOpacity
+                onPress={handleScan}
+                activeOpacity={0.7}
+                className={`items-center justify-center rounded-xl border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900 ${
+                  isIOS ? 'h-8 w-8' : 'h-9 w-9'
+                }`}>
+                <RefreshCw
+                  color={isDark ? '#38BDF8' : '#0284C7'}
+                  size={isIOS ? 13 : 15}
+                  strokeWidth={2.5}
+                />
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity
+              onPress={handleReset}
+              activeOpacity={0.7}
+              className={`items-center justify-center rounded-xl border border-rose-200 bg-rose-50 dark:border-rose-950/40 dark:bg-rose-950/20 ${
+                isIOS ? 'h-8 w-8' : 'h-9 w-9'
+              }`}>
+              <X
+                color={isDark ? '#F87171' : '#EF4444'}
+                size={isIOS ? 14 : 16}
+                strokeWidth={2.5}
+              />
+            </TouchableOpacity>
+          </View>
         )}
       </LinearGradient>
 
       {/* ── CARD INNER CONTENT ── */}
       <View style={{ padding: isIOS ? 18 : 24 }}>
-        {/* STATE 1: INITIAL STATE (ADVANCED RADAR SCANNER LOOK) */}
-        {!review && !loading && !error && (
-          <Reanimated.View entering={FadeIn.duration(400)} className="items-center py-4">
-            {/* Breathtaking Symmetrical Concentric Radar HUD */}
+        {/* STATE 1.1: INITIAL STATE (SLEEK HORIZONTAL BANNER WITH TWO BUTTONS) */}
+        {!review && !suggestResult && !loading && !error && !showSuggestChoice && (
+          <Reanimated.View
+            entering={FadeIn.duration(400)}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: isIOS ? 10 : 14,
+              paddingVertical: isIOS ? 2 : 4,
+            }}>
+            {/* Left: Bot Icon Badge */}
             <View
               style={{
-                width: isIOS ? 92 : 110,
-                height: isIOS ? 92 : 110,
-                borderRadius: isIOS ? 46 : 55,
+                width: isIOS ? 38 : 44,
+                height: isIOS ? 38 : 44,
+                borderRadius: 12,
+                backgroundColor: isDark ? 'rgba(14,165,233,0.1)' : '#E0F2FE',
+                borderColor: isDark ? 'rgba(14,165,233,0.25)' : '#BAE6FD',
                 borderWidth: 1.5,
-                borderColor: isDark ? 'rgba(56,189,248,0.2)' : 'rgba(2,132,199,0.1)',
-                borderStyle: 'dashed',
                 alignItems: 'center',
                 justifyContent: 'center',
                 position: 'relative',
-              }}
-              className="mb-5">
-              {/* Glowing Inner Core Ring */}
-              <View
-                style={{
-                  width: isIOS ? 68 : 82,
-                  height: isIOS ? 68 : 82,
-                  borderRadius: isIOS ? 34 : 41,
-                  backgroundColor: isDark ? '#0F172A' : '#FFFFFF',
-                  borderColor: isDark ? 'rgba(56,189,248,0.4)' : 'rgba(2,132,199,0.25)',
-                  borderWidth: 1.5,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  shadowColor: '#38BDF8',
-                  shadowOffset: { width: 0, height: 8 },
-                  shadowOpacity: isDark ? 0.35 : 0.08,
-                  shadowRadius: 16,
-                  elevation: 4,
-                  position: 'relative',
-                }}>
-                {/* Micro Ambient Tint */}
-                <LinearGradient
-                  colors={
-                    isDark
-                      ? ['rgba(6,182,212,0.1)', 'transparent']
-                      : ['rgba(2,132,199,0.03)', 'transparent']
-                  }
-                  style={[StyleSheet.absoluteFillObject, { borderRadius: isIOS ? 33 : 40 }]}
-                />
-
-                {/* Bot Icon */}
-                <Bot
-                  color={isDark ? '#38BDF8' : '#0284C7'}
-                  size={isIOS ? 30 : 38}
-                  strokeWidth={1.5}
-                />
-              </View>
-
-              {/* Glowing Radar Sweep Pings */}
+              }}>
+              <Bot
+                color={isDark ? '#38BDF8' : '#0284C7'}
+                size={isIOS ? 18 : 22}
+                strokeWidth={1.5}
+              />
               <View
                 style={{
                   position: 'absolute',
-                  top: isIOS ? 10 : 12,
-                  right: isIOS ? 10 : 12,
-                  width: 6,
-                  height: 6,
-                  borderRadius: 3,
+                  top: 2,
+                  right: 2,
+                  width: 5,
+                  height: 5,
+                  borderRadius: 2.5,
                   backgroundColor: '#22D3EE',
-                  shadowColor: '#22D3EE',
-                  shadowOffset: { width: 0, height: 0 },
-                  shadowOpacity: 0.8,
-                  shadowRadius: 4,
                 }}
               />
             </View>
 
-            <Text
-              className={`px-2 text-center font-extrabold leading-6 text-slate-800 dark:text-slate-100 ${isIOS ? 'mb-1 text-[14px]' : 'mb-2 text-[15px]'}`}>
-              AI Issue Classification & Integrity Scan
-            </Text>
-            <Text
-              className={`px-6 text-center font-semibold leading-[18px] text-slate-400 dark:text-slate-500 ${isIOS ? 'mb-6 text-[11px]' : 'mb-8 text-[12px]'}`}>
-              Execute a dynamic cognitive audit to verify department scope, category mapping
-              accuracy, and public safety threat levels.
-            </Text>
-
-            {/* SCANNING POINTS MICRO-CHIPS */}
-            <View className={`flex-row flex-wrap justify-center gap-2 ${isIOS ? 'mb-6' : 'mb-8'}`}>
-              <View className="flex-row items-center gap-1.5 rounded-xl border border-slate-200/50 bg-slate-50 px-2.5 py-1 dark:border-slate-800/80 dark:bg-slate-900">
-                <ShieldCheck color={isDark ? '#38BDF8' : '#0284C7'} size={11} strokeWidth={2.5} />
-                <Text className="text-[9px] font-black uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                  Scope Match
-                </Text>
-              </View>
-              <View className="flex-row items-center gap-1.5 rounded-xl border border-slate-200/50 bg-slate-50 px-2.5 py-1 dark:border-slate-800/80 dark:bg-slate-900">
-                <Target color={isDark ? '#38BDF8' : '#0284C7'} size={11} strokeWidth={2.5} />
-                <Text className="text-[9px] font-black uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                  Category Match
-                </Text>
-              </View>
-              <View className="flex-row items-center gap-1.5 rounded-xl border border-slate-200/50 bg-slate-50 px-2.5 py-1 dark:border-slate-800/80 dark:bg-slate-900">
-                <AlertCircle color={isDark ? '#38BDF8' : '#0284C7'} size={11} strokeWidth={2.5} />
-                <Text className="text-[9px] font-black uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                  Risk Assessment
-                </Text>
-              </View>
+            {/* Middle: Brief Text Copy */}
+            <View style={{ flex: 1, gap: 1 }}>
+              <Text
+                className="font-black text-slate-800 dark:text-slate-100"
+                style={{ fontSize: isIOS ? 12 : 13.5, lineHeight: 16 }}>
+                AI Integrity Scan
+              </Text>
+              <Text
+                className="font-semibold text-slate-400 dark:text-slate-500"
+                style={{ fontSize: isIOS ? 9.5 : 10.5, lineHeight: 14 }}>
+                Verify scope desk, category mapping, and images.
+              </Text>
             </View>
 
-            {/* Glowing Action Button */}
-            <View
-              style={{
-                width: '100%',
-                shadowColor: '#0E7490',
-                shadowOffset: { width: 0, height: 8 },
-                shadowOpacity: isDark ? 0.4 : 0.15,
-                shadowRadius: 16,
-                elevation: 4,
-              }}>
+            {/* Right: Actions */}
+            <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+              {/* Scan Button */}
               <TouchableOpacity
-                onPress={handleGenerateReview}
+                onPress={handleScan}
                 activeOpacity={0.85}
-                className="overflow-hidden rounded-[20px]">
+                style={{
+                  shadowColor: '#0A5C8E',
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: isDark ? 0.3 : 0.1,
+                  shadowRadius: 8,
+                  elevation: 2,
+                }}>
+                <LinearGradient
+                  colors={['#0EA5E9', '#0284C7']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={{
+                    paddingHorizontal: isIOS ? 10 : 12,
+                    paddingVertical: isIOS ? 7 : 9,
+                    borderRadius: 10,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 4,
+                  }}>
+                  <Sparkles color="#FFFFFF" size={10} strokeWidth={2.5} />
+                  <Text
+                    className="font-black uppercase tracking-[0.05em] text-white"
+                    style={{ fontSize: isIOS ? 9 : 10 }}>
+                    Scan
+                  </Text>
+                </LinearGradient>
+              </TouchableOpacity>
+
+              {/* Suggest Button */}
+              <TouchableOpacity
+                onPress={() => setShowSuggestChoice(true)}
+                activeOpacity={0.85}
+                style={{
+                  shadowColor: '#0E7490',
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: isDark ? 0.3 : 0.1,
+                  shadowRadius: 8,
+                  elevation: 2,
+                }}>
                 <LinearGradient
                   colors={['#0891B2', '#0ED4C6']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={{
-                    paddingVertical: isIOS ? 13 : 16,
-                    alignItems: 'center',
-                    justifyContent: 'center',
+                    paddingHorizontal: isIOS ? 10 : 12,
+                    paddingVertical: isIOS ? 7 : 9,
+                    borderRadius: 10,
                     flexDirection: 'row',
-                    gap: 10,
+                    alignItems: 'center',
+                    gap: 4,
                   }}>
-                  <Brain color="#FFFFFF" size={16} strokeWidth={2.5} />
+                  <Brain color="#FFFFFF" size={10} strokeWidth={2.5} />
                   <Text
-                    className={`font-black uppercase tracking-[0.12em] text-white ${isIOS ? 'text-[12px]' : 'text-[13px]'}`}>
-                    Generate AI Review
+                    className="font-black uppercase tracking-[0.05em] text-white"
+                    style={{ fontSize: isIOS ? 9 : 10 }}>
+                    Suggest
                   </Text>
                 </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </Reanimated.View>
+        )}
+
+        {/* STATE 1.2: SUGGESTION TARGET CHOICE HUD */}
+        {!review && !suggestResult && !loading && !error && showSuggestChoice && (
+          <Reanimated.View
+            entering={FadeIn.duration(300)}
+            style={{
+              gap: 10,
+              paddingVertical: 2,
+            }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <View
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 10,
+                  backgroundColor: isDark ? 'rgba(14,165,233,0.1)' : '#E0F2FE',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                <Brain color={isDark ? '#38BDF8' : '#0284C7'} size={15} />
+              </View>
+              <Text className="font-extrabold text-[12px] text-slate-800 dark:text-slate-100">
+                Choose Suggestion Type:
+              </Text>
+            </View>
+
+            <View style={{ flexDirection: 'row', gap: 6 }}>
+              <TouchableOpacity
+                onPress={() => handleSelectSuggestType('verify')}
+                style={{
+                  flex: 1,
+                  paddingVertical: 8,
+                  borderRadius: 10,
+                  borderWidth: 1.5,
+                  backgroundColor: selectedSuggestType === 'verify' ? (isDark ? 'rgba(16,185,129,0.1)' : '#F0FDF4') : (isDark ? '#0F172A' : '#FFFFFF'),
+                  borderColor: selectedSuggestType === 'verify' ? '#10B981' : (isDark ? '#334155' : '#E2E8F0'),
+                  alignItems: 'center',
+                }}>
+                <Text className={`font-black text-[11px] ${selectedSuggestType === 'verify' ? 'text-emerald-500' : 'text-slate-500'}`}>
+                  Verify (Field Notes)
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => handleSelectSuggestType('reject')}
+                style={{
+                  flex: 1,
+                  paddingVertical: 8,
+                  borderRadius: 10,
+                  borderWidth: 1.5,
+                  backgroundColor: selectedSuggestType === 'reject' ? (isDark ? 'rgba(239,68,68,0.1)' : '#FEF2F2') : (isDark ? '#0F172A' : '#FFFFFF'),
+                  borderColor: selectedSuggestType === 'reject' ? '#EF4444' : (isDark ? '#334155' : '#E2E8F0'),
+                  alignItems: 'center',
+                }}>
+                <Text className={`font-black text-[11px] ${selectedSuggestType === 'reject' ? 'text-rose-500' : 'text-slate-550 dark:text-slate-400'}`}>
+                  Reject Issue
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Sub-option Selector */}
+            {selectedSuggestType && (
+              <View style={{ marginTop: 4, gap: 6 }}>
+                <Text className="font-extrabold text-[10px] text-slate-500 dark:text-slate-400">
+                  Select Sub-Option (Draft Tone/Reason):
+                </Text>
+
+                {selectedSuggestType === 'verify' ? (
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                    {[
+                      { value: 'standard', label: 'Standard Notes' },
+                      { value: 'detailed', label: 'Detailed / Technical' },
+                      { value: 'quick', label: 'Quick / Brief' },
+                    ].map((opt) => {
+                      const active = selectedSuggestSubType === opt.value;
+                      return (
+                        <TouchableOpacity
+                          key={opt.value}
+                          onPress={() => setSelectedSuggestSubType(opt.value)}
+                          style={{
+                            paddingHorizontal: 10,
+                            paddingVertical: 6,
+                            borderRadius: 8,
+                            borderWidth: 1.2,
+                            backgroundColor: active ? (isDark ? 'rgba(14,165,233,0.1)' : '#F0F9FF') : (isDark ? '#0F172A' : '#F1F5F9'),
+                            borderColor: active ? '#0EA5E9' : (isDark ? '#334155' : '#E2E8F0'),
+                          }}>
+                          <Text className={`text-[10px] font-black ${active ? 'text-cyan-500' : 'text-slate-500'}`}>
+                            {opt.label}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                ) : (
+                  <View style={{ gap: 6 }}>
+                    {selectedSuggestType === 'reject' && duplicateFlags?.hasDuplicateFlags && (
+                      <View
+                        style={{
+                          backgroundColor: isDark ? 'rgba(245,158,11,0.06)' : '#FFFBEB',
+                          borderColor: isDark ? 'rgba(245,158,11,0.2)' : '#FDE68A',
+                          borderWidth: 1,
+                          borderRadius: 8,
+                          paddingHorizontal: 8,
+                          paddingVertical: 6,
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 6,
+                        }}>
+                        <AlertTriangle color="#F59E0B" size={11} strokeWidth={2.5} />
+                        <Text className="text-[9.5px] font-bold text-amber-600 dark:text-amber-400">
+                          Recommended: Reject as Duplicate
+                        </Text>
+                      </View>
+                    )}
+
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                      {[
+                        { value: 'duplicate', label: 'Duplicate' },
+                        { value: 'spam', label: 'Spam / Fake' },
+                        { value: 'outside_jurisdiction', label: 'Outside Area' },
+                        { value: 'insufficient_evidence', label: 'Insufficient Evidence' },
+                        { value: 'invalid_location', label: 'Invalid Location' },
+                        { value: 'other', label: 'Other Reason' },
+                      ].map((opt) => {
+                        const active = selectedSuggestSubType === opt.value;
+                        const isRecommended = opt.value === 'duplicate' && duplicateFlags?.hasDuplicateFlags;
+                        return (
+                          <TouchableOpacity
+                            key={opt.value}
+                            onPress={() => setSelectedSuggestSubType(opt.value)}
+                            style={{
+                              paddingHorizontal: 10,
+                              paddingVertical: 6,
+                              borderRadius: 8,
+                              borderWidth: 1.2,
+                              backgroundColor: active
+                                ? (isRecommended ? (isDark ? 'rgba(245,158,11,0.1)' : '#FFFBEB') : (isDark ? 'rgba(14,165,233,0.1)' : '#F0F9FF'))
+                                : (isDark ? '#0F172A' : '#F1F5F9'),
+                              borderColor: active
+                                ? (isRecommended ? '#F59E0B' : '#0EA5E9')
+                                : (isRecommended ? 'rgba(245,158,11,0.3)' : (isDark ? '#334155' : '#E2E8F0')),
+                            }}>
+                            <Text className={`text-[10px] font-black ${active ? (isRecommended ? 'text-amber-500' : 'text-cyan-500') : 'text-slate-500'}`}>
+                              {opt.label} {isRecommended ? '⭐' : ''}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </View>
+                )}
+              </View>
+            )}
+
+            <View style={{ flexDirection: 'row', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowSuggestChoice(false);
+                  setSelectedSuggestType(null);
+                  setSelectedSuggestSubType(null);
+                }}
+                style={{
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  borderRadius: 8,
+                  borderWidth: 1,
+                  borderColor: isDark ? '#334155' : '#E2E8F0',
+                }}>
+                <Text className="text-[10px] font-bold text-slate-500">Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                disabled={!selectedSuggestType || !selectedSuggestSubType}
+                onPress={() => handleGenerateSuggestion(selectedSuggestType!, selectedSuggestSubType!)}
+                style={{
+                  paddingHorizontal: 14,
+                  paddingVertical: 6,
+                  borderRadius: 8,
+                  backgroundColor: (selectedSuggestType && selectedSuggestSubType) ? '#0891B2' : (isDark ? '#1E293B' : '#E2E8F0'),
+                }}>
+                <Text className={`text-[10px] font-black ${(selectedSuggestType && selectedSuggestSubType) ? 'text-white' : 'text-slate-400'}`}>
+                  Generate
+                </Text>
               </TouchableOpacity>
             </View>
           </Reanimated.View>
@@ -482,7 +784,7 @@ export default function AIReviewCard({ issue, unitOfficerDepartment }: AIReviewC
             <Animated.View style={{ opacity: fadeAnim, alignItems: 'center', height: 38 }}>
               <Text
                 className={`text-center font-black text-cyan-600 dark:text-cyan-400 ${isIOS ? 'text-[13.5px]' : 'text-[15px]'}`}>
-                {loadingMessages[loadingMsgIndex]}
+                {activeMessages[loadingMsgIndex]}
               </Text>
             </Animated.View>
 
@@ -490,7 +792,7 @@ export default function AIReviewCard({ issue, unitOfficerDepartment }: AIReviewC
             <View className="w-full gap-2.5 px-3">
               {/* Micro bar segments */}
               <View className="h-1 flex-row gap-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-900">
-                {loadingMessages.map((_, index) => {
+                {activeMessages.map((_, index) => {
                   const isActive = index <= loadingMsgIndex;
                   return (
                     <View
@@ -508,7 +810,7 @@ export default function AIReviewCard({ issue, unitOfficerDepartment }: AIReviewC
                   Audit Progress
                 </Text>
                 <Text className="text-[9px] font-black text-cyan-600 dark:text-cyan-400">
-                  {Math.round(((loadingMsgIndex + 1) / loadingMessages.length) * 100)}%
+                  {Math.round(((loadingMsgIndex + 1) / activeMessages.length) * 100)}%
                 </Text>
               </View>
             </View>
@@ -530,7 +832,7 @@ export default function AIReviewCard({ issue, unitOfficerDepartment }: AIReviewC
             </Text>
 
             <TouchableOpacity
-              onPress={handleGenerateReview}
+              onPress={handleScan}
               activeOpacity={0.8}
               className="w-full items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 py-3.5 dark:border-slate-800 dark:bg-slate-900/60">
               <Text className="text-[12px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-300">
@@ -541,14 +843,53 @@ export default function AIReviewCard({ issue, unitOfficerDepartment }: AIReviewC
         )}
 
         {/* STATE 4: DATA RESOLVED (Futuristic UI Compilations) */}
-        {review && !loading && !error && (
+        {(review || suggestResult) && !loading && !error && (
           <View style={{ gap: isIOS ? 14 : 24 }}>
+            {/* Duplicate Flag Banner inside Scan results */}
+            {review && duplicateFlags?.hasDuplicateFlags && (
+              <Reanimated.View
+                entering={FadeInDown.delay(50).duration(400)}
+                style={{
+                  backgroundColor: isDark ? 'rgba(245,158,11,0.06)' : '#FFFBEB',
+                  borderColor: isDark ? 'rgba(245,158,11,0.3)' : '#FDE68A',
+                  borderRadius: 20,
+                  borderWidth: 1.5,
+                  padding: 14,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 12,
+                }}>
+                <View
+                  style={{
+                    backgroundColor: isDark ? 'rgba(245,158,11,0.15)' : '#FEF3C7',
+                    width: 36,
+                    height: 36,
+                    borderRadius: 10,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}>
+                  <Copy color={isDark ? '#F59E0B' : '#D97706'} size={16} strokeWidth={2.5} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text className="text-[10px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400">
+                    Potential Duplicate Detected
+                  </Text>
+                  <Text
+                    className="font-bold text-slate-700 dark:text-slate-350 leading-5"
+                    style={{ fontSize: isIOS ? 11.5 : 12.5 }}>
+                    This citizen has reported {duplicateFlags.duplicateIssueCount} similar {duplicateFlags.duplicateIssueCount === 1 ? 'issue' : 'issues'}. Similarity index is high. Recommending a merge review.
+                  </Text>
+                </View>
+              </Reanimated.View>
+            )}
+
             {/* Cascading animations one by one */}
             {/* Row 1: Scope Verdict & Confidence Score */}
-            <Reanimated.View
-              entering={FadeInDown.delay(100).duration(400)}
-              style={{ gap: isIOS ? 10 : 16 }}
-              className="flex-row">
+            {review && (
+              <Reanimated.View
+                entering={FadeInDown.delay(100).duration(400)}
+                style={{ gap: isIOS ? 10 : 16 }}
+                className="flex-row">
               {/* Verdict Card */}
               <View
                 className="relative flex-[1.3] overflow-hidden rounded-3xl border p-4"
@@ -642,6 +983,7 @@ export default function AIReviewCard({ issue, unitOfficerDepartment }: AIReviewC
                 </View>
               </View>
             </Reanimated.View>
+            )}
 
             {/* Row 2: Category Comparison HUD */}
             {categoryMismatch && (
@@ -714,9 +1056,10 @@ export default function AIReviewCard({ issue, unitOfficerDepartment }: AIReviewC
             )}
 
             {/* Row 3: Priority & Safety Threat Levels */}
-            <Reanimated.View
-              entering={FadeInDown.delay(300).duration(400)}
-              className="flex-row gap-4">
+            {review && (
+              <Reanimated.View
+                entering={FadeInDown.delay(300).duration(400)}
+                className="flex-row gap-4">
               {/* Priority Display */}
               {(() => {
                 const config = getPriorityConfig(review.priority);
@@ -775,9 +1118,11 @@ export default function AIReviewCard({ issue, unitOfficerDepartment }: AIReviewC
                 );
               })()}
             </Reanimated.View>
+            )}
 
             {/* Row 3.5: Image Authenticity Assessment */}
-            <Reanimated.View entering={FadeInDown.delay(350).duration(400)} className="gap-2">
+            {review && (
+              <Reanimated.View entering={FadeInDown.delay(350).duration(400)} className="gap-2">
               <Text className="text-[8.5px] font-black uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500">
                 Image Integrity Scan
               </Text>
@@ -867,10 +1212,10 @@ export default function AIReviewCard({ issue, unitOfficerDepartment }: AIReviewC
                 </View>
               )}
             </Reanimated.View>
-
+            )}
 
             {/* Row 4: AI Reasoning Dialog Bubble */}
-            {review.reason && (
+            {review && review.reason && (
               <Reanimated.View entering={FadeInDown.delay(400).duration(400)} className="gap-2">
                 <Text className="text-[8.5px] font-black uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500">
                   Semantic Logic & Reasoning
@@ -904,53 +1249,457 @@ export default function AIReviewCard({ issue, unitOfficerDepartment }: AIReviewC
             )}
 
             {/* Row 5: Action Recommendation protocol */}
-            {review.actionRecommendation && (
-              <Reanimated.View entering={FadeInDown.delay(500).duration(400)} className="gap-2">
+            {review && review.actionRecommendation && (
+              <Reanimated.View entering={FadeInDown.delay(500).duration(400)} className="gap-2.5">
                 <Text className="text-[8.5px] font-black uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500">
                   Operational Guidelines
                 </Text>
 
                 <View
                   style={{
-                    shadowColor: '#0E7490',
-                    shadowOffset: { width: 0, height: 6 },
-                    shadowOpacity: isDark ? 0.3 : 0.03,
-                    shadowRadius: 12,
+                    shadowColor: '#06B6D4',
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: isDark ? 0.25 : 0.05,
+                    shadowRadius: 10,
                     elevation: 2,
                   }}>
                   <LinearGradient
-                    colors={
-                      isDark
-                        ? ['rgba(6,182,212,0.1)', 'rgba(6,182,212,0.02)']
-                        : ['#ECFEFF', '#FFFFFF']
-                    }
+                    colors={isDark ? ['rgba(6,182,212,0.06)', 'rgba(6,182,212,0.01)'] : ['#F0FDFD', '#F6FDFD']}
                     style={{
+                      borderColor: isDark ? 'rgba(6,182,212,0.2)' : '#CFFAFE',
                       borderRadius: 20,
-                      borderColor: isDark ? 'rgba(6,182,212,0.25)' : '#CFFAFE',
                       borderWidth: 1.5,
-                      padding: 14,
-                    }}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}>
-                    <View className="flex-row items-center gap-3">
-                      <View className="h-9 w-9 items-center justify-center rounded-lg bg-cyan-500/20">
-                        <Activity
-                          color={isDark ? '#22D3EE' : '#0891B2'}
-                          size={16}
-                          strokeWidth={2.5}
-                        />
-                      </View>
-                      <View className="flex-1">
-                        <Text className="mb-0.5 text-[8.5px] font-black uppercase tracking-wider text-cyan-600 dark:text-cyan-400">
+                      padding: 16,
+                      overflow: 'hidden',
+                      flexDirection: 'row',
+                    }}>
+                    {/* Left bar accent line */}
+                    <View style={{ width: 4, backgroundColor: '#06B6D4', borderRadius: 2, marginRight: 14 }} />
+
+                    <View style={{ flex: 1 }}>
+                      <View className="mb-2.5 flex-row items-center gap-2">
+                        <View
+                          style={{
+                            backgroundColor: isDark ? 'rgba(6,182,212,0.1)' : '#CFFAFE',
+                            width: 24,
+                            height: 24,
+                            borderRadius: 12,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}>
+                          <Activity color="#06B6D4" size={13} strokeWidth={3} />
+                        </View>
+                        <Text className="text-[10px] font-black uppercase tracking-wider text-cyan-600 dark:text-cyan-400">
                           Recommended Protocol
                         </Text>
-                        <Text
-                          className={`font-black text-slate-800 dark:text-slate-200 ${isIOS ? 'text-[12.5px]' : 'text-[13.0px]'}`}>
-                          {review.actionRecommendation}
-                        </Text>
                       </View>
+
+                      <Text
+                        className="font-semibold leading-relaxed text-slate-700 dark:text-slate-300"
+                        style={{ fontSize: isIOS ? 12.5 : 13 }}>
+                        {review.actionRecommendation}
+                      </Text>
                     </View>
                   </LinearGradient>
+                </View>
+              </Reanimated.View>
+            )}
+
+            {/* Row 5.5: Inline Suggestion Triggers inside results view */}
+            {review && !suggestResult && !showSuggestChoice && (
+              <Reanimated.View entering={FadeInDown.delay(520).duration(400)}>
+                <TouchableOpacity
+                  onPress={() => setShowSuggestChoice(true)}
+                  activeOpacity={0.8}
+                  style={{
+                    backgroundColor: isDark ? 'rgba(8,145,178,0.1)' : '#ECFEFF',
+                    borderColor: isDark ? 'rgba(8,145,178,0.3)' : '#CFFAFE',
+                    borderRadius: 16,
+                    borderWidth: 1.2,
+                    padding: 12,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexDirection: 'row',
+                    gap: 8,
+                    marginTop: 4,
+                  }}>
+                  <Brain color={isDark ? '#22D3EE' : '#0891B2'} size={14} strokeWidth={2.5} />
+                  <Text className="text-[11px] font-black uppercase tracking-wider text-cyan-600 dark:text-cyan-400">
+                    Draft Action Comments (Verify / Reject)
+                  </Text>
+                </TouchableOpacity>
+              </Reanimated.View>
+            )}
+
+            {showSuggestChoice && (
+              <Reanimated.View
+                entering={FadeInDown.delay(520).duration(400)}
+                style={{
+                  gap: 10,
+                  backgroundColor: isDark ? '#0C1122' : '#F8FAFC',
+                  borderColor: isDark ? 'rgba(30,41,59,0.8)' : '#E2E8F0',
+                  borderRadius: 20,
+                  borderWidth: 1.5,
+                  padding: 12,
+                  marginTop: 4,
+                }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <View
+                    style={{
+                      width: 30,
+                      height: 30,
+                      borderRadius: 8,
+                      backgroundColor: isDark ? 'rgba(14,165,233,0.1)' : '#E0F2FE',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}>
+                    <Brain color={isDark ? '#38BDF8' : '#0284C7'} size={14} />
+                  </View>
+                  <Text className="font-extrabold text-[11.5px] text-slate-800 dark:text-slate-100">
+                    Select Suggestion Type:
+                  </Text>
+                </View>
+
+                <View style={{ flexDirection: 'row', gap: 6 }}>
+                  <TouchableOpacity
+                    onPress={() => handleSelectSuggestType('verify')}
+                    style={{
+                      flex: 1,
+                      paddingVertical: 8,
+                      borderRadius: 10,
+                      borderWidth: 1.5,
+                      backgroundColor: selectedSuggestType === 'verify' ? (isDark ? 'rgba(16,185,129,0.1)' : '#F0FDF4') : (isDark ? '#0F172A' : '#FFFFFF'),
+                      borderColor: selectedSuggestType === 'verify' ? '#10B981' : (isDark ? '#334155' : '#E2E8F0'),
+                      alignItems: 'center',
+                    }}>
+                    <Text className={`font-black text-[10.5px] ${selectedSuggestType === 'verify' ? 'text-emerald-500' : 'text-slate-500'}`}>
+                      Verify (Field Notes)
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={() => handleSelectSuggestType('reject')}
+                    style={{
+                      flex: 1,
+                      paddingVertical: 8,
+                      borderRadius: 10,
+                      borderWidth: 1.5,
+                      backgroundColor: selectedSuggestType === 'reject' ? (isDark ? 'rgba(239,68,68,0.1)' : '#FEF2F2') : (isDark ? '#0F172A' : '#FFFFFF'),
+                      borderColor: selectedSuggestType === 'reject' ? '#EF4444' : (isDark ? '#334155' : '#E2E8F0'),
+                      alignItems: 'center',
+                    }}>
+                    <Text className={`font-black text-[10.5px] ${selectedSuggestType === 'reject' ? 'text-rose-500' : 'text-slate-550 dark:text-slate-400'}`}>
+                      Reject Issue
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Sub-option Selector */}
+                {selectedSuggestType && (
+                  <View style={{ marginTop: 2, gap: 6 }}>
+                    <Text className="font-extrabold text-[10px] text-slate-500 dark:text-slate-400">
+                      Select Sub-Option (Draft Tone/Reason):
+                    </Text>
+
+                    {selectedSuggestType === 'verify' ? (
+                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                        {[
+                          { value: 'standard', label: 'Standard Notes' },
+                          { value: 'detailed', label: 'Detailed / Technical' },
+                          { value: 'quick', label: 'Quick / Brief' },
+                        ].map((opt) => {
+                          const active = selectedSuggestSubType === opt.value;
+                          return (
+                            <TouchableOpacity
+                              key={opt.value}
+                              onPress={() => setSelectedSuggestSubType(opt.value)}
+                              style={{
+                                paddingHorizontal: 10,
+                                paddingVertical: 6,
+                                borderRadius: 8,
+                                borderWidth: 1.2,
+                                backgroundColor: active ? (isDark ? 'rgba(14,165,233,0.1)' : '#F0F9FF') : (isDark ? '#0F172A' : '#F1F5F9'),
+                                borderColor: active ? '#0EA5E9' : (isDark ? '#334155' : '#E2E8F0'),
+                              }}>
+                              <Text className={`text-[9.5px] font-black ${active ? 'text-cyan-500' : 'text-slate-500'}`}>
+                                {opt.label}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    ) : (
+                      <View style={{ gap: 6 }}>
+                        {selectedSuggestType === 'reject' && duplicateFlags?.hasDuplicateFlags && (
+                          <View
+                            style={{
+                              backgroundColor: isDark ? 'rgba(245,158,11,0.06)' : '#FFFBEB',
+                              borderColor: isDark ? 'rgba(245,158,11,0.2)' : '#FDE68A',
+                              borderWidth: 1,
+                              borderRadius: 8,
+                              paddingHorizontal: 8,
+                              paddingVertical: 5,
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              gap: 6,
+                            }}>
+                            <AlertTriangle color="#F59E0B" size={10} strokeWidth={2.5} />
+                            <Text className="text-[9px] font-bold text-amber-600 dark:text-amber-400">
+                              Recommended: Reject as Duplicate
+                            </Text>
+                          </View>
+                        )}
+
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 5 }}>
+                          {[
+                            { value: 'duplicate', label: 'Duplicate' },
+                            { value: 'spam', label: 'Spam / Fake' },
+                            { value: 'outside_jurisdiction', label: 'Outside Area' },
+                            { value: 'insufficient_evidence', label: 'Insufficient Evidence' },
+                            { value: 'invalid_location', label: 'Invalid Location' },
+                            { value: 'other', label: 'Other Reason' },
+                          ].map((opt) => {
+                            const active = selectedSuggestSubType === opt.value;
+                            const isRecommended = opt.value === 'duplicate' && duplicateFlags?.hasDuplicateFlags;
+                            return (
+                              <TouchableOpacity
+                                key={opt.value}
+                                onPress={() => setSelectedSuggestSubType(opt.value)}
+                                style={{
+                                  paddingHorizontal: 8,
+                                  paddingVertical: 5,
+                                  borderRadius: 8,
+                                  borderWidth: 1.2,
+                                  backgroundColor: active
+                                    ? (isRecommended ? (isDark ? 'rgba(245,158,11,0.1)' : '#FFFBEB') : (isDark ? 'rgba(14,165,233,0.1)' : '#F0F9FF'))
+                                    : (isDark ? '#0F172A' : '#F1F5F9'),
+                                  borderColor: active
+                                    ? (isRecommended ? '#F59E0B' : '#0EA5E9')
+                                    : (isRecommended ? 'rgba(245,158,11,0.3)' : (isDark ? '#334155' : '#E2E8F0')),
+                                }}>
+                                <Text className={`text-[9.5px] font-black ${active ? (isRecommended ? 'text-amber-500' : 'text-cyan-500') : 'text-slate-500'}`}>
+                                  {opt.label} {isRecommended ? '⭐' : ''}
+                                </Text>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
+                      </View>
+                    )}
+                  </View>
+                )}
+
+                <View style={{ flexDirection: 'row', gap: 8, justifyContent: 'flex-end', marginTop: 2 }}>
+                  <TouchableOpacity
+                    onPress={() => {
+                      setShowSuggestChoice(false);
+                      setSelectedSuggestType(null);
+                      setSelectedSuggestSubType(null);
+                    }}
+                    style={{
+                      paddingHorizontal: 10,
+                      paddingVertical: 5,
+                      borderRadius: 6,
+                      borderWidth: 1,
+                      borderColor: isDark ? '#334155' : '#E2E8F0',
+                    }}>
+                    <Text className="text-[10px] font-bold text-slate-500">Cancel</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    disabled={!selectedSuggestType || !selectedSuggestSubType}
+                    onPress={() => handleGenerateSuggestion(selectedSuggestType!, selectedSuggestSubType!)}
+                    style={{
+                      paddingHorizontal: 12,
+                      paddingVertical: 5,
+                      borderRadius: 6,
+                      backgroundColor: (selectedSuggestType && selectedSuggestSubType) ? '#0891B2' : (isDark ? '#1E293B' : '#E2E8F0'),
+                    }}>
+                    <Text className={`text-[10px] font-black ${(selectedSuggestType && selectedSuggestSubType) ? 'text-white' : 'text-slate-400'}`}>
+                      Generate
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </Reanimated.View>
+            )}
+
+            {/* Row 6: Suggested Action Drafts */}
+            {/* Row 6: Suggested Action Drafts */}
+            {(suggestResult?.suggestedVerificationComment || suggestResult?.suggestedRejectionComment) && !showSuggestChoice && (
+              <Reanimated.View entering={FadeInDown.delay(550).duration(400)} className="gap-2.5">
+                <View className="flex-row items-center justify-between">
+                  <Text className="text-[8.5px] font-black uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500">
+                    AI Decision Assistant Drafts
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => setShowSuggestChoice(true)}
+                    activeOpacity={0.7}
+                    className="flex-row items-center gap-1 rounded-xl bg-slate-100 dark:bg-slate-900/60 px-3 py-1 border border-slate-200 dark:border-slate-800/80">
+                    <Brain color={isDark ? '#38BDF8' : '#0284C7'} size={11} strokeWidth={2.5} />
+                    <Text className="text-[9px] font-extrabold uppercase tracking-wide text-slate-500 dark:text-slate-400">CHANGE TYPE</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={{ gap: 12 }}>
+                  {/* Option 1: Verification / Field Notes Draft */}
+                  {suggestResult.suggestedVerificationComment && (
+                    <LinearGradient
+                      colors={isDark ? ['rgba(16,185,129,0.06)', 'rgba(16,185,129,0.01)'] : ['#F0FDF4', '#F6FDF9']}
+                      style={{
+                        borderColor: isDark ? 'rgba(16,185,129,0.2)' : '#DCFCE7',
+                        borderRadius: 20,
+                        borderWidth: 1.5,
+                        padding: 16,
+                        overflow: 'hidden',
+                        flexDirection: 'row',
+                      }}>
+                      {/* Left bar accent line */}
+                      <View style={{ width: 4, backgroundColor: '#10B981', borderRadius: 2, marginRight: 14 }} />
+                      
+                      <View style={{ flex: 1 }}>
+                        <View className="mb-2.5 flex-row items-center gap-2">
+                          <View
+                            style={{
+                              backgroundColor: isDark ? 'rgba(16,185,129,0.1)' : '#DCFCE7',
+                              width: 24,
+                              height: 24,
+                              borderRadius: 12,
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}>
+                            <CheckCircle color="#10B981" size={13} strokeWidth={3} />
+                          </View>
+                          <Text className="text-[10px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                            Verification Draft (Field Notes)
+                          </Text>
+                        </View>
+                        
+                        <Text
+                          className="font-medium italic leading-relaxed text-slate-655 text-slate-600 dark:text-slate-300"
+                          style={{ fontSize: isIOS ? 12.5 : 13 }}>
+                          "{suggestResult.suggestedVerificationComment}"
+                        </Text>
+
+                        <TouchableOpacity
+                          onPress={() => copyToClipboard(suggestResult.suggestedVerificationComment, 'verify')}
+                          activeOpacity={0.8}
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 8,
+                            paddingVertical: 10,
+                            paddingHorizontal: 16,
+                            borderRadius: 12,
+                            marginTop: 14,
+                            backgroundColor: copiedVerify ? '#10B981' : (isDark ? 'rgba(255,255,255,0.05)' : '#E2E8F0'),
+                            borderColor: copiedVerify ? 'transparent' : (isDark ? 'rgba(255,255,255,0.08)' : '#CBD5E1'),
+                            borderWidth: 1,
+                          }}>
+                          {copiedVerify ? (
+                            <>
+                              <CheckCircle color="#FFFFFF" size={14} strokeWidth={3} />
+                              <Text className="text-[10.5px] font-black tracking-wider text-white">
+                                COPIED TO CLIPBOARD
+                              </Text>
+                            </>
+                          ) : (
+                            <>
+                              <Copy color={isDark ? '#34D399' : '#059669'} size={13} strokeWidth={2.5} />
+                              <Text className="text-[10.5px] font-black tracking-wider text-slate-700 dark:text-slate-350">
+                                COPY DRAFT COMMENT
+                              </Text>
+                            </>
+                          )}
+                        </TouchableOpacity>
+                      </View>
+                    </LinearGradient>
+                  )}
+
+                  {/* Option 2: Rejection / Reason Draft */}
+                  {suggestResult.suggestedRejectionComment && (
+                    <LinearGradient
+                      colors={isDark ? ['rgba(239,68,68,0.06)', 'rgba(239,68,68,0.01)'] : ['#FEF2F2', '#FFF8F8']}
+                      style={{
+                        borderColor: isDark ? 'rgba(239,68,68,0.2)' : '#FEE2E2',
+                        borderRadius: 20,
+                        borderWidth: 1.5,
+                        padding: 16,
+                        overflow: 'hidden',
+                        flexDirection: 'row',
+                      }}>
+                      {/* Left bar accent line */}
+                      <View style={{ width: 4, backgroundColor: '#EF4444', borderRadius: 2, marginRight: 14 }} />
+
+                      <View style={{ flex: 1 }}>
+                        <View className="mb-2.5 flex-row items-center justify-between">
+                          <View className="flex-row items-center gap-2">
+                            <View
+                              style={{
+                                backgroundColor: isDark ? 'rgba(239,68,68,0.1)' : '#FEE2E2',
+                                width: 24,
+                                height: 24,
+                                borderRadius: 12,
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                              }}>
+                              <ShieldAlert color="#EF4444" size={13} strokeWidth={3} />
+                            </View>
+                            <Text className="text-[10px] font-black uppercase tracking-wider text-rose-600 dark:text-rose-400">
+                              Rejection Draft
+                            </Text>
+                          </View>
+
+                          {suggestResult.suggestedRejectionType && (
+                            <View className="rounded-full bg-rose-500/10 px-3 py-1 border border-rose-500/20">
+                              <Text className="text-[8.5px] font-black uppercase tracking-wider text-rose-600 dark:text-rose-400">
+                                {suggestResult.suggestedRejectionType}
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+
+                        <Text
+                          className="font-medium italic leading-relaxed text-slate-600 dark:text-slate-350"
+                          style={{ fontSize: isIOS ? 12.5 : 13 }}>
+                          "{suggestResult.suggestedRejectionComment}"
+                        </Text>
+
+                        <TouchableOpacity
+                          onPress={() => copyToClipboard(suggestResult.suggestedRejectionComment, 'reject')}
+                          activeOpacity={0.8}
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 8,
+                            paddingVertical: 10,
+                            paddingHorizontal: 16,
+                            borderRadius: 12,
+                            marginTop: 14,
+                            backgroundColor: copiedReject ? '#EF4444' : (isDark ? 'rgba(255,255,255,0.05)' : '#E2E8F0'),
+                            borderColor: copiedReject ? 'transparent' : (isDark ? 'rgba(255,255,255,0.08)' : '#CBD5E1'),
+                            borderWidth: 1,
+                          }}>
+                          {copiedReject ? (
+                            <>
+                              <CheckCircle color="#FFFFFF" size={14} strokeWidth={3} />
+                              <Text className="text-[10.5px] font-black tracking-wider text-white">
+                                COPIED TO CLIPBOARD
+                              </Text>
+                            </>
+                          ) : (
+                            <>
+                              <Copy color={isDark ? '#F87171' : '#EF4444'} size={13} strokeWidth={2.5} />
+                              <Text className="text-[10.5px] font-black tracking-wider text-slate-700 dark:text-slate-350">
+                                COPY DRAFT COMMENT
+                              </Text>
+                            </>
+                          )}
+                        </TouchableOpacity>
+                      </View>
+                    </LinearGradient>
+                  )}
                 </View>
               </Reanimated.View>
             )}

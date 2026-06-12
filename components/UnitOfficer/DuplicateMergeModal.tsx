@@ -44,6 +44,7 @@ interface DuplicateMergeModalProps {
   onClose: () => void;
   onMerge: (keepIssue: string, deleteIssueIds: string[], groupId: string) => void;
   onReject: (issueIds: string[], groupId: string) => void;
+  currentIssueId?: string;
 }
 
 type ModalStep = 'compare' | 'merge' | 'reject';
@@ -207,12 +208,14 @@ function IssueSelectCard({
   label,
   onSelect,
   intent = 'merge',
+  isCurrentIssue,
 }: {
   issue: Issue;
   selected: boolean;
   label: string;
   onSelect: () => void;
   intent?: 'merge' | 'reject';
+  isCurrentIssue?: boolean;
 }) {
   const priorityColor = PRIORITY_COLOR[issue.priority] ?? '#94A3B8';
   const statusColor = STATUS_COLOR[issue.status] ?? '#94A3B8';
@@ -277,6 +280,12 @@ function IssueSelectCard({
             <View style={[styles.dot, { backgroundColor: statusColor, marginRight: 6 }]} />
             <Text style={[styles.pillText, { color: statusColor }]}>{issue.status}</Text>
           </View>
+
+          {isCurrentIssue && (
+            <View className="rounded-lg bg-cyan-500/10 px-2.5 py-1 border border-cyan-500/20">
+              <Text className="text-[10px] font-black uppercase text-cyan-600 dark:text-cyan-400">Current Issue</Text>
+            </View>
+          )}
         </View>
 
         {/* Title */}
@@ -330,6 +339,7 @@ export default function DuplicateMergeModal({
   onClose,
   onMerge,
   onReject,
+  currentIssueId,
 }: DuplicateMergeModalProps) {
   const isDark = useColorScheme() === 'dark';
   const insets = useSafeAreaInsets();
@@ -1002,6 +1012,7 @@ export default function DuplicateMergeModal({
                           selected={selectedKeep === issue.id}
                           label="KEEP THIS ISSUE"
                           intent="merge"
+                          isCurrentIssue={currentIssueId === issue.id}
                           onSelect={() => setSelectedKeep(issue.id)}
                         />
                       ))}
@@ -1038,6 +1049,7 @@ export default function DuplicateMergeModal({
                           selected={selectedReject.includes(issue.id)}
                           label="REJECT THIS ISSUE"
                           intent="reject"
+                          isCurrentIssue={currentIssueId === issue.id}
                           onSelect={() => {
                             setSelectedReject((prev) => {
                               const isCurrentlySelected = prev.includes(issue.id);

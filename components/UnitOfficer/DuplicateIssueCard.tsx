@@ -47,6 +47,7 @@ type DuplicateIssueCardProps = {
   statusHex?: string;
   onMerge: (keepIssueId: string, deleteIssueIds: string[], groupId: string) => void;
   onReject: (issueIds: string[], groupId: string) => Promise<void> | void;
+  currentIssueId?: string;
 };
 
 function formatDistanceMeters(value?: number) {
@@ -286,6 +287,7 @@ export default function DuplicateIssueCard({
   statusHex,
   onMerge,
   onReject,
+  currentIssueId,
 }: DuplicateIssueCardProps) {
   const [selectedDuplicateGroup, setSelectedDuplicateGroup] = useState<any | null>(null);
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
@@ -881,6 +883,7 @@ export default function DuplicateIssueCard({
       {showDuplicateModal && selectedDuplicateGroup && (
         <DuplicateMergeModal
           group={selectedDuplicateGroup}
+          currentIssueId={currentIssueId}
           onClose={() => {
             setShowDuplicateModal(false);
             setSelectedDuplicateGroup(null);

@@ -19,13 +19,9 @@ import Animated, {
   FadeInUp,
   FadeIn,
   ZoomIn,
-  ZoomInEasyDown,
   useSharedValue,
   useAnimatedStyle,
-  withSpring,
   withTiming,
-  Layout,
-  interpolateColor,
 } from 'react-native-reanimated';
 import {
   Calendar,
@@ -47,6 +43,8 @@ import { VerificationChecklist } from 'lib/types';
 interface VerificationFlowProps {
   onVerify: (checklist: VerificationChecklist, slaDate: string, notes: string) => void;
   onReject: () => void;
+  duplicateFlags?: any;
+  onRequestScrollToDuplicates?: () => void;
 }
 
 const CHECKLIST_ITEMS = [
@@ -146,9 +144,21 @@ function AnimatedProgressBar({
   );
 }
 
-export default function VerificationFlow({ onVerify, onReject }: VerificationFlowProps) {
+export default function VerificationFlow({
+  onVerify,
+  onReject,
+  duplicateFlags,
+  onRequestScrollToDuplicates,
+}: VerificationFlowProps) {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
+
+  const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
+  const [showVerifyConfirm, setShowVerifyConfirm] = useState(false);
+  const [showGeneralVerifyConfirm, setShowGeneralVerifyConfirm] = useState(false);
+  const [pendingChecklistKey, setPendingChecklistKey] = useState<
+    keyof VerificationChecklist | null
+  >(null);
 
   const [checklist, setChecklist] = useState<VerificationChecklist>({
     locationValid: false,
@@ -174,7 +184,13 @@ export default function VerificationFlow({ onVerify, onReject }: VerificationFlo
   const progressPct = (checkedCount / totalCount) * 100;
 
   const handleVerify = () => {
-    if (canVerify) onVerify(checklist, slaDate.toISOString(), notes);
+    if (!canVerify) return;
+
+    if (duplicateFlags?.groups?.length > 0) {
+      setShowVerifyConfirm(true);
+    } else {
+      setShowGeneralVerifyConfirm(true);
+    }
   };
 
   const openDatePicker = () => {
@@ -290,7 +306,14 @@ export default function VerificationFlow({ onVerify, onReject }: VerificationFlo
                 .springify()
                 .damping(22)}
               key={item.key}
-              onPress={() => setChecklist({ ...checklist, [item.key]: !checked })}
+              onPress={() => {
+                if (item.key === 'notDuplicate' && duplicateFlags?.groups?.length > 0 && !checked) {
+                  setPendingChecklistKey(item.key);
+                  setShowDuplicateWarning(true);
+                } else {
+                  setChecklist({ ...checklist, [item.key]: !checked });
+                }
+              }}
               activeOpacity={0.7}
               className={`flex-row items-center gap-3.5 rounded-[22px] border-[1.5px] p-4 shadow-sm ${
                 checked
@@ -633,6 +656,258 @@ export default function VerificationFlow({ onVerify, onReject }: VerificationFlo
           )}
         </TouchableOpacity>
       </Animated.View>
+      {/* Duplicate Warning Modal (for checkbox) */}
+      <Modal
+        visible={showDuplicateWarning}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => setShowDuplicateWarning(false)}>
+        <View className="flex-1 items-center justify-center bg-slate-950/60 px-5">
+          <TouchableOpacity
+            activeOpacity={1}
+            style={StyleSheet.absoluteFill}
+            onPress={() => setShowDuplicateWarning(false)}
+          />
+
+          <View
+            style={{
+              borderColor: isDark ? 'rgba(245,158,11,0.25)' : 'rgba(245,158,11,0.15)',
+              borderWidth: 1.5,
+              shadowColor: '#F59E0B',
+              shadowOffset: { width: 0, height: 20 },
+              shadowOpacity: isDark ? 0.4 : 0.15,
+              shadowRadius: 40,
+              elevation: 25,
+              width: '100%',
+              maxWidth: 360,
+              borderRadius: 36,
+              overflow: 'hidden',
+              backgroundColor: isDark ? '#0f172a' : '#FFFFFF',
+            }}>
+            <LinearGradient
+              colors={isDark ? ['#451a03', '#0f172a'] : ['#FFFBEB', '#FFFFFF']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={{ paddingVertical: 36, paddingHorizontal: 28, alignItems: 'center' }}>
+              <View
+                style={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: 22,
+                  backgroundColor: isDark ? 'rgba(245,158,11,0.15)' : '#FEF3C7',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginBottom: 20,
+                }}>
+                <AlertTriangle color={isDark ? '#FCD34D' : '#D97706'} size={32} strokeWidth={2.5} />
+              </View>
+
+              <Text
+                className="mb-2 text-center text-[18px] font-black tracking-tight"
+                style={{ color: isDark ? '#FCD34D' : '#B45309' }}>
+                Unresolved Duplicates
+              </Text>
+              <Text
+                className="mb-7 text-center text-[14px] font-semibold leading-[20px]"
+                style={{ color: isDark ? '#94A3B8' : '#64748B' }}>
+                There are unresolved duplicates for this issue. Are you sure you want to mark it as
+                not a duplicate?
+              </Text>
+
+              <View className="w-full flex-row gap-3">
+                <TouchableOpacity
+                  onPress={() => {
+                    setShowDuplicateWarning(false);
+                    setPendingChecklistKey(null);
+                    onRequestScrollToDuplicates?.();
+                  }}
+                  className="flex-1 items-center rounded-[16px] border border-slate-200 bg-slate-100 py-3.5 dark:border-slate-700 dark:bg-slate-800">
+                  <Text className="text-[14px] font-bold text-slate-600 dark:text-slate-300">
+                    Review
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => {
+                    setShowDuplicateWarning(false);
+                    if (pendingChecklistKey) {
+                      setChecklist({ ...checklist, [pendingChecklistKey]: true });
+                    }
+                    setPendingChecklistKey(null);
+                  }}
+                  className="flex-1 items-center rounded-[16px] bg-amber-500 py-3.5 shadow-sm dark:bg-amber-600">
+                  <Text className="text-[14px] font-bold text-white">Confirm</Text>
+                </TouchableOpacity>
+              </View>
+            </LinearGradient>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Verification Confirmation Modal (for Verify button) */}
+      <Modal
+        visible={showVerifyConfirm}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => setShowVerifyConfirm(false)}>
+        <View className="flex-1 items-center justify-center bg-slate-950/60 px-5">
+          <TouchableOpacity
+            activeOpacity={1}
+            style={StyleSheet.absoluteFill}
+            onPress={() => setShowVerifyConfirm(false)}
+          />
+
+          <View
+            style={{
+              borderColor: isDark ? 'rgba(239,68,68,0.25)' : 'rgba(239,68,68,0.15)',
+              borderWidth: 1.5,
+              shadowColor: '#EF4444',
+              shadowOffset: { width: 0, height: 20 },
+              shadowOpacity: isDark ? 0.4 : 0.15,
+              shadowRadius: 40,
+              elevation: 25,
+              width: '100%',
+              maxWidth: 360,
+              borderRadius: 36,
+              overflow: 'hidden',
+              backgroundColor: isDark ? '#0f172a' : '#FFFFFF',
+            }}>
+            <LinearGradient
+              colors={isDark ? ['#450a0a', '#0f172a'] : ['#FEF2F2', '#FFFFFF']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={{ paddingVertical: 36, paddingHorizontal: 28, alignItems: 'center' }}>
+              <View
+                style={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: 22,
+                  backgroundColor: isDark ? 'rgba(239,68,68,0.15)' : '#FEE2E2',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginBottom: 20,
+                }}>
+                <AlertTriangle color={isDark ? '#FCA5A5' : '#DC2626'} size={32} strokeWidth={2.5} />
+              </View>
+
+              <Text
+                className="mb-2 text-center text-[18px] font-black tracking-tight"
+                style={{ color: isDark ? '#FCA5A5' : '#991B1B' }}>
+                Verify with Duplicates
+              </Text>
+              <Text
+                className="mb-7 text-center text-[14px] font-semibold leading-[20px]"
+                style={{ color: isDark ? '#94A3B8' : '#64748B' }}>
+                You have active duplicate groups. Do you want to verify this issue anyway without
+                resolving them?
+              </Text>
+
+              <View className="w-full gap-3">
+                <TouchableOpacity
+                  onPress={() => {
+                    setShowVerifyConfirm(false);
+                    onRequestScrollToDuplicates?.();
+                  }}
+                  className="w-full items-center rounded-[16px] border border-slate-200 bg-slate-100 py-3.5 dark:border-slate-700 dark:bg-slate-800">
+                  <Text className="text-[14px] font-bold text-slate-600 dark:text-slate-300">
+                    Go Back and Resolve
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => {
+                    setShowVerifyConfirm(false);
+                    onVerify(checklist, slaDate.toISOString(), notes);
+                  }}
+                  className="w-full items-center rounded-[16px] bg-red-500 py-3.5 shadow-sm dark:bg-red-600">
+                  <Text className="text-[14px] font-bold text-white">Verify Anyway</Text>
+                </TouchableOpacity>
+              </View>
+            </LinearGradient>
+          </View>
+        </View>
+      </Modal>
+
+      {/* General Verification Confirmation Modal */}
+      <Modal
+        visible={showGeneralVerifyConfirm}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => setShowGeneralVerifyConfirm(false)}>
+        <View className="flex-1 items-center justify-center bg-slate-950/60 px-5">
+          <TouchableOpacity
+            activeOpacity={1}
+            style={StyleSheet.absoluteFill}
+            onPress={() => setShowGeneralVerifyConfirm(false)}
+          />
+
+          <View
+            style={{
+              borderColor: isDark ? 'rgba(16,185,129,0.25)' : 'rgba(16,185,129,0.15)',
+              borderWidth: 1.5,
+              shadowColor: '#10B981',
+              shadowOffset: { width: 0, height: 20 },
+              shadowOpacity: isDark ? 0.4 : 0.15,
+              shadowRadius: 40,
+              elevation: 25,
+              width: '100%',
+              maxWidth: 360,
+              borderRadius: 36,
+              overflow: 'hidden',
+              backgroundColor: isDark ? '#0f172a' : '#FFFFFF',
+            }}>
+            <LinearGradient
+              colors={isDark ? ['#064e3b', '#0f172a'] : ['#ECFDF5', '#FFFFFF']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={{ paddingVertical: 36, paddingHorizontal: 28, alignItems: 'center' }}>
+              <View
+                style={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: 22,
+                  backgroundColor: isDark ? 'rgba(16,185,129,0.15)' : '#D1FAE5',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginBottom: 20,
+                }}>
+                <CheckCheck color={isDark ? '#34D399' : '#059669'} size={32} strokeWidth={2.5} />
+              </View>
+
+              <Text
+                className="mb-2 text-center text-[18px] font-black tracking-tight"
+                style={{ color: isDark ? '#34D399' : '#065F46' }}>
+                Confirm Verification
+              </Text>
+              <Text
+                className="mb-7 text-center text-[14px] font-semibold leading-[20px]"
+                style={{ color: isDark ? '#94A3B8' : '#64748B' }}>
+                Are you sure you want to verify and approve this issue? It will be assigned to a
+                field officer.
+              </Text>
+
+              <View className="w-full flex-row gap-3">
+                <TouchableOpacity
+                  onPress={() => setShowGeneralVerifyConfirm(false)}
+                  className="flex-1 items-center rounded-[16px] border border-slate-200 bg-slate-100 py-3.5 dark:border-slate-700 dark:bg-slate-800">
+                  <Text className="text-[14px] font-bold text-slate-600 dark:text-slate-300">
+                    Cancel
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => {
+                    setShowGeneralVerifyConfirm(false);
+                    onVerify(checklist, slaDate.toISOString(), notes);
+                  }}
+                  className="flex-1 items-center rounded-[16px] bg-emerald-500 py-3.5 shadow-sm dark:bg-emerald-600">
+                  <Text className="text-[14px] font-bold text-white">Approve</Text>
+                </TouchableOpacity>
+              </View>
+            </LinearGradient>
+          </View>
+        </View>
+      </Modal>
     </Animated.View>
   );
 }

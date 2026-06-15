@@ -15,8 +15,6 @@ import {
   Platform,
   InteractionManager,
   Modal,
-  Pressable,
-  TouchableWithoutFeedback,
   KeyboardAvoidingView,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
@@ -30,7 +28,6 @@ import {
   ArrowLeft,
   MapPin,
   User,
-  Calendar,
   CircleCheck as CheckCircle,
   XCircle,
   UserCheck,
@@ -54,7 +51,6 @@ import {
   Hash,
   Paperclip,
   Eye,
-  EyeOff,
   Users,
   ShieldAlert,
   ShieldCheck,
@@ -75,9 +71,6 @@ import {
   ExternalLink,
   Maximize2,
   MessageCircle,
-  Copy,
-  ChevronDown,
-  ChevronUp,
 } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import {
@@ -412,6 +405,15 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
   const [activeVideoIndex, setActiveVideoIndex] = useState(0);
   const [playingVideo, setPlayingVideo] = useState<number | null>(null);
 
+  const scrollRef = useRef<ScrollView>(null);
+  const [duplicateYCoord, setDuplicateYCoord] = useState(0);
+  const [statusDialog, setStatusDialog] = useState<{
+    visible: boolean;
+    success: boolean;
+    title: string;
+    message: string;
+  }>({ visible: false, success: true, title: '', message: '' });
+
   const rawIssues = useQuery(
     api.unitOfficers.getUnitOfficerIssues,
     // @ts-ignore
@@ -666,12 +668,31 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
         reporterId: issue.reportedBy as Id<'users'>,
       });
 
-      Alert.alert('Success', 'Issue has been verified and is ready for assignment.');
+      setStatusDialog({
+        visible: true,
+        success: true,
+        title: 'Verification Successful',
+        message: 'Issue has been verified and is ready for assignment.',
+      });
     } catch (err) {
       console.error(err);
-      Alert.alert('Error', 'Failed to verify issue.');
+      setStatusDialog({
+        visible: true,
+        success: false,
+        title: 'Verification Failed',
+        message: 'Failed to verify issue. Please try again.',
+      });
     }
   };
+
+  const handleScrollToDuplicates = useCallback(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTo({
+        y: Math.max(0, duplicateYCoord - 20),
+        animated: true,
+      });
+    }
+  }, [duplicateYCoord]);
 
   const handleReject = async (reason: RejectionReason, reasonComment: string) => {
     if (!issue || !user) {
@@ -693,11 +714,21 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
 
       // Delay alert to next frame for iOS
       setTimeout(() => {
-        Alert.alert('Rejected', 'Issue has been rejected.');
+        setStatusDialog({
+          visible: true,
+          success: true,
+          title: 'Issue Rejected',
+          message: 'The issue has been successfully rejected.',
+        });
       }, 300);
     } catch (error) {
       console.error('Error rejecting issue:', error);
-      Alert.alert('Error', 'Failed to reject issue.');
+      setStatusDialog({
+        visible: true,
+        success: false,
+        title: 'Rejection Failed',
+        message: 'Failed to reject the issue. Please try again.',
+      });
     } finally {
       setShowRejectionModal(false);
     }
@@ -1362,6 +1393,7 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
         </View>
 
         <ScrollView
+          ref={scrollRef}
           className="flex-1 px-5"
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}>
@@ -1716,38 +1748,43 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
               />
             )}
 
-          <DuplicateIssueCard
-            duplicateFlags={duplicateFlags}
-            isDark={isDark}
-            statusHex={statusStyle.hex}
-            currentIssueId={mappedIssue?.id}
-            onMerge={(keepIssueId, deleteIssueIds, groupId) => {
-              console.log('Duplicate merge requested:', {
-                keepIssueId,
-                deleteIssueIds,
-                groupId,
-              });
+          <View onLayout={(e) => setDuplicateYCoord(e.nativeEvent.layout.y)}>
+            <DuplicateIssueCard
+              duplicateFlags={duplicateFlags}
+              isDark={isDark}
+              statusHex={statusStyle.hex}
+              currentIssueId={mappedIssue?.id}
+              onMerge={(keepIssueId, deleteIssueIds, groupId) => {
+                console.log('Duplicate merge requested:', {
+                  keepIssueId,
+                  deleteIssueIds,
+                  groupId,
+                });
 
-              Alert.alert(
-                'Merge Requested',
-                'Duplicate merge action has been captured. Backend merge mutation can be connected next.'
-              );
-            }}
-            onReject={async (issueIds, groupId) => {
-              if (!user?.id || !user?.name) {
-                throw new Error('Missing Unit Officer details.');
-              }
+                setStatusDialog({
+                  visible: true,
+                  success: true,
+                  title: 'Merge Requested',
+                  message:
+                    'Duplicate merge action has been captured. Backend merge mutation can be connected next.',
+                });
+              }}
+              onReject={async (issueIds, groupId) => {
+                if (!user?.id || !user?.name) {
+                  throw new Error('Missing Unit Officer details.');
+                }
 
-              await duplicateRejectIssues({
-                issueIds: issueIds as Id<'issues'>[],
-                UOName: user.name,
-                rejectedBy: user.id as Id<'users'>,
-                reason: 'Duplicate issue detected',
-                comment:
-                  'This issue has been rejected because it appears to be a duplicate of another active issue reported by the same citizen.',
-              });
-            }}
-          />
+                await duplicateRejectIssues({
+                  issueIds: issueIds as Id<'issues'>[],
+                  UOName: user.name,
+                  rejectedBy: user.id as Id<'users'>,
+                  reason: 'Duplicate issue detected',
+                  comment:
+                    'This issue has been rejected because it appears to be a duplicate of another active issue reported by the same citizen.',
+                });
+              }}
+            />
+          </View>
 
           {/* CATEGORY CARD*/}
           <View
@@ -3350,6 +3387,8 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
                 <VerificationFlow
                   onVerify={handleVerify}
                   onReject={() => setVerificationTab('reject')}
+                  duplicateFlags={duplicateFlags}
+                  onRequestScrollToDuplicates={handleScrollToDuplicates}
                 />
               ) : (
                 <View className="bg-red-50 p-5 dark:bg-red-900/10">
@@ -3482,6 +3521,8 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
                 <VerificationFlow
                   onVerify={handleVerify}
                   onReject={() => setVerificationTab('reject')}
+                  duplicateFlags={duplicateFlags}
+                  onRequestScrollToDuplicates={handleScrollToDuplicates}
                 />
               ) : (
                 <View className="bg-red-50 p-5 dark:bg-red-900/10">
@@ -4119,6 +4160,132 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
                 />
               </View>
             )}
+          </View>
+        </Modal>
+
+        {/* Premium Status Dialog */}
+        <Modal
+          visible={statusDialog.visible}
+          transparent
+          animationType="fade"
+          statusBarTranslucent
+          onRequestClose={() => setStatusDialog((prev) => ({ ...prev, visible: false }))}>
+          <View className="flex-1 items-center justify-center bg-slate-950/60 p-8">
+            <TouchableOpacity
+              activeOpacity={1}
+              style={StyleSheet.absoluteFill}
+              onPress={() => setStatusDialog((prev) => ({ ...prev, visible: false }))}
+            />
+
+            <View
+              style={{
+                borderColor: isDark
+                  ? statusDialog.success
+                    ? 'rgba(16,185,129,0.25)'
+                    : 'rgba(239,68,68,0.25)'
+                  : statusDialog.success
+                    ? 'rgba(16,185,129,0.15)'
+                    : 'rgba(239,68,68,0.15)',
+                borderWidth: 1.5,
+                shadowColor: statusDialog.success ? '#10B981' : '#EF4444',
+                shadowOffset: { width: 0, height: 20 },
+                shadowOpacity: isDark ? 0.4 : 0.15,
+                shadowRadius: 40,
+                elevation: 25,
+                width: '100%',
+                maxWidth: 360,
+                borderRadius: 36,
+                overflow: 'hidden',
+                backgroundColor: isDark ? '#0f172a' : '#FFFFFF',
+              }}>
+              <LinearGradient
+                colors={
+                  isDark
+                    ? statusDialog.success
+                      ? ['#064e3b', '#0f172a']
+                      : ['#450a0a', '#0f172a']
+                    : statusDialog.success
+                      ? ['#ECFDF5', '#FFFFFF']
+                      : ['#FEF2F2', '#FFFFFF']
+                }
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={{ paddingVertical: 36, paddingHorizontal: 28, alignItems: 'center' }}>
+                <View
+                  style={{
+                    width: 64,
+                    height: 64,
+                    borderRadius: 22,
+                    backgroundColor: statusDialog.success
+                      ? isDark
+                        ? 'rgba(16,185,129,0.15)'
+                        : '#D1FAE5'
+                      : isDark
+                        ? 'rgba(239,68,68,0.15)'
+                        : '#FEE2E2',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginBottom: 20,
+                  }}>
+                  {statusDialog.success ? (
+                    <CheckCircle
+                      color={isDark ? '#34D399' : '#059669'}
+                      size={32}
+                      strokeWidth={2.5}
+                    />
+                  ) : (
+                    <XCircle color={isDark ? '#FCA5A5' : '#DC2626'} size={32} strokeWidth={2.5} />
+                  )}
+                </View>
+
+                <Text
+                  className="mb-2 text-center text-[18px] font-black tracking-tight"
+                  style={{
+                    color: statusDialog.success
+                      ? isDark
+                        ? '#34D399'
+                        : '#065F46'
+                      : isDark
+                        ? '#FCA5A5'
+                        : '#991B1B',
+                  }}>
+                  {statusDialog.title}
+                </Text>
+                <Text
+                  className="mb-7 text-center text-[14px] font-semibold leading-[20px]"
+                  style={{ color: isDark ? '#94A3B8' : '#64748B' }}>
+                  {statusDialog.message}
+                </Text>
+
+                <TouchableOpacity
+                  onPress={() => setStatusDialog((prev) => ({ ...prev, visible: false }))}
+                  activeOpacity={0.85}
+                  style={{
+                    width: '100%',
+                    borderRadius: 16,
+                    overflow: 'hidden',
+                    shadowColor: statusDialog.success ? '#10B981' : '#EF4444',
+                    shadowOffset: { width: 0, height: 6 },
+                    shadowOpacity: isDark ? 0.4 : 0.2,
+                    shadowRadius: 12,
+                    elevation: 6,
+                  }}>
+                  <LinearGradient
+                    colors={statusDialog.success ? ['#10B981', '#059669'] : ['#EF4444', '#DC2626']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={{
+                      paddingVertical: 14,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}>
+                    <Text className="text-[15px] font-black tracking-wide text-white">
+                      {statusDialog.success ? 'Done' : 'Dismiss'}
+                    </Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </LinearGradient>
+            </View>
           </View>
         </Modal>
       </KeyboardAvoidingView>

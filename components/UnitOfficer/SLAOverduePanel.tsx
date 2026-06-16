@@ -76,7 +76,7 @@ type Tab = 'reassign' | 'reject' | 'extend' | 'escalate';
 
 interface SLAOverduePanelProps {
   issue: MappedIssue;
-  fieldOfficers: FieldOfficer[];
+  fieldOfficers: any;
   onReassign: (
     issueId: Id<'issues'>,
     fieldOfficerId: Id<'fieldOfficers'>,
@@ -118,6 +118,7 @@ interface SLAOverduePanelProps {
     comment: string,
     newSlaDeadline: number
   ) => void;
+  onEscalate?: (reason: string) => void;
 }
 
 function daysSinceOverdue(slaDeadline: string): number {
@@ -661,13 +662,14 @@ export default function SLAOverduePanel({
   onReassign,
   onReject,
   onExtend,
+  onEscalate,
 }: SLAOverduePanelProps) {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
 
   const user = useUser();
 
-  const [activeTab, setActiveTab] = useState<Tab>('reassign');
+  const [activeTab, setActiveTab] = useState<Tab>(issue.assignedOfficer ? 'reassign' : 'reject');
 
   const overdueDays = issue.slaDeadline ? daysSinceOverdue(issue.slaDeadline) : 0;
 
@@ -813,7 +815,9 @@ export default function SLAOverduePanel({
           style: 'destructive',
           onPress: () => {
             console.log(escalateNote.trim());
-            // onEscalate(escalateNote.trim());
+            if (onEscalate) {
+              onEscalate(escalateNote.trim());
+            }
           },
         },
       ]

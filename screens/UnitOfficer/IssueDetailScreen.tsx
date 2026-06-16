@@ -94,6 +94,7 @@ import AssignOfficerModal from 'components/UnitOfficer/AssignOfficerModal';
 import VerificationFlow from 'components/UnitOfficer/VerificationFlow';
 import UOVerificationPanel from 'components/UnitOfficer/UOVerificationPanel';
 import SLAOverduePanel from 'components/UnitOfficer/SLAOverduePanel';
+import EscalationModal from 'components/UnitOfficer/EscalationModal';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from 'convex/_generated/api';
 import { mapIssueToUI } from 'lib/issueMapper';
@@ -155,6 +156,37 @@ const CATEGORY_LABEL_MAP: Record<string, string> = {
   solid_waste: 'Solid Waste Management',
   public_health: 'Public Health',
   other: 'Other',
+};
+
+const ESCALATION_CATEGORY_LABELS: Record<string, string> = {
+  sla_breach: 'SLA Breach',
+  resource_shortage: 'Resource Shortage',
+  technical_complexity: 'Technical Complexity',
+  public_safety_risk: 'Public Safety Risk',
+  legal_or_regulatory: 'Legal / Regulatory',
+  citizen_escalation: 'Citizen Escalation',
+  repeat_failure: 'Repeat Failure',
+  cross_department_dependency: 'Cross Department Dependency',
+  budget_approval_required: 'Budget Approval Required',
+  emergency_response: 'Emergency Response',
+  officer_non_responsiveness: 'Officer Non-Responsiveness',
+  technical_dependency: 'Technical Dependency',
+  third_party_dependency: 'Third Party Dependency',
+  environmental_risk: 'Environmental Risk',
+  administrative_approval_pending: 'Administrative Approval Pending',
+  other: 'Other',
+};
+
+const ESCALATION_PRIORITY_LABELS: Record<string, string> = {
+  medium: 'Medium',
+  high: 'High',
+  critical: 'Critical',
+};
+
+const ESCALATION_PRIORITY_COLORS: Record<string, string> = {
+  medium: '#F59E0B',
+  high: '#EF4444',
+  critical: '#991B1B',
 };
 
 const CATEGORY_COLORS: Record<
@@ -445,6 +477,12 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
   // @ts-ignore
   const issue = useQuery(api.unitOfficers.getIssueById, { issueId });
 
+  const escalationDetails = useQuery(
+    api.escalation.getEscalationDetailsByIssueId,
+    // @ts-ignore
+    issue?._id ? { issueId: issue._id } : 'skip'
+  );
+
   const generateUploadUrl = useMutation(api.issuesMedia.generateUploadUrl);
 
   // @ts-ignore
@@ -468,6 +506,9 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
   // Extends SLA Deadline
   const extendSLADeadline = useMutation(api.unitOfficers.extendSLADeadline);
 
+  // Escalates issue to Admin
+  const escalateIssueMut = useMutation(api.escalation.escalateIssue);
+
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [assignModalMode, setAssignModalMode] = useState<'assign' | 'reassign'>('assign');
   const [pendingReassignMeta, setPendingReassignMeta] = useState<{
@@ -476,6 +517,9 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
   } | null>(null);
   const [showRejectionModal, setShowRejectionModal] = useState(false);
   const [showReassignModal, setShowReassignModal] = useState(false);
+  const [showEscalateModal, setShowEscalateModal] = useState(false);
+  const [escalateIsReescalate, setEscalateIsReescalate] = useState(false);
+  const [escalateInitialReason, setEscalateInitialReason] = useState('');
   const [verificationTab, setVerificationTab] = useState<'verify' | 'reject'>('verify');
   const [updateText, setUpdateText] = useState('');
   const [updateScope, setUpdateScope] = useState<UpdateScope>('officer_and_citizen');
@@ -999,9 +1043,32 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
     });
   };
 
-  const handleSLAEscalate = (_note: string, updated: Issue) => {
-    console.log('handleSLAEscalate', _note, updated);
-    Alert.alert('Escalated', 'Issue has been escalated to Admin. Citizen has been informed.');
+  const handleSLAEscalate = (note: string) => {
+    setEscalateIsReescalate(false);
+    setEscalateInitialReason(note);
+    setShowEscalateModal(true);
+  };
+
+  const handleEscalateConfirm = async (category: string, priority: string, reason: string) => {
+    if (!issue || !user) return;
+    try {
+      await escalateIssueMut({
+        issueId: issue._id,
+        prevIssueStatus: issue.status,
+        escalationCategory: category as any,
+        escalationPriority: priority as any,
+        escalationReason: reason,
+        adminUserId: user.id,
+      });
+      setShowEscalateModal(false);
+      Alert.alert(
+        escalateIsReescalate ? 'Re-escalated' : 'Escalated',
+        `Issue successfully ${escalateIsReescalate ? 're-escalated' : 'escalated'} to Admin.`
+      );
+    } catch (err: any) {
+      console.error(err);
+      Alert.alert('Error', err?.message || 'Failed to escalate issue');
+    }
   };
 
   const handleUOApprove = (updatedIssue: Issue) => {
@@ -3328,8 +3395,337 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
                 onReassign={handleSLAReassign}
                 onReject={handleSLAReject}
                 onExtend={handleSLAExtend}
-                // onEscalate={handleSLAEscalate}
+                onEscalate={handleSLAEscalate}
               />
+            </SectionCard>
+          )}
+
+          {/* ADMINISTRATIVE ESCALATION CONTROL PANEL */}
+          {!issue.escalatedToAdmin &&
+            issue.status !== 'escalated' &&
+            !completedStatuses.includes(mappedIssue.status.toLowerCase()) && (
+              <SectionCard>
+                <View className="p-5">
+                  <View className="mb-1 flex-row items-center gap-2">
+                    <ShieldAlert color="#7C3AED" size={18} strokeWidth={2.5} />
+                    <Text className="text-[17px] font-extrabold text-slate-800 dark:text-slate-100">
+                      {issue.escalation ? 'Re-escalate Issue' : 'Administrative Escalation'}
+                    </Text>
+                  </View>
+                  <Text className="mb-5 text-[13px] text-slate-500 dark:text-slate-400">
+                    {issue.escalation
+                      ? 'This issue was previously escalated. You can re-escalate it to Admin if further administrative intervention is required.'
+                      : 'If this issue is facing critical delays, resource shortages, or third-party blocks, escalate it to the Admin.'}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => {
+                      setEscalateIsReescalate(!!issue.escalation);
+                      setEscalateInitialReason('');
+                      setShowEscalateModal(true);
+                    }}
+                    activeOpacity={0.85}
+                    style={styles.actionBtn}>
+                    <LinearGradient
+                      colors={['#7C3AED', '#6D28D9']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={styles.actionBtnGradient}>
+                      <ShieldAlert color="#FFFFFF" size={19} strokeWidth={2.5} />
+                      <Text className="text-[15px] font-bold text-white">
+                        {issue.escalation ? 'Re-escalate to Admin' : 'Escalate to Admin'}
+                      </Text>
+                      <ChevronRight color="rgba(255,255,255,0.7)" size={18} strokeWidth={2.5} />
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </View>
+              </SectionCard>
+            )}
+
+          {/* ACTIVE ESCALATION BANNER */}
+          {(issue.escalatedToAdmin || issue.status === 'escalated') && (
+            <SectionCard>
+              <View className="flex-row items-center gap-4 p-5">
+                <View className="h-12 w-12 items-center justify-center rounded-2xl bg-purple-100 dark:bg-purple-900/30">
+                  <ShieldAlert color="#7C3AED" size={22} strokeWidth={2.5} />
+                </View>
+                <View className="flex-1">
+                  <Text className="mb-1 text-[16px] font-extrabold text-slate-800 dark:text-slate-100">
+                    Escalated to Admin
+                  </Text>
+                  <Text className="text-[13px] leading-5 text-slate-500 dark:text-slate-400">
+                    This issue has been escalated to administration. A review is currently pending.
+                  </Text>
+                </View>
+              </View>
+            </SectionCard>
+          )}
+
+          {/* ESCALATION HISTORY & TIMELINE CARD */}
+          {issue.escalation && (
+            <SectionCard>
+              <View className="p-5">
+                <View className="mb-4 flex-row items-center gap-2 border-b border-slate-100 pb-3 dark:border-slate-800">
+                  <ShieldAlert color="#7C3AED" size={18} strokeWidth={2.5} />
+                  <Text className="text-[17px] font-extrabold text-slate-800 dark:text-slate-100">
+                    Escalation Ledger
+                  </Text>
+                </View>
+
+                {/* Current Escalation Details */}
+                <View className="mb-5 rounded-2xl bg-slate-50/50 p-4 border border-slate-100/50 dark:bg-slate-800/20 dark:border-slate-800/50 gap-3">
+                  <View className="flex-row justify-between">
+                    <View className="flex-1 pr-2">
+                      <Text className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                        Category
+                      </Text>
+                      <Text className="text-[13px] font-black text-slate-800 dark:text-slate-200 mt-0.5">
+                        {ESCALATION_CATEGORY_LABELS[issue.escalation.category] || issue.escalation.category}
+                      </Text>
+                    </View>
+                    <View className="items-end">
+                      <Text className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                        Priority
+                      </Text>
+                      <View
+                        style={{
+                          backgroundColor: `${ESCALATION_PRIORITY_COLORS[issue.escalation.priority] || '#7C3AED'}1A`,
+                          borderColor: `${ESCALATION_PRIORITY_COLORS[issue.escalation.priority] || '#7C3AED'}40`,
+                        }}
+                        className="rounded-full px-2.5 py-0.5 border mt-1">
+                        <Text
+                          style={{ color: ESCALATION_PRIORITY_COLORS[issue.escalation.priority] || '#7C3AED' }}
+                          className="text-[10px] font-black uppercase tracking-wider">
+                          {ESCALATION_PRIORITY_LABELS[issue.escalation.priority] || issue.escalation.priority}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+
+                  <View className="border-t border-slate-100/50 pt-2.5 dark:border-slate-800/50">
+                    <Text className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                      Reason
+                    </Text>
+                    <Text className="text-[12px] leading-[18px] text-slate-600 dark:text-slate-300 font-semibold mt-1">
+                      "{issue.escalation.reason}"
+                    </Text>
+                  </View>
+
+                  {issue.escalation.comments ? (
+                    <View className="border-t border-slate-100/50 pt-2.5 dark:border-slate-800/50">
+                      <Text className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                        Comments
+                      </Text>
+                      <Text className="text-[12px] leading-[18px] text-slate-600 dark:text-slate-300 font-semibold mt-1">
+                        "{issue.escalation.comments}"
+                      </Text>
+                    </View>
+                  ) : null}
+
+                  {issue.escalation.resolved && issue.escalation.resolutionNote && (
+                    <View className="border-t border-emerald-100/50 pt-2.5 dark:border-emerald-900/30">
+                      <Text className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
+                        Resolution Note
+                      </Text>
+                      <Text className="text-[12px] leading-[18px] text-emerald-700 dark:text-emerald-300 font-semibold mt-1">
+                        "{issue.escalation.resolutionNote}"
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
+                {/* Vertical Timeline */}
+                <Text className="text-[11px] font-black uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500 mb-4 ml-1">
+                  ESCALATION TIMELINE
+                </Text>
+                
+                <View className="pl-1">
+                  {(() => {
+                    const currentActions = escalationDetails?.actions?.filter(
+                      (a: any) => a.performedAt >= (issue.escalation?.escalatedAt || 0)
+                    ) || [];
+
+                    const reviewAction = currentActions.find(
+                      (a: any) => a.type === 'review_escalation'
+                    );
+
+                    const resolutionActions = currentActions.filter(
+                      (a: any) => a.type !== 'escalate' && a.type !== 'review_escalation'
+                    );
+                    const hasResolutionAction = resolutionActions.length > 0;
+                    const resolutionActionTime = resolutionActions[0]?.performedAt || null;
+
+                    const reviewTime =
+                      reviewAction?.performedAt ||
+                      (issue.escalation?.adminReviewStatus === 'resolved' ||
+                      issue.escalation?.adminReviewStatus === 'reviewed'
+                        ? (resolutionActionTime || issue.escalation?.resolvedAt)
+                        : null) ||
+                      null;
+
+                    const steps = [
+                      {
+                        label: 'Escalated',
+                        done: !!issue.escalation?.escalatedAt,
+                        time: issue.escalation?.escalatedAt,
+                      },
+                      {
+                        label: 'Admin Reviewed',
+                        done:
+                          issue.escalation?.adminReviewStatus === 'reviewed' ||
+                          issue.escalation?.adminReviewStatus === 'resolved',
+                        time: reviewTime,
+                      },
+                      {
+                        label: 'Resolution Action',
+                        done: hasResolutionAction || issue.escalation?.resolved,
+                        time: resolutionActionTime,
+                      },
+                      {
+                        label: 'Escalation Closed',
+                        done: !!issue.escalation?.resolved,
+                        time: issue.escalation?.resolvedAt,
+                      },
+                    ];
+
+                    return (
+                      <View>
+                        {steps.map((step, idx) => {
+                          const isLast = idx === steps.length - 1;
+                          return (
+                            <View key={step.label} className="flex-row items-start mb-5 relative">
+                              {/* Connector Line */}
+                              {!isLast && (
+                                <View
+                                  style={{
+                                    position: 'absolute',
+                                    left: 11,
+                                    top: 24,
+                                    bottom: -24,
+                                    width: 2,
+                                    backgroundColor: steps[idx + 1].done ? '#10B981' : isDark ? '#334155' : '#E2E8F0',
+                                  }}
+                                />
+                              )}
+
+                              {/* Circle node */}
+                              <View
+                                style={{
+                                  width: 24,
+                                  height: 24,
+                                  borderRadius: 12,
+                                  backgroundColor: step.done ? '#10B981' : isDark ? '#1E293B' : '#F1F5F9',
+                                  borderColor: step.done ? '#10B981' : isDark ? '#475569' : '#CBD5E1',
+                                  borderWidth: 2,
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  marginRight: 16,
+                                  zIndex: 1,
+                                }}>
+                                {step.done ? (
+                                  <ShieldCheck color="#FFFFFF" size={12} strokeWidth={3} />
+                                ) : (
+                                  <Clock color={isDark ? '#94A3B8' : '#64748B'} size={12} strokeWidth={2.5} />
+                                )}
+                              </View>
+
+                              {/* Label / Time */}
+                              <View className="flex-1 pt-0.5">
+                                <Text
+                                  className={`text-[14px] font-black tracking-tight ${
+                                    step.done ? 'text-slate-800 dark:text-slate-100' : 'text-slate-400 dark:text-slate-500'
+                                  }`}>
+                                  {step.label}
+                                </Text>
+                                {step.time ? (
+                                  <Text className="text-[11px] font-bold text-slate-400 dark:text-slate-500 mt-0.5">
+                                    {formatDateFull(step.time)}
+                                  </Text>
+                                ) : (
+                                  <Text className="text-[11px] font-bold text-slate-300 dark:text-slate-600 mt-0.5">
+                                    Pending action
+                                  </Text>
+                                )}
+                              </View>
+                            </View>
+                          );
+                        })}
+
+                        {/* Audit Action Log */}
+                        {currentActions.length > 0 ? (
+                          <View className="mt-4 border-t border-slate-100 pt-5 dark:border-slate-800">
+                            <Text className="text-[11px] font-black uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500 mb-3.5">
+                              RESOLUTION ACTIONS TAKEN
+                            </Text>
+                            {currentActions.map((action: any) => {
+                              let icon = ShieldAlert;
+                              let iconColor = '#7C3AED';
+                              let actionLabel = action.type;
+
+                              if (action.type === 'escalate') {
+                                icon = ShieldAlert;
+                                iconColor = '#7C3AED';
+                                actionLabel = 'Issue Escalated';
+                              } else if (action.type === 'review_escalation') {
+                                icon = Eye;
+                                iconColor = '#3B82F6';
+                                actionLabel = 'Escalation Reviewed';
+                              } else if (action.type === 'extend_sla') {
+                                icon = Clock;
+                                iconColor = '#F59E0B';
+                                actionLabel = 'SLA Target Extended';
+                              } else if (action.type === 'reassign_officer') {
+                                icon = UserCheck;
+                                iconColor = '#0EA5E9';
+                                actionLabel = 'Officer Reassigned';
+                              } else if (action.type === 'approve_escalation') {
+                                icon = ShieldCheck;
+                                iconColor = '#10B981';
+                                actionLabel = 'Escalation Approved';
+                              } else if (action.type === 'reject_escalation') {
+                                icon = XCircle;
+                                iconColor = '#EF4444';
+                                actionLabel = 'Escalation Rejected';
+                              }
+
+                              const IconComponent = icon;
+
+                              return (
+                                <View
+                                  key={action.id}
+                                  className="flex-row items-start mb-4 rounded-2xl bg-slate-50/50 p-4 border border-slate-100/50 dark:bg-slate-800/20 dark:border-slate-800/50">
+                                  <View
+                                    style={{ backgroundColor: `${iconColor}1A` }}
+                                    className="h-9 w-9 rounded-xl items-center justify-center mr-3.5">
+                                    <IconComponent color={iconColor} size={18} strokeWidth={2.5} />
+                                  </View>
+                                  <View className="flex-1">
+                                    <View className="flex-row items-center justify-between mb-1.5 flex-wrap gap-1">
+                                      <Text className="text-[13px] font-extrabold text-slate-800 dark:text-slate-200" numberOfLines={1}>
+                                        {actionLabel}
+                                      </Text>
+                                      <Text className="text-[10px] font-bold text-slate-400 dark:text-slate-500">
+                                        {formatTimestamp(action.performedAt)}
+                                      </Text>
+                                    </View>
+                                    {action.notes && (
+                                      <Text className="text-[12px] leading-[18px] text-slate-600 dark:text-slate-400 font-medium mb-1">
+                                        "{action.notes}"
+                                      </Text>
+                                    )}
+                                    <Text className="text-[10px] font-bold text-slate-400 dark:text-slate-500">
+                                      Performed by: <Text className="text-slate-500 dark:text-slate-400">{action.performedBy}</Text>
+                                    </Text>
+                                  </View>
+                                </View>
+                              );
+                            })}
+                          </View>
+                        ) : null}
+                      </View>
+                    );
+                  })()}
+                </View>
+              </View>
             </SectionCard>
           )}
 
@@ -3715,6 +4111,14 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
           onConfirm={handleReassign}
           issueTitle={mappedIssue.title}
           currentOfficer={mappedIssue.assignedOfficer?.fullName || ''}
+        />
+
+        <EscalationModal
+          visible={showEscalateModal}
+          onClose={() => setShowEscalateModal(false)}
+          onConfirm={handleEscalateConfirm}
+          issueTitle={mappedIssue.title}
+          isReescalate={escalateIsReescalate}
         />
 
         <CitizenMessagingInterface

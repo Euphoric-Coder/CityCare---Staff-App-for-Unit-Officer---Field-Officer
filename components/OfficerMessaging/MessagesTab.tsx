@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -31,6 +31,8 @@ import {
   HeartPulse,
   MoreHorizontal,
   Briefcase,
+  ChevronDown,
+  Filter,
 } from 'lucide-react-native';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
@@ -235,6 +237,10 @@ export default function MessagesTab() {
   const [messageText, setMessageText] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [newSearchQuery, setNewSearchQuery] = useState('');
+  const [selectedRegion, setSelectedRegion] = useState('all');
+  const [selectedDepartment, setSelectedDepartment] = useState('all');
+  const [selectedRole, setSelectedRole] = useState('all');
+  const [activeFilterMenu, setActiveFilterMenu] = useState<'region' | 'department' | 'role' | null>(null);
   const [issueRefModalId, setIssueRefModalId] = useState<string | null>(null);
   const [showIssuePicker, setShowIssuePicker] = useState(false);
   const [pickerMode, setPickerMode] = useState<'message' | 'conversation'>('message');
@@ -258,9 +264,9 @@ export default function MessagesTab() {
   const rawOfficials =
     useQuery(api.directMessages.getAllOfficials, { userId: CURRENT_USER_ID as any }) || [];
 
-  const conversations = rawConvs.map((conv) => {
+  const conversations = rawConvs.map((conv: any) => {
     const otherUser = rawOfficials.find(
-      (o) => o.id !== CURRENT_USER_ID && conv.participantIds.includes(o.id)
+      (o: any) => o.id !== CURRENT_USER_ID && conv.participantIds.includes(o.id)
     );
     return {
       ...conv,
@@ -274,7 +280,7 @@ export default function MessagesTab() {
     };
   });
 
-  const filteredConversations = conversations.filter((conv) => {
+  const filteredConversations = conversations.filter((conv: any) => {
     const q = searchQuery.toLowerCase();
     return (
       !q ||
@@ -284,9 +290,9 @@ export default function MessagesTab() {
     );
   });
 
-  const selectedConv = conversations.find((c) => c.id === selectedConvId);
+  const selectedConv = conversations.find((c: any) => c.id === selectedConvId);
 
-  const chatMessages = rawMessages.map((m) => ({
+  const chatMessages = rawMessages.map((m: any) => ({
     id: m._id,
     conversationId: m.conversationId,
     fromUserId: m.fromId,
@@ -301,18 +307,79 @@ export default function MessagesTab() {
         : undefined,
   }));
 
-  const totalUnread = conversations.reduce((sum, c) => sum + c.unreadCount, 0);
+  const totalUnread = conversations.reduce((sum: number, c: any) => sum + c.unreadCount, 0);
 
   const otherOfficials = rawOfficials.filter(
-    (o) => o.id !== CURRENT_USER_ID && !rawConvs.some((c) => c.participantIds.includes(o.id))
+    (o: any) => o.id !== CURRENT_USER_ID && !rawConvs.some((c: any) => c.participantIds.includes(o.id))
   );
-  const filteredNewOfficials = otherOfficials.filter(
-    (o) =>
-      !newSearchQuery ||
-      o.name.toLowerCase().includes(newSearchQuery.toLowerCase()) ||
-      o.designation.toLowerCase().includes(newSearchQuery.toLowerCase()) ||
-      o.department.toLowerCase().includes(newSearchQuery.toLowerCase())
-  );
+
+  // Compute unique cities
+  const uniqueCities = useMemo(() => {
+    const cities = new Set<string>();
+    rawOfficials.forEach((o: any) => {
+      const reg = o.role === 'Admin' ? 'Administration / Global' : o.city;
+      if (reg) cities.add(reg);
+    });
+    return Array.from(cities).sort();
+  }, [rawOfficials]);
+
+  // Compute unique departments
+  const uniqueDepartments = useMemo(() => {
+    const depts = new Set<string>();
+    rawOfficials.forEach((o: any) => {
+      if (o.department) depts.add(o.department);
+    });
+    return Array.from(depts).sort();
+  }, [rawOfficials]);
+
+  // Compute filtered officials
+  const filteredNewOfficials = useMemo(() => {
+    return otherOfficials.filter((o: any) => {
+      // 1. Text search
+      if (newSearchQuery) {
+        const q = newSearchQuery.toLowerCase();
+        const nameMatch = o.name?.toLowerCase().includes(q);
+        const desMatch = o.designation?.toLowerCase().includes(q);
+        const deptMatch = o.department?.toLowerCase().includes(q);
+        if (!nameMatch && !desMatch && !deptMatch) return false;
+      }
+      // 2. Region/City Filter
+      if (selectedRegion !== 'all') {
+        const region = o.role === 'Admin' ? 'Administration / Global' : o.city;
+        if (region !== selectedRegion) return false;
+      }
+      // 3. Department Filter
+      if (selectedDepartment !== 'all') {
+        if (o.department !== selectedDepartment) return false;
+      }
+      // 4. Role Filter
+      if (selectedRole !== 'all') {
+        if (o.role !== selectedRole) return false;
+      }
+      return true;
+    });
+  }, [otherOfficials, newSearchQuery, selectedRegion, selectedDepartment, selectedRole]);
+
+  // Group officials by Region then Department
+  const groupedOfficials = useMemo(() => {
+    const groups: Record<string, Record<string, OfficialUser[]>> = {};
+
+    filteredNewOfficials.forEach((o: any) => {
+      const region = o.role === 'Admin' ? 'Administration / Global' : (o.city || 'General');
+      const dept = o.department || 'General Administration';
+
+      if (!groups[region]) {
+        groups[region] = {};
+      }
+      if (!groups[region][dept]) {
+        groups[region][dept] = [];
+      }
+      groups[region][dept].push(o);
+    });
+
+    return groups;
+  }, [filteredNewOfficials]);
+
 
   const handleSend = async () => {
     if (!messageText.trim() || !selectedConvId) return;
@@ -323,7 +390,7 @@ export default function MessagesTab() {
       fromName: user?.name as string,
       fromRole: user?.role as string,
       message: messageText.trim(),
-      issueIds: pendingIssueRef ? [pendingIssueRef._id as any] : undefined,
+      issueIds: pendingIssueRef ? [(pendingIssueRef as any)._id as any] : undefined,
     });
 
     setMessageText('');
@@ -342,7 +409,7 @@ export default function MessagesTab() {
       fromId: CURRENT_USER_ID as any,
       fromName: user?.name as string,
       fromRole: user?.role as string,
-      issueId: issueRef ? (issueRef._id as Id<'issues'>) : undefined,
+      issueId: issueRef ? ((issueRef as any)._id as Id<'issues'>) : undefined,
       issueTitle: issueRef ? issueRef.title : undefined,
       issueStatus: issueRef ? issueRef.status : undefined,
     });
@@ -414,66 +481,257 @@ export default function MessagesTab() {
           </View>
         </View>
 
+        {/* Scrollable Filter Chips */}
+        <View className="px-5 pt-3 pb-2">
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+            <TouchableOpacity
+              onPress={() => setActiveFilterMenu(activeFilterMenu === 'region' ? null : 'region')}
+              activeOpacity={0.8}
+              className={`flex-row items-center gap-1.5 rounded-full px-4 py-2 border ${
+                activeFilterMenu === 'region' || selectedRegion !== 'all'
+                  ? 'bg-teal-500/10 border-teal-500'
+                  : 'bg-white border-slate-200 dark:bg-slate-900 dark:border-slate-800'
+              }`}>
+              <Text className={`text-[12px] font-bold ${
+                activeFilterMenu === 'region' || selectedRegion !== 'all'
+                  ? 'text-teal-600 dark:text-teal-400'
+                  : 'text-slate-600 dark:text-slate-400'
+              }`}>
+                Region: {selectedRegion === 'all' ? 'All' : selectedRegion}
+              </Text>
+              <ChevronDown size={14} color={activeFilterMenu === 'region' || selectedRegion !== 'all' ? '#0F766E' : '#64748B'} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => setActiveFilterMenu(activeFilterMenu === 'department' ? null : 'department')}
+              activeOpacity={0.8}
+              className={`flex-row items-center gap-1.5 rounded-full px-4 py-2 border ${
+                activeFilterMenu === 'department' || selectedDepartment !== 'all'
+                  ? 'bg-teal-500/10 border-teal-500'
+                  : 'bg-white border-slate-200 dark:bg-slate-900 dark:border-slate-800'
+              }`}>
+              <Text className={`text-[12px] font-bold ${
+                activeFilterMenu === 'department' || selectedDepartment !== 'all'
+                  ? 'text-teal-600 dark:text-teal-400'
+                  : 'text-slate-600 dark:text-slate-400'
+              }`}>
+                Dept: {selectedDepartment === 'all' ? 'All' : selectedDepartment}
+              </Text>
+              <ChevronDown size={14} color={activeFilterMenu === 'department' || selectedDepartment !== 'all' ? '#0F766E' : '#64748B'} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => setActiveFilterMenu(activeFilterMenu === 'role' ? null : 'role')}
+              activeOpacity={0.8}
+              className={`flex-row items-center gap-1.5 rounded-full px-4 py-2 border ${
+                activeFilterMenu === 'role' || selectedRole !== 'all'
+                  ? 'bg-teal-500/10 border-teal-500'
+                  : 'bg-white border-slate-200 dark:bg-slate-900 dark:border-slate-800'
+              }`}>
+              <Text className={`text-[12px] font-bold ${
+                activeFilterMenu === 'role' || selectedRole !== 'all'
+                  ? 'text-teal-600 dark:text-teal-400'
+                  : 'text-slate-600 dark:text-slate-400'
+              }`}>
+                Role: {selectedRole === 'all' ? 'All' : (ROLE_CONFIG[selectedRole]?.label ?? selectedRole)}
+              </Text>
+              <ChevronDown size={14} color={activeFilterMenu === 'role' || selectedRole !== 'all' ? '#0F766E' : '#64748B'} />
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
+
+        {/* Filter Options Panel */}
+        {activeFilterMenu && (
+          <View className="mx-5 mb-2 rounded-[20px] bg-slate-100 dark:bg-slate-900 p-3 border border-slate-200/50 dark:border-slate-800">
+            <View className="flex-row items-center justify-between mb-2 px-1">
+              <Text className="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                Select {activeFilterMenu === 'region' ? 'Region' : activeFilterMenu === 'department' ? 'Department' : 'Role'}
+              </Text>
+              <TouchableOpacity onPress={() => setActiveFilterMenu(null)}>
+                <X size={14} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
+              {activeFilterMenu === 'region' && (
+                <>
+                  <TouchableOpacity
+                    onPress={() => {
+                      setSelectedRegion('all');
+                      setActiveFilterMenu(null);
+                    }}
+                    className={`rounded-xl px-3 py-1.5 border ${
+                      selectedRegion === 'all' ? 'bg-teal-600 border-teal-600' : 'bg-white border-slate-200 dark:bg-slate-800 dark:border-slate-700'
+                    }`}>
+                    <Text className={`text-[11px] font-bold ${selectedRegion === 'all' ? 'text-white' : 'text-slate-700 dark:text-slate-300'}`}>
+                      All Regions
+                    </Text>
+                  </TouchableOpacity>
+                  {uniqueCities.map((city) => (
+                    <TouchableOpacity
+                      key={city}
+                      onPress={() => {
+                        setSelectedRegion(city);
+                        setActiveFilterMenu(null);
+                      }}
+                      className={`rounded-xl px-3 py-1.5 border ${
+                        selectedRegion === city ? 'bg-teal-600 border-teal-600' : 'bg-white border-slate-200 dark:bg-slate-800 dark:border-slate-700'
+                      }`}>
+                      <Text className={`text-[11px] font-bold ${selectedRegion === city ? 'text-white' : 'text-slate-700 dark:text-slate-300'}`}>
+                        {city}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </>
+              )}
+
+              {activeFilterMenu === 'department' && (
+                <>
+                  <TouchableOpacity
+                    onPress={() => {
+                      setSelectedDepartment('all');
+                      setActiveFilterMenu(null);
+                    }}
+                    className={`rounded-xl px-3 py-1.5 border ${
+                      selectedDepartment === 'all' ? 'bg-teal-600 border-teal-600' : 'bg-white border-slate-200 dark:bg-slate-800 dark:border-slate-700'
+                    }`}>
+                    <Text className={`text-[11px] font-bold ${selectedDepartment === 'all' ? 'text-white' : 'text-slate-700 dark:text-slate-300'}`}>
+                      All Departments
+                    </Text>
+                  </TouchableOpacity>
+                  {uniqueDepartments.map((dept) => (
+                    <TouchableOpacity
+                      key={dept}
+                      onPress={() => {
+                        setSelectedDepartment(dept);
+                        setActiveFilterMenu(null);
+                      }}
+                      className={`rounded-xl px-3 py-1.5 border ${
+                        selectedDepartment === dept ? 'bg-teal-600 border-teal-600' : 'bg-white border-slate-200 dark:bg-slate-800 dark:border-slate-700'
+                      }`}>
+                      <Text className={`text-[11px] font-bold ${selectedDepartment === dept ? 'text-white' : 'text-slate-700 dark:text-slate-300'}`}>
+                        {dept}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </>
+              )}
+
+              {activeFilterMenu === 'role' && (
+                <>
+                  {[
+                    { value: 'all', label: 'All Roles' },
+                    { value: 'Admin', label: 'Admins' },
+                    { value: 'CityAdmin', label: 'City Admins' },
+                    { value: 'UnitOfficer', label: 'Unit Officers' },
+                    { value: 'FieldOfficer', label: 'Field Officers' },
+                  ].map((roleOpt) => (
+                    <TouchableOpacity
+                      key={roleOpt.value}
+                      onPress={() => {
+                        setSelectedRole(roleOpt.value);
+                        setActiveFilterMenu(null);
+                      }}
+                      className={`rounded-xl px-3 py-1.5 border ${
+                        selectedRole === roleOpt.value ? 'bg-teal-600 border-teal-600' : 'bg-white border-slate-200 dark:bg-slate-800 dark:border-slate-700'
+                      }`}>
+                      <Text className={`text-[11px] font-bold ${selectedRole === roleOpt.value ? 'text-white' : 'text-slate-700 dark:text-slate-300'}`}>
+                        {roleOpt.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </>
+              )}
+            </ScrollView>
+          </View>
+        )}
+
         <ScrollView
           className="mt-2 flex-1"
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}
           showsVerticalScrollIndicator={false}>
-          {Object.entries(
-            filteredNewOfficials.reduce<Record<string, OfficialUser[]>>((acc, o) => {
-              let g = 'Field Officers';
-              if (o.role === 'Admin' || o.role === 'CityAdmin') g = 'Administration';
-              else if (o.role === 'UnitOfficer') g = 'Unit Officers';
-              
-              if (!acc[g]) acc[g] = [];
-              acc[g].push(o);
-              return acc;
-            }, {})
-          ).map(([group, officials]) => (
-            <View key={group} className="mt-6">
-              <Text className="mb-3 ml-2 text-[11px] font-black uppercase tracking-widest text-[#0F766E] dark:text-teal-400">
-                {group}
-              </Text>
-              <View className="gap-3">
-                {officials.map((official) => {
-                  const roleCfg = ROLE_CONFIG[official.role] ?? ROLE_CONFIG.FieldOfficer;
-                  const deptCat = getCategoryForDept(official.department);
-                  const DeptIcon = deptCat.icon;
-                  return (
-                    <TouchableOpacity
-                      key={official.id}
-                      className="flex-row items-center gap-4 rounded-[24px] border border-slate-100 bg-white p-4 dark:border-slate-800/80 dark:bg-slate-900/80"
-                      style={{ shadowColor: '#0f172a', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 }}
-                      activeOpacity={0.75}
-                      onPress={() => {
-                        setProfileOfficial(official);
-                        setScreen('profile');
-                      }}>
-                      <AvatarWithStatus uri={official.avatar} size={52} />
-                      <View className="flex-1 justify-center gap-1">
-                        <View className="flex-row items-center justify-between">
-                          <Text className="text-[16px] font-black text-slate-800 dark:text-slate-100 flex-1 mr-2" numberOfLines={1}>
-                            {official.name}
-                          </Text>
-                          <View className={`rounded-xl px-2.5 py-1 border ${roleCfg.bgClass.replace('bg-', 'border-').replace('/30', '/50')} ${roleCfg.bgClass}`}>
-                            <Text className={`text-[9px] font-black uppercase tracking-widest ${roleCfg.textClass}`}>
-                              {roleCfg.label}
-                            </Text>
-                          </View>
-                        </View>
-                        
-                        <View className="flex-row items-center gap-2 mt-0.5">
-                          <View className={`h-6 w-6 items-center justify-center rounded-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50`}>
-                            <DeptIcon size={11} color={deptCat.iconColor} />
-                          </View>
-                          <Text className={`text-[12px] font-bold ${deptCat.color} flex-1`} numberOfLines={1}>
-                            {deptCat.label}
-                          </Text>
-                        </View>
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })}
+          
+          {Object.entries(groupedOfficials).map(([region, depts]) => (
+            <View key={region} className="mt-5">
+              {/* Region Category Header */}
+              <View className="flex-row items-center gap-2 mb-3 bg-slate-100 dark:bg-slate-900/60 py-2 px-3 rounded-xl">
+                <MapPin size={16} color="#0F766E" strokeWidth={2.5} />
+                <Text className="text-[14px] font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">
+                  {region}
+                </Text>
               </View>
+
+              {Object.entries(depts).map(([dept, officials]) => {
+                const deptCat = getCategoryForDept(dept);
+                const DeptIcon = deptCat.icon;
+
+                return (
+                  <View key={dept} className="mb-5 ml-2">
+                    {/* Department Subtitle */}
+                    <View className="flex-row items-center gap-1.5 mb-2 ml-1">
+                      <DeptIcon size={12} color={deptCat.iconColor} />
+                      <Text className="text-[12px] font-black text-[#0F766E] dark:text-teal-400">
+                        {dept}
+                      </Text>
+                    </View>
+
+                    {/* Official Cards under Department */}
+                    <View className="gap-3">
+                      {officials.map((official) => {
+                        const roleCfg = ROLE_CONFIG[official.role] ?? ROLE_CONFIG.FieldOfficer;
+                        return (
+                          <TouchableOpacity
+                            key={official.id}
+                            className="flex-row items-center gap-4 rounded-[24px] border border-slate-100 bg-white p-4 dark:border-slate-800/80 dark:bg-slate-900/80"
+                            style={{
+                              shadowColor: '#0f172a',
+                              shadowOffset: { width: 0, height: 4 },
+                              shadowOpacity: 0.05,
+                              shadowRadius: 8,
+                              elevation: 2,
+                            }}
+                            activeOpacity={0.75}
+                            onPress={() => {
+                              setProfileOfficial(official);
+                              setScreen('profile');
+                            }}>
+                            <AvatarWithStatus uri={official.avatar} size={52} />
+                            <View className="flex-1 justify-center gap-1">
+                              <View className="flex-row items-center justify-between">
+                                <Text
+                                  className="text-[16px] font-black text-slate-800 dark:text-slate-100 flex-1 mr-2"
+                                  numberOfLines={1}>
+                                  {official.name}
+                                </Text>
+                                <View
+                                  className={`rounded-xl px-2.5 py-1 border ${roleCfg.bgClass
+                                    .replace('bg-', 'border-')
+                                    .replace('/30', '/50')} ${roleCfg.bgClass}`}>
+                                  <Text
+                                    className={`text-[9px] font-black uppercase tracking-widest ${roleCfg.textClass}`}>
+                                    {roleCfg.label}
+                                  </Text>
+                                </View>
+                              </View>
+
+                              <View className="flex-row items-center gap-2 mt-0.5">
+                                <View className="h-6 w-6 items-center justify-center rounded-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50">
+                                  <DeptIcon size={11} color={deptCat.iconColor} />
+                                </View>
+                                <Text
+                                  className="text-[12px] font-bold text-slate-500 dark:text-slate-400 flex-1"
+                                  numberOfLines={1}>
+                                  {official.designation}
+                                </Text>
+                              </View>
+                            </View>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </View>
+                );
+              })}
             </View>
           ))}
 
@@ -623,7 +881,7 @@ export default function MessagesTab() {
               className="flex-1"
               contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 24, paddingTop: 10 }}
               showsVerticalScrollIndicator={false}>
-              {chatMessages.map((msg, index) => {
+              {chatMessages.map((msg: any, index: number) => {
                 const isOwn = msg.fromUserId === CURRENT_USER_ID;
                 const showDate =
                   index === 0 ||
@@ -779,7 +1037,7 @@ export default function MessagesTab() {
             if (pickerMode === 'conversation' && selectedConvId) {
               updateConversationIssue({
                 conversationId: selectedConvId as any,
-                issueId: issue._id as any,
+                issueId: (issue as any)._id as any,
                 issueTitle: issue.title,
                 issueStatus: issue.status,
               });
@@ -847,7 +1105,7 @@ export default function MessagesTab() {
           className="z-0 mt-2 flex-1"
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40, paddingTop: 16 }}
           showsVerticalScrollIndicator={false}>
-          {filteredConversations.map((conv) => {
+          {filteredConversations.map((conv: any) => {
             const other = conv.otherUser;
             const roleCfg = other
               ? (ROLE_CONFIG[other.role] ?? ROLE_CONFIG.FieldOfficer)

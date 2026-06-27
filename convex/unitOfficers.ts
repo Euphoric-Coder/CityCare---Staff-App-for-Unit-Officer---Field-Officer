@@ -1107,3 +1107,90 @@ export const rejectDuplicateIssues = mutation({
     };
   },
 });
+
+export const reopenIssue = mutation({
+  args: {
+    issueId: v.id('issues'),
+    userId: v.id('users'),
+    reason: v.string(),
+    category: v.union(
+      v.literal('work_incomplete'),
+      v.literal('quality_issue'),
+      v.literal('recurrence'),
+      v.literal('other')
+    ),
+  },
+
+  handler: async (ctx, args) => {
+    const issue = await ctx.db.get(args.issueId);
+    if (!issue) throw new Error('Issue not found');
+
+    const unitOfficer = await ctx.db
+      .query('unitOfficers')
+      .withIndex('by_user', (q) => q.eq('userId', args.userId))
+      .unique();
+
+    const UOName = unitOfficer?.fullName || 'Unit Officer';
+    const now = Date.now();
+
+    // Changes issue status to "reopened" and logs the reason + category for reopening
+    await ctx.db.patch(args.issueId, {
+      status: 'reopened',
+      isReopened: true,
+      reopenCount: (issue.reopenCount || 0) + 1,
+      reopenReason: args.reason,
+      reopenCategory: args.category,
+    });
+
+    // Adds the Issue Update for reopening with reason and category details
+    await ctx.db.insert('issueUpdates', {
+      issueId: args.issueId,
+      status: 'reopened',
+      comment: `Issue reopened by Unit Officer ${UOName}.\nCategory: ${args.category.toUpperCase().replace('_', ' ')}\nReason: ${args.reason}`,
+      updatedBy: args.userId,
+      role: 'unit_officer',
+      attachments: [],
+      scope: 'officer_and_citizen',
+      createdAt: now,
+    });
+
+    // Patch status on publicIssues if exists
+    const publicIssue = await ctx.db
+      .query('publicIssues')
+      .withIndex('by_issue', (q) => q.eq('issueId', args.issueId))
+      .unique();
+
+    if (publicIssue) {
+      await ctx.db.patch(publicIssue._id, {
+        status: 'reopened',
+      });
+    }
+
+    // Notification for Citizen
+    if (issue.reportedBy) {
+      await ctx.db.insert('notifications', {
+        userId: issue.reportedBy,
+        issueId: args.issueId,
+        title: `Reopened Issue - "${issue.title} (${issue.issueCode})"`,
+        message: `Your issue "${issue.title}" has been reopened by Unit Officer ${UOName}.\nCategory: ${args.category.toUpperCase().replace('_', ' ')}\nReason: ${args.reason}`,
+        type: 'reopened',
+        read: false,
+        createdAt: now,
+      });
+    }
+
+    // Notification for Unit Officer
+    await ctx.db.insert('notifications', {
+      userId: args.userId,
+      issueId: args.issueId,
+      title: `Reopened Issue - "${issue.title} (${issue.issueCode})"`,
+      message: `You successfully reopened the issue "${issue.title}" with Issue Code "${issue.issueCode}".`,
+      type: 'reopened',
+      read: false,
+      createdAt: now,
+    });
+
+    return { success: true };
+  },
+});
+

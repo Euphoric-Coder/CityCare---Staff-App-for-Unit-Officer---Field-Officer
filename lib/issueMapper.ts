@@ -56,6 +56,8 @@ export function mapIssueToUI(issue: any) {
     verificationChecklist: issue.verificationChecklist ?? null,
     rejection: issue.rejection ?? null,
 
+    reopenCategory: issue.reopenCategory ?? null,
+
     reworkNote: issue.reworkNote ?? null,
     reworkReasons: issue.reworkReasons || [],
     lastReworkRequestedAt: issue.lastReworkRequestedAt || 0,

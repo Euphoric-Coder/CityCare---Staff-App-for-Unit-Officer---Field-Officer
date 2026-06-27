@@ -195,6 +195,31 @@ export default defineSchema({
     .index('by_badge', ['badgeId'])
     .index('by_citizen_badge_code', ['citizenId', 'badgeCode']),
 
+  cityAdmins: defineTable({
+    userId: v.id("users"),
+    fullName: v.string(),
+    email: v.string(),
+    phone: v.string(),
+    state: v.string(),
+    city: v.string(),
+    managedUnitOfficers: v.array(v.id("unitOfficers")),
+    managedFieldOfficers: v.array(v.id("fieldOfficers")),
+    mustChangePassword: v.boolean(),
+    totalIssuesInCity: v.number(),
+    issuesResolved: v.number(),
+    issuesPending: v.number(),
+    avgResolutionTime: v.number(),
+    slaComplianceRate: v.number(),
+    createdAt: v.number(),
+    createdBy: v.id("users"),
+    profileImage: v.optional(v.id("_storage")),
+    notes: v.optional(v.string()),
+  })
+    .index("by_user", ["userId"])
+    .index("by_email", ["email"])
+    .index("by_city", ["city"])
+    .index("by_state_city", ["state", "city"]),
+
   unitOfficers: defineTable({
     userId: v.id('users'),
     profilePicture: v.optional(v.id('_storage')),
@@ -545,7 +570,7 @@ export default defineSchema({
     description: v.string(),
 
     category: v.string(),
-    status: v.union(v.literal('resolved'), v.literal('rejected')),
+    status: v.union(v.literal('resolved'), v.literal('rejected'), v.literal('reopened')),
 
     ward: v.string(),
 

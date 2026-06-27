@@ -463,17 +463,6 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
     (issueId as string) || ''
   );
 
-  // const review = await reviewIssueWithGemini({
-  //   unitOfficerDepartment: user?.department,
-  //   title: rawIssues?.title,
-  //   description: rawIssues?.description,
-  //   category: rawIssues?.category,
-  //   subcategory: rawIssues?.subcategory?.[0],
-  //   location: rawIssues?.address,
-  // });
-
-  // console.log(review);
-
   // @ts-ignore
   const issue = useQuery(api.unitOfficers.getIssueById, { issueId });
 
@@ -491,6 +480,7 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
   // Verify Issue Mutation
   const verifyIssue = useMutation(api.unitOfficers.verifyIssue);
 
+  // Rejection of Duplicate Issues
   const duplicateRejectIssues = useMutation(api.unitOfficers.rejectDuplicateIssues);
 
   // Reject Issue Mutation
@@ -509,6 +499,9 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
   // Escalates issue to Admin
   const escalateIssueMut = useMutation(api.escalation.escalateIssue);
 
+  // Reopen mutation
+  const reopenIssueMutation = useMutation(api.unitOfficers.reopenIssue);
+
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [assignModalMode, setAssignModalMode] = useState<'assign' | 'reassign'>('assign');
   const [pendingReassignMeta, setPendingReassignMeta] = useState<{
@@ -520,11 +513,20 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
   const [showEscalateModal, setShowEscalateModal] = useState(false);
   const [escalateIsReescalate, setEscalateIsReescalate] = useState(false);
   const [escalateInitialReason, setEscalateInitialReason] = useState('');
-  const [verificationTab, setVerificationTab] = useState<'verify' | 'reject'>('verify');
+  const [activeOpsTab, setActiveOpsTab] = useState<
+    'verify' | 'reject' | 'escalate' | 'assign' | 'review'
+  >('verify');
+  const [showReopenForm, setShowReopenForm] = useState(false);
   const [updateText, setUpdateText] = useState('');
   const [updateScope, setUpdateScope] = useState<UpdateScope>('officer_and_citizen');
   const [updateAttachments, setUpdateAttachments] = useState<FileAttachment[]>([]);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
+  const [isPostingUpdate, setIsPostingUpdate] = useState(false);
+  const [reopenReason, setReopenReason] = useState('');
+  const [reopenCategory, setReopenCategory] = useState<
+    'work_incomplete' | 'quality_issue' | 'recurrence' | 'other'
+  >('work_incomplete');
+  const [isReopening, setIsReopening] = useState(false);
   const pendingPicker = useRef<'camera' | 'gallery' | 'document' | null>(null);
   const [previewAttachment, setPreviewAttachment] = useState<any>(null);
   const [showMessaging, setShowMessaging] = useState(false);
@@ -851,29 +853,33 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
     ]);
   };
 
-  const handleReopen = () => {
-    Alert.alert('Reopen Issue', 'Are you sure you want to reopen this issue?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Reopen',
-        onPress: () => {
-          const newUpdate: IssueUpdate = {
-            id: `upd-${Date.now()}`,
-            issueId: mappedIssue!.id,
-            status: 'reopened',
-            comment: 'Issue reopened for further action.',
-            role: 'citizen',
-            attachments: [],
-            updatedBy: 'citizen-1',
-            scope: 'citizen',
-            createdAt: new Date().toISOString(),
-          };
-          console.log('Issue Update:', newUpdate);
-          console.log('Reopen', { status: 'Reopened' });
-          Alert.alert('Success', 'Issue has been reopened.');
-        },
-      },
-    ]);
+  const handleReopenAction = async () => {
+    if (!reopenReason.trim()) {
+      Alert.alert('Error', 'Please provide a reason for reopening this issue.');
+      return;
+    }
+
+    setIsReopening(true);
+    try {
+      await reopenIssueMutation({
+        issueId: issue?._id as Id<'issues'>,
+        userId: user?.id as Id<'users'>,
+        reason: reopenReason.trim(),
+        category: reopenCategory,
+      });
+
+      setReopenReason('');
+      setReopenCategory('work_incomplete');
+      setShowReopenForm(false);
+      setActiveOpsTab('verify');
+
+      Alert.alert('Success', 'Issue has been successfully reopened.');
+    } catch (error) {
+      console.error(error);
+      Alert.alert('Error', 'Failed to reopen issue.');
+    } finally {
+      setIsReopening(false);
+    }
   };
 
   const handleSLAReassign = (
@@ -1098,6 +1104,7 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
       return;
     }
 
+    setIsPostingUpdate(true);
     try {
       // Upload all attachments first to DB
       const uploadedStorageIds = await Promise.all(
@@ -1122,6 +1129,8 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
       Alert.alert('Success', 'Update posted successfully.');
     } catch (error) {
       Alert.alert('Error', 'Failed to upload attachments.');
+    } finally {
+      setIsPostingUpdate(false);
     }
   };
 
@@ -1200,6 +1209,21 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
       setShowSLAPanel(true);
     }
   }, [isSLAOverdue]);
+
+  useEffect(() => {
+    if (mappedIssue?.status) {
+      const normStatus = mappedIssue.status.toLowerCase();
+      if (normStatus === 'pending' || normStatus === 'reopened') {
+        setActiveOpsTab('verify');
+      } else if (normStatus === 'verified') {
+        setActiveOpsTab('assign');
+      } else if (normStatus === 'pending_uo_verification') {
+        setActiveOpsTab('review');
+      } else {
+        setActiveOpsTab('escalate');
+      }
+    }
+  }, [mappedIssue?.status]);
 
   if (!mappedIssue) {
     return (
@@ -2740,11 +2764,11 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
           <View
             style={{
               shadowColor: statusStyle.hex,
-              shadowOffset: { width: 0, height: 20 },
-              shadowOpacity: isDark ? 0.35 : 0.1,
-              shadowRadius: 30,
-              elevation: 15,
-              marginBottom: 32,
+              shadowOffset: { width: 0, height: 10 },
+              shadowOpacity: isDark ? 0.25 : 0.08,
+              shadowRadius: 15,
+              elevation: 8,
+              marginBottom: 16,
             }}>
             <LinearGradient
               colors={isDark ? statusStyle.gradientDark : statusStyle.gradientLight}
@@ -2753,36 +2777,36 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
               style={{
                 borderColor: statusStyle.border,
                 borderWidth: 1.5,
-                borderRadius: 40,
+                borderRadius: 24,
                 overflow: 'hidden',
                 position: 'relative',
-                paddingBottom: 24,
+                paddingBottom: 12,
               }}>
               {/* Cinematic Watermark Layer */}
-              <View style={{ position: 'absolute', right: -40, bottom: -40, opacity: 0.04 }}>
-                <MessageSquarePlus size={220} color={statusStyle.hex} strokeWidth={1} />
+              <View style={{ position: 'absolute', right: -30, bottom: -30, opacity: 0.04 }}>
+                <MessageSquarePlus size={140} color={statusStyle.hex} strokeWidth={1} />
               </View>
 
-              <View className="py-9 pe-7 ps-7">
+              <View className="px-4 py-5">
                 {/* Header Section */}
-                <View className="mb-8 flex-row items-center gap-4">
+                <View className="mb-4 flex-row items-center gap-3">
                   <LinearGradient
                     colors={[statusStyle.hex, statusStyle.hex]}
                     style={{
-                      height: 50,
-                      width: 50,
-                      borderRadius: 18,
+                      height: 36,
+                      width: 36,
+                      borderRadius: 12,
                       alignItems: 'center',
                       justifyContent: 'center',
                     }}>
-                    <MessageSquarePlus size={24} color="#FFFFFF" strokeWidth={2.5} />
+                    <MessageSquarePlus size={18} color="#FFFFFF" strokeWidth={2.5} />
                   </LinearGradient>
                   <View className="flex-1">
-                    <Text className="text-[20px] font-black tracking-tight text-slate-900 dark:text-white">
+                    <Text className="text-[16px] font-black tracking-tight text-slate-900 dark:text-white">
                       Issue Updates
                     </Text>
                     <Text
-                      className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500"
+                      className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500"
                       style={{ color: statusStyle.hex }}>
                       ISSUE LIFECYCLE TIMELINE
                     </Text>
@@ -2814,38 +2838,38 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
                         upd.role === 'unit_officer'
                           ? {
                               label: 'Unit Officer',
-                              icon: <ShieldCheck size={10} color="#0EA5A4" />,
+                              icon: <ShieldCheck size={9} color="#0EA5A4" />,
                               color: '#0EA5A4',
                             }
                           : upd.role === 'field_officer'
                             ? {
                                 label: 'Field Officer',
-                                icon: <User size={10} color="#F59E0B" />,
+                                icon: <User size={9} color="#F59E0B" />,
                                 color: '#F59E0B',
                               }
                             : {
                                 label: 'Administrator',
-                                icon: <ShieldAlert size={10} color="#EF4444" />,
+                                icon: <ShieldAlert size={9} color="#EF4444" />,
                                 color: '#EF4444',
                               };
 
                       return (
                         <View key={upd._id} className="flex-row">
                           {/* Cinematic Timeline Track */}
-                          <View className="w-12 items-center">
+                          <View className="w-6 items-center">
                             <View
                               style={{
-                                width: 14,
-                                height: 14,
-                                borderRadius: 7,
+                                width: 10,
+                                height: 10,
+                                borderRadius: 5,
                                 backgroundColor: updDotColor,
-                                borderWidth: 3,
+                                borderWidth: 2,
                                 borderColor: isDark ? '#0F172A' : '#FFFFFF',
                                 shadowColor: updDotColor,
                                 shadowOffset: { width: 0, height: 0 },
                                 shadowOpacity: isLatest ? 0.8 : 0.4,
-                                shadowRadius: isLatest ? 8 : 4,
-                                elevation: 5,
+                                shadowRadius: isLatest ? 5 : 2.5,
+                                elevation: 3,
                                 zIndex: 10,
                                 marginTop: 4,
                               }}>
@@ -2853,84 +2877,74 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
                                 <View
                                   style={{
                                     position: 'absolute',
-                                    inset: -4,
-                                    borderRadius: 10,
+                                    inset: -2,
+                                    borderRadius: 7,
                                     backgroundColor: updDotColor,
-                                    opacity: 0.3,
+                                    opacity: 0.25,
                                   }}
                                 />
                               )}
                             </View>
                             {!isLast && (
                               <LinearGradient
-                                colors={[updDotColor, 'rgba(148,163,184,0.1)']}
-                                style={{ flex: 1, width: 2, marginTop: 4, marginBottom: 4 }}
+                                colors={[updDotColor, 'rgba(148,163,184,0.06)']}
+                                style={{ flex: 1, width: 1.5, marginTop: 4, marginBottom: 4 }}
                               />
                             )}
                           </View>
 
                           {/* Intelligence Payload Card */}
                           <View
-                            className="mb-6 flex-1 overflow-hidden rounded-[20px] border-t-2 shadow-sm"
+                            className="mb-2.5 flex-1 overflow-hidden rounded-[10px] border shadow-sm"
                             style={{
-                              borderTopColor: updDotColor,
+                              borderLeftWidth: 4,
+                              borderLeftColor: updDotColor,
                               backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
-                              borderLeftWidth: 1,
-                              borderRightWidth: 1,
-                              borderBottomWidth: 1,
                               borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
                             }}>
-                            <LinearGradient
-                              colors={isDark ? ['#1E293B', '#0F172A'] : ['#FFFFFF', '#F8FAFC']}
-                              style={StyleSheet.absoluteFill}
-                            />
-
                             {/* Payload Header */}
-                            <View className="flex-row items-start justify-between border-b border-slate-100/50 p-4 dark:border-white/5">
+                            <View className="flex-row items-center justify-between border-b border-slate-100/30 bg-slate-50/20 px-2 py-1.5 dark:border-white/5 dark:bg-slate-800/10">
                               <View className="flex-1 pr-2">
-                                <Text className="mb-1 text-[15px] font-black tracking-tight text-slate-800 dark:text-white">
-                                  {STATUS_LABELS[upd.status] || upd.status}
-                                </Text>
-                                <View className="flex-row flex-wrap items-center gap-2">
+                                <View className="flex-row flex-wrap items-center gap-1.5">
+                                  <Text className="text-[12px] font-extrabold text-slate-800 dark:text-white">
+                                    {STATUS_LABELS[upd.status] || upd.status}
+                                  </Text>
                                   <View
-                                    className="flex-row items-center gap-1 rounded-full border px-2 py-0.5"
+                                    className="flex-row items-center gap-1 rounded-full border px-1.5 py-0.5"
                                     style={{
-                                      borderColor: roleMeta.color + '40',
+                                      borderColor: roleMeta.color + '30',
                                       backgroundColor: roleMeta.color + '10',
                                     }}>
                                     {roleMeta.icon}
                                     <Text
-                                      className="text-[9px] font-black uppercase tracking-wider"
+                                      className="text-[7.5px] font-black uppercase tracking-wider"
                                       style={{ color: roleMeta.color }}>
                                       {roleMeta.label}
                                     </Text>
                                   </View>
-                                  <Text className="text-[10px] font-bold text-slate-400 dark:text-slate-500">
-                                    •
-                                  </Text>
-                                  <Text className="text-[11px] font-bold tracking-tight text-slate-500 dark:text-slate-400">
-                                    {upd.updater?.fullName || 'Anonymous'}
-                                  </Text>
                                 </View>
+                                <Text className="mt-0.5 text-[10px] font-medium text-slate-400 dark:text-slate-500">
+                                  by {upd.updater?.fullName || 'Anonymous'}
+                                </Text>
                               </View>
 
-                              <View className="items-end gap-2">
-                                <Text className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                              <View className="items-end gap-0.5">
+                                <Text className="text-[8.5px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
                                   {formatTimestamp(upd.createdAt)}
                                 </Text>
                                 <View
-                                  className="flex-row items-center gap-1 rounded-lg px-2 py-1"
+                                  className="flex-row items-center gap-1 rounded px-1 py-0.5"
                                   style={{
                                     backgroundColor: isDark
                                       ? 'rgba(255,255,255,0.06)'
                                       : 'rgba(0,0,0,0.04)',
                                   }}>
                                   {upd.scope === 'citizen' ? (
-                                    <Eye size={9} color="#64748B" />
+                                    <Eye size={7} color="#64748B" />
                                   ) : (
-                                    <Users size={9} color="#64748B" />
+                                    <Users size={7} color="#64748B" />
                                   )}
-                                  <Text className="text-[8px] font-black uppercase tracking-widest text-slate-500">
+                                  <Text className="text-[7.5px] font-black uppercase tracking-widest text-slate-500">
                                     {upd.scope === 'officer_and_citizen' ? 'PUBLIC' : 'INTERNAL'}
                                   </Text>
                                 </View>
@@ -2939,8 +2953,8 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
 
                             {/* Comment Payload */}
                             {upd.comment && (
-                              <View className="p-4">
-                                <Text className="text-[14px] font-medium leading-[24px] text-slate-600 dark:text-slate-300">
+                              <View className="px-2.5 py-1.5">
+                                <Text className="text-[12px] font-medium leading-[16px] text-slate-600 dark:text-slate-300">
                                   {upd.comment}
                                 </Text>
                               </View>
@@ -2948,22 +2962,22 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
 
                             {/* Attachments Module */}
                             {upd.attachments?.length > 0 && (
-                              <View className="border-t border-slate-100/50 bg-slate-50/50 p-4 dark:border-white/5 dark:bg-black/20">
-                                <View className="mb-3 flex-row items-center gap-1.5">
+                              <View className="border-t border-slate-100/30 bg-slate-50/50 px-2.5 py-1.5 dark:border-white/5 dark:bg-black/20">
+                                <View className="mb-1 flex-row items-center gap-1">
                                   <Paperclip
                                     color={isDark ? '#64748B' : '#94A3B8'}
-                                    size={12}
+                                    size={9}
                                     strokeWidth={2.5}
                                   />
-                                  <Text className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
-                                    SECURED ASSETS ({upd.attachments.length})
+                                  <Text className="text-[8px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                                    ASSETS ({upd.attachments.length})
                                   </Text>
                                 </View>
 
                                 <ScrollView
                                   horizontal
                                   showsHorizontalScrollIndicator={false}
-                                  contentContainerStyle={{ gap: 10 }}>
+                                  contentContainerStyle={{ gap: 6 }}>
                                   {upd.attachments.map((att: any, ai: number) => {
                                     const isImage = att.contentType?.startsWith('image');
                                     const isVideo = att.contentType?.startsWith('video');
@@ -2979,7 +2993,7 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
                                           }>
                                           <Image
                                             source={{ uri: att.url }}
-                                            className="h-14 w-16 rounded-xl border border-slate-200 dark:border-white/10"
+                                            className="h-8 w-10 rounded-md border border-slate-200 dark:border-white/10"
                                             resizeMode="cover"
                                           />
                                         </TouchableOpacity>
@@ -2994,9 +3008,9 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
                                           onPress={() =>
                                             setPreviewAttachment({ ...att, type: 'video' })
                                           }
-                                          className="h-14 w-16 items-center justify-center rounded-xl border border-slate-200 bg-slate-900 dark:border-white/10">
-                                          <View className="h-6 w-6 items-center justify-center rounded-full bg-white/20">
-                                            <Play color="#fff" size={10} fill="#fff" />
+                                          className="h-8 w-10 items-center justify-center rounded-md border border-slate-200 bg-slate-900 dark:border-white/10">
+                                          <View className="h-4 w-4 items-center justify-center rounded-full bg-white/20">
+                                            <Play color="#fff" size={6} fill="#fff" />
                                           </View>
                                         </TouchableOpacity>
                                       );
@@ -3010,8 +3024,8 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
                                           onPress={() =>
                                             setPreviewAttachment({ ...att, type: 'pdf' })
                                           }
-                                          className="h-14 w-16 items-center justify-center rounded-xl border border-red-200 bg-red-50 dark:border-red-900/30 dark:bg-red-900/20">
-                                          <FileText color="#DC2626" size={18} strokeWidth={2} />
+                                          className="h-8 w-10 items-center justify-center rounded-md border border-red-200 bg-red-50 dark:border-red-900/30 dark:bg-red-900/20">
+                                          <FileText color="#DC2626" size={11} strokeWidth={2} />
                                         </TouchableOpacity>
                                       );
                                     }
@@ -3035,11 +3049,11 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
           <View
             style={{
               shadowColor: statusStyle.hex,
-              shadowOffset: { width: 0, height: 20 },
-              shadowOpacity: isDark ? 0.35 : 0.1,
-              shadowRadius: 30,
-              elevation: 15,
-              marginBottom: 32,
+              shadowOffset: { width: 0, height: 6 },
+              shadowOpacity: isDark ? 0.2 : 0.06,
+              shadowRadius: 10,
+              elevation: 6,
+              marginBottom: 16,
             }}>
             <LinearGradient
               colors={isDark ? statusStyle.gradientDark : statusStyle.gradientLight}
@@ -3048,69 +3062,43 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
               style={{
                 borderColor: statusStyle.border,
                 borderWidth: 1.5,
-                borderRadius: 40,
+                borderRadius: 18,
                 overflow: 'hidden',
                 position: 'relative',
               }}>
-              {/* Cinematic Watermark Layer */}
-              <View style={{ position: 'absolute', right: -40, bottom: -40, opacity: 0.04 }}>
-                <Send size={220} color={statusStyle.hex} strokeWidth={1} />
-              </View>
-
-              <View className="py-9 pe-7 ps-7">
+              <View className="px-3.5 py-3">
                 {/* Header Section */}
-                <View className="mb-8 flex-row items-center justify-between">
-                  <View className="flex-1 flex-row items-center gap-4">
-                    <LinearGradient
-                      colors={[statusStyle.hex, statusStyle.hex]}
-                      style={{
-                        height: 50,
-                        width: 50,
-                        borderRadius: 18,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}>
-                      <Send size={24} color="#FFFFFF" strokeWidth={2.5} />
-                    </LinearGradient>
-                    <View className="flex-1">
-                      <Text className="text-[20px] font-black tracking-tight text-slate-900 dark:text-white">
-                        Post Update
-                      </Text>
-                      <View className="flex-row items-center gap-2">
-                        <Text
-                          className="text-[10px] font-black uppercase tracking-[0.2em]"
-                          style={{ color: statusStyle.hex }}>
-                          Seamless Issue Updates
-                        </Text>
-                      </View>
-                    </View>
-                  </View>
+                <View className="mb-2.5 flex-row items-center gap-2">
+                  <Send size={14} color={statusStyle.hex} strokeWidth={2.5} />
+                  <Text className="text-[14px] font-black tracking-tight text-slate-900 dark:text-white">
+                    Post Update
+                  </Text>
                 </View>
 
                 {/* Form Content */}
-                <View className="gap-6">
+                <View className="gap-3">
                   {/* Scope Selector */}
                   <View>
-                    <Text className="mb-3 ml-1 text-[11px] font-black uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500">
+                    <Text className="mb-1 ml-0.5 text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500">
                       Visibility Scope
                     </Text>
-                    <View className="flex-row rounded-full border border-slate-200/50 bg-slate-100/50 p-1 dark:border-white/5 dark:bg-slate-900/40">
+                    <View className="flex-row rounded-full border border-slate-200/50 bg-slate-100/50 p-0.5 dark:border-white/5 dark:bg-slate-900/40">
                       {(
                         [
                           {
                             value: 'citizen' as UpdateScope,
                             label: 'Citizen Only',
-                            icon: <Eye size={12} strokeWidth={2.5} />,
+                            icon: <Eye size={10} strokeWidth={2.5} />,
                           },
                           {
                             value: 'officer_and_citizen' as UpdateScope,
                             label: 'FO & Citizen',
-                            icon: <Users size={12} strokeWidth={2.5} />,
+                            icon: <Users size={10} strokeWidth={2.5} />,
                           },
                           {
                             value: 'admin_only' as UpdateScope,
                             label: 'Admin Only',
-                            icon: <ShieldAlert size={12} strokeWidth={2.5} />,
+                            icon: <ShieldAlert size={10} strokeWidth={2.5} />,
                           },
                         ] as const
                       ).map((opt) => {
@@ -3119,24 +3107,25 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
                           <TouchableOpacity
                             key={opt.value}
                             onPress={() => setUpdateScope(opt.value)}
+                            disabled={isPostingUpdate}
                             activeOpacity={0.85}
-                            style={{ flex: 1, borderRadius: 999, marginHorizontal: 2 }}>
+                            style={{
+                              flex: 1,
+                              borderRadius: 999,
+                              marginHorizontal: 1.5,
+                              opacity: isPostingUpdate ? 0.6 : 1,
+                            }}>
                             {isActive ? (
                               <View
                                 style={{
                                   backgroundColor: statusStyle.hex,
                                   borderRadius: 999,
-                                  paddingVertical: 10,
-                                  paddingHorizontal: 8,
+                                  paddingVertical: 5,
+                                  paddingHorizontal: 4,
                                   alignItems: 'center',
                                   justifyContent: 'center',
                                   flexDirection: 'row',
-                                  gap: 6,
-                                  shadowColor: statusStyle.hex,
-                                  shadowOffset: { width: 0, height: 4 },
-                                  shadowOpacity: 0.3,
-                                  shadowRadius: 8,
-                                  elevation: 5,
+                                  gap: 3,
                                 }}>
                                 {React.cloneElement(
                                   opt.icon as React.ReactElement<{ color: string }>,
@@ -3148,7 +3137,7 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
                                   style={{ color: '#FFFFFF' }}
                                   numberOfLines={1}
                                   adjustsFontSizeToFit
-                                  className="text-[11px] font-black tracking-wide">
+                                  className="text-[9.5px] font-black tracking-wide">
                                   {opt.label}
                                 </Text>
                               </View>
@@ -3156,12 +3145,12 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
                               <View
                                 style={{
                                   borderRadius: 999,
-                                  paddingVertical: 10,
-                                  paddingHorizontal: 8,
+                                  paddingVertical: 5,
+                                  paddingHorizontal: 4,
                                   alignItems: 'center',
                                   justifyContent: 'center',
                                   flexDirection: 'row',
-                                  gap: 6,
+                                  gap: 3,
                                 }}>
                                 {React.cloneElement(
                                   opt.icon as React.ReactElement<{ color: string }>,
@@ -3173,7 +3162,7 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
                                   style={{ color: isDark ? '#64748B' : '#94A3B8' }}
                                   numberOfLines={1}
                                   adjustsFontSizeToFit
-                                  className="text-[11px] font-bold tracking-wide">
+                                  className="text-[9.5px] font-bold tracking-wide">
                                   {opt.label}
                                 </Text>
                               </View>
@@ -3186,7 +3175,7 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
 
                   {/* Comment Canvas */}
                   <View>
-                    <Text className="mb-3 ml-1 text-[11px] font-black uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500">
+                    <Text className="mb-1 ml-0.5 text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500">
                       Message Log
                     </Text>
                     <View
@@ -3202,22 +3191,19 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
                               ? 'rgba(255,255,255,0.05)'
                               : 'rgba(0,0,0,0.05)',
                         borderWidth: 1,
+                        opacity: isPostingUpdate ? 0.6 : 1,
                       }}
-                      className="overflow-hidden rounded-[24px] bg-white/60 dark:bg-slate-900/40">
-                      <View className="flex-row items-center justify-between border-b border-slate-100 bg-slate-50/80 px-5 py-4 dark:border-white/5 dark:bg-slate-800/40">
-                        <View className="flex-row items-center gap-3">
-                          <View
-                            style={{ backgroundColor: statusStyle.bg }}
-                            className="h-8 w-8 items-center justify-center rounded-xl">
-                            <Notebook color={statusStyle.hex} size={15} strokeWidth={2.5} />
-                          </View>
-                          <Text className="text-[14px] font-black tracking-tight text-slate-800 dark:text-slate-100">
+                      className="overflow-hidden rounded-xl bg-white/60 dark:bg-slate-900/40">
+                      <View className="flex-row items-center justify-between border-b border-slate-100 bg-slate-50/80 px-3 py-1.5 dark:border-white/5 dark:bg-slate-800/40">
+                        <View className="flex-row items-center gap-1.5">
+                          <Notebook color={statusStyle.hex} size={11} strokeWidth={2.5} />
+                          <Text className="text-[11px] font-black tracking-tight text-slate-800 dark:text-slate-100">
                             Comments
                           </Text>
                         </View>
 
                         <View
-                          className="rounded-lg px-3 py-1.5"
+                          className="rounded px-1.5 py-0.5"
                           style={{
                             backgroundColor:
                               updateText &&
@@ -3231,7 +3217,7 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
                                   : '#FEF3C7',
                           }}>
                           <Text
-                            className="text-[10px] font-black"
+                            className="text-[8px] font-black"
                             style={{
                               color:
                                 updateText &&
@@ -3257,45 +3243,38 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
                         </View>
                       </View>
 
-                      <View className="max-h-[220px] px-2 py-2">
-                        <ScrollView
-                          showsVerticalScrollIndicator={false}
-                          contentContainerStyle={{ flexGrow: 1 }}
-                          nestedScrollEnabled={true}
-                          keyboardShouldPersistTaps="handled">
-                          <TextInput
-                            className="min-h-[110px] bg-transparent px-4 py-3"
-                            placeholder="Draft your secure update protocol here..."
-                            placeholderTextColor={isDark ? '#475569' : '#94A3B8'}
-                            value={updateText}
-                            onChangeText={setUpdateText}
-                            multiline
-                            scrollEnabled={false}
-                            style={{
-                              fontSize: 15,
-                              lineHeight: 24,
-                              textAlignVertical: 'top',
-                              color: isDark ? '#F8FAFC' : '#0F172A',
-                              fontWeight: '500',
-                            }}
-                          />
-                        </ScrollView>
+                      <View className="max-h-[100px] px-1 py-0.5">
+                        <TextInput
+                          className="min-h-[50px] bg-transparent px-2 py-1 text-[13px]"
+                          placeholder="Draft your secure update protocol here..."
+                          placeholderTextColor={isDark ? '#475569' : '#94A3B8'}
+                          value={updateText}
+                          onChangeText={setUpdateText}
+                          multiline
+                          editable={!isPostingUpdate}
+                          style={{
+                            lineHeight: 18,
+                            textAlignVertical: 'top',
+                            color: isDark ? '#F8FAFC' : '#0F172A',
+                            fontWeight: '500',
+                          }}
+                        />
                       </View>
                     </View>
                   </View>
 
-                  {/* Attachment previews */}
+                  {/* Attachment Previews */}
                   {updateAttachments.length > 0 && (
                     <View>
-                      <Text className="mb-3 ml-1 text-[11px] font-black uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500">
+                      <Text className="mb-1 ml-0.5 text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500">
                         Attachments ({updateAttachments.length})
                       </Text>
-                      <View className="flex-row flex-wrap gap-3">
+                      <View className="flex-row flex-wrap gap-1.5">
                         {updateAttachments.map((att, i) => (
                           <View
                             key={i}
-                            className="relative overflow-hidden rounded-[20px] border border-slate-200/50 bg-slate-100/50 dark:border-white/5 dark:bg-slate-900/40"
-                            style={{ height: 100, width: 100 }}>
+                            className="relative overflow-hidden rounded-lg border border-slate-200/50 bg-slate-100/50 dark:border-white/5 dark:bg-slate-900/40"
+                            style={{ height: 48, width: 48 }}>
                             {att.type === 'image' ? (
                               <Image
                                 source={{ uri: att.uri }}
@@ -3303,19 +3282,19 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
                                 resizeMode="cover"
                               />
                             ) : att.type === 'video' ? (
-                              <View className="flex-1 items-center justify-center bg-slate-800 p-2">
-                                <Video color="#FFFFFF" size={24} strokeWidth={2} />
+                              <View className="flex-1 items-center justify-center bg-slate-800 p-0.5">
+                                <Video color="#FFFFFF" size={14} strokeWidth={2} />
                                 <Text
-                                  className="mt-2 text-center text-[9px] font-bold text-white"
+                                  className="mt-0.5 text-center text-[7px] font-bold text-white"
                                   numberOfLines={1}>
                                   {att.name}
                                 </Text>
                               </View>
                             ) : (
-                              <View className="flex-1 items-center justify-center bg-slate-800 p-2">
-                                <Text className="font-black text-red-500">PDF</Text>
+                              <View className="flex-1 items-center justify-center bg-slate-800 p-0.5">
+                                <Text className="text-[7px] font-black text-red-500">PDF</Text>
                                 <Text
-                                  className="mt-2 text-center text-[9px] font-bold text-white"
+                                  className="mt-0.5 text-center text-[7px] font-bold text-white"
                                   numberOfLines={1}>
                                   {att.name}
                                 </Text>
@@ -3327,16 +3306,18 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
                                   updateAttachments.filter((_, idx) => idx !== i)
                                 )
                               }
+                              disabled={isPostingUpdate}
                               activeOpacity={0.8}
                               style={{
                                 position: 'absolute',
-                                top: 6,
-                                right: 6,
+                                top: 2,
+                                right: 2,
                                 backgroundColor: 'rgba(0,0,0,0.6)',
                                 borderRadius: 100,
-                                padding: 4,
+                                padding: 1.5,
+                                opacity: isPostingUpdate ? 0.5 : 1,
                               }}>
-                              <X color="#fff" size={12} strokeWidth={3} />
+                              <X color="#fff" size={8} strokeWidth={3} />
                             </TouchableOpacity>
                           </View>
                         ))}
@@ -3345,37 +3326,52 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
                   )}
 
                   {/* Action row */}
-                  <View className="mt-2 flex-row gap-3">
+                  <View className="mt-0.5 flex-row gap-2">
                     <TouchableOpacity
                       onPress={handleShowAttachMenu}
+                      disabled={isPostingUpdate}
                       activeOpacity={0.75}
-                      className="flex-row items-center gap-2 rounded-2xl border border-slate-200/50 bg-white/60 px-5 py-4 dark:border-white/5 dark:bg-slate-900/40">
-                      <Paperclip color={statusStyle.hex} size={18} strokeWidth={2.5} />
+                      className="items-center justify-center rounded-lg border border-slate-200/50 bg-white/60 dark:border-white/5 dark:bg-slate-900/40"
+                      style={{ height: 36, width: 36, opacity: isPostingUpdate ? 0.5 : 1 }}>
+                      <Paperclip color={statusStyle.hex} size={15} strokeWidth={2.5} />
                     </TouchableOpacity>
 
                     <TouchableOpacity
                       onPress={handlePostUpdate}
+                      disabled={isPostingUpdate}
                       activeOpacity={0.85}
-                      style={{ flex: 1 }}>
+                      style={{ flex: 1, opacity: isPostingUpdate ? 0.7 : 1 }}>
                       <LinearGradient
                         colors={[statusStyle.hex, statusStyle.hex]}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 0 }}
                         style={{
-                          borderRadius: 16,
+                          borderRadius: 10,
                           flex: 1,
                           alignItems: 'center',
                           justifyContent: 'center',
                           flexDirection: 'row',
-                          gap: 8,
+                          gap: 5,
                           shadowColor: statusStyle.hex,
-                          shadowOffset: { width: 0, height: 8 },
-                          shadowOpacity: 0.3,
-                          shadowRadius: 12,
-                          elevation: 8,
+                          shadowOffset: { width: 0, height: 3 },
+                          shadowOpacity: 0.15,
+                          shadowRadius: 4,
+                          elevation: 3,
+                          paddingVertical: 8.5,
                         }}>
-                        <Send color="#FFFFFF" size={18} strokeWidth={2.5} />
-                        <Text className="text-[15px] font-black text-white">Post Update</Text>
+                        {isPostingUpdate ? (
+                          <>
+                            <ActivityIndicator size="small" color="#FFFFFF" />
+                            <Text className="text-[13px] font-black text-white">
+                              Posting Update...
+                            </Text>
+                          </>
+                        ) : (
+                          <>
+                            <Send color="#FFFFFF" size={14} strokeWidth={2.5} />
+                            <Text className="text-[13px] font-black text-white">Post Update</Text>
+                          </>
+                        )}
                       </LinearGradient>
                     </TouchableOpacity>
                   </View>
@@ -3384,699 +3380,786 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
             </LinearGradient>
           </View>
 
-          {/* SLA OVERDUE ACTION PANEL */}
-          {isSLAOverdue && assignedFO && (
-            <SectionCard>
-              <SLAOverduePanel
-                issue={mappedIssue}
-                fieldOfficers={assignedFO.filter(
-                  (officer: any) => officer?._id !== assignedOfficerData?._id
-                )}
-                onReassign={handleSLAReassign}
-                onReject={handleSLAReject}
-                onExtend={handleSLAExtend}
-                onEscalate={handleSLAEscalate}
-              />
-            </SectionCard>
-          )}
+          {/* OPERATIONS HUB CARD */}
+          {(() => {
+            const status = mappedIssue.status.toLowerCase();
+            const showVerifyTab = status === 'pending' || status === 'reopened';
+            const showRejectTab = status === 'pending' || status === 'reopened';
+            const showAssignTab = status === 'verified';
+            const showReviewTab = status === 'pending_uo_verification';
+            const showEscalateTab = status !== 'resolved'; // Always available as operations category except resolved
 
-          {/* ADMINISTRATIVE ESCALATION CONTROL PANEL */}
-          {!issue.escalatedToAdmin &&
-            issue.status !== 'escalated' &&
-            !completedStatuses.includes(mappedIssue.status.toLowerCase()) && (
+            // Calculate active tabs
+            const tabs: { key: typeof activeOpsTab; label: string; icon: any; color: string }[] =
+              [];
+            if (showVerifyTab) {
+              tabs.push({
+                key: 'verify',
+                label: status === 'reopened' ? 'Re-Verify' : 'Verify',
+                icon: CheckCircle,
+                color: '#10B981',
+              });
+            }
+            if (showRejectTab) {
+              tabs.push({
+                key: 'reject',
+                label: 'Reject',
+                icon: XCircle,
+                color: '#EF4444',
+              });
+            }
+            if (showAssignTab) {
+              tabs.push({
+                key: 'assign',
+                label: 'Assign FO',
+                icon: UserCheck,
+                color: '#0D9488',
+              });
+            }
+            if (showReviewTab) {
+              tabs.push({
+                key: 'review',
+                label: 'Review Work',
+                icon: ShieldCheck,
+                color: '#10B981',
+              });
+            }
+            if (showEscalateTab) {
+              tabs.push({
+                key: 'escalate',
+                label: 'Escalate/SLA',
+                icon: ShieldAlert,
+                color: '#7C3AED',
+              });
+            }
+
+            if (tabs.length === 0) return null;
+
+            // Ensure active tab is valid for the current status. If not, auto-fallback
+            const activeTabExists = tabs.some((t) => t.key === activeOpsTab);
+            const currentTab = activeTabExists ? activeOpsTab : tabs[0].key;
+
+            return (
               <SectionCard>
-                <View className="p-5">
-                  <View className="mb-1 flex-row items-center gap-2">
-                    <ShieldAlert color="#7C3AED" size={18} strokeWidth={2.5} />
-                    <Text className="text-[17px] font-extrabold text-slate-800 dark:text-slate-100">
-                      {issue.escalation ? 'Re-escalate Issue' : 'Administrative Escalation'}
-                    </Text>
-                  </View>
-                  <Text className="mb-5 text-[13px] text-slate-500 dark:text-slate-400">
-                    {issue.escalation
-                      ? 'This issue was previously escalated. You can re-escalate it to Admin if further administrative intervention is required.'
-                      : 'If this issue is facing critical delays, resource shortages, or third-party blocks, escalate it to the Admin.'}
-                  </Text>
-                  <TouchableOpacity
-                    onPress={() => {
-                      setEscalateIsReescalate(!!issue.escalation);
-                      setEscalateInitialReason('');
-                      setShowEscalateModal(true);
-                    }}
-                    activeOpacity={0.85}
-                    style={styles.actionBtn}>
-                    <LinearGradient
-                      colors={['#7C3AED', '#6D28D9']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={styles.actionBtnGradient}>
-                      <ShieldAlert color="#FFFFFF" size={19} strokeWidth={2.5} />
-                      <Text className="text-[15px] font-bold text-white">
-                        {issue.escalation ? 'Re-escalate to Admin' : 'Escalate to Admin'}
-                      </Text>
-                      <ChevronRight color="rgba(255,255,255,0.7)" size={18} strokeWidth={2.5} />
-                    </LinearGradient>
-                  </TouchableOpacity>
-                </View>
-              </SectionCard>
-            )}
-
-          {/* ACTIVE ESCALATION BANNER */}
-          {(issue.escalatedToAdmin || issue.status === 'escalated') && (
-            <SectionCard>
-              <View className="flex-row items-center gap-4 p-5">
-                <View className="h-12 w-12 items-center justify-center rounded-2xl bg-purple-100 dark:bg-purple-900/30">
-                  <ShieldAlert color="#7C3AED" size={22} strokeWidth={2.5} />
-                </View>
-                <View className="flex-1">
-                  <Text className="mb-1 text-[16px] font-extrabold text-slate-800 dark:text-slate-100">
-                    Escalated to Admin
-                  </Text>
-                  <Text className="text-[13px] leading-5 text-slate-500 dark:text-slate-400">
-                    This issue has been escalated to administration. A review is currently pending.
-                  </Text>
-                </View>
-              </View>
-            </SectionCard>
-          )}
-
-          {/* ESCALATION HISTORY & TIMELINE CARD */}
-          {issue.escalation && (
-            <SectionCard>
-              <View className="p-5">
-                <View className="mb-4 flex-row items-center gap-2 border-b border-slate-100 pb-3 dark:border-slate-800">
-                  <ShieldAlert color="#7C3AED" size={18} strokeWidth={2.5} />
-                  <Text className="text-[17px] font-extrabold text-slate-800 dark:text-slate-100">
-                    Escalation Ledger
-                  </Text>
-                </View>
-
-                {/* Current Escalation Details */}
-                <View className="mb-5 rounded-2xl bg-slate-50/50 p-4 border border-slate-100/50 dark:bg-slate-800/20 dark:border-slate-800/50 gap-3">
-                  <View className="flex-row justify-between">
-                    <View className="flex-1 pr-2">
-                      <Text className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                        Category
-                      </Text>
-                      <Text className="text-[13px] font-black text-slate-800 dark:text-slate-200 mt-0.5">
-                        {ESCALATION_CATEGORY_LABELS[issue.escalation.category] || issue.escalation.category}
-                      </Text>
-                    </View>
-                    <View className="items-end">
-                      <Text className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                        Priority
-                      </Text>
-                      <View
-                        style={{
-                          backgroundColor: `${ESCALATION_PRIORITY_COLORS[issue.escalation.priority] || '#7C3AED'}1A`,
-                          borderColor: `${ESCALATION_PRIORITY_COLORS[issue.escalation.priority] || '#7C3AED'}40`,
-                        }}
-                        className="rounded-full px-2.5 py-0.5 border mt-1">
-                        <Text
-                          style={{ color: ESCALATION_PRIORITY_COLORS[issue.escalation.priority] || '#7C3AED' }}
-                          className="text-[10px] font-black uppercase tracking-wider">
-                          {ESCALATION_PRIORITY_LABELS[issue.escalation.priority] || issue.escalation.priority}
-                        </Text>
-                      </View>
-                    </View>
-                  </View>
-
-                  <View className="border-t border-slate-100/50 pt-2.5 dark:border-slate-800/50">
-                    <Text className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                      Reason
-                    </Text>
-                    <Text className="text-[12px] leading-[18px] text-slate-600 dark:text-slate-300 font-semibold mt-1">
-                      "{issue.escalation.reason}"
-                    </Text>
-                  </View>
-
-                  {issue.escalation.comments ? (
-                    <View className="border-t border-slate-100/50 pt-2.5 dark:border-slate-800/50">
-                      <Text className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                        Comments
-                      </Text>
-                      <Text className="text-[12px] leading-[18px] text-slate-600 dark:text-slate-300 font-semibold mt-1">
-                        "{issue.escalation.comments}"
-                      </Text>
-                    </View>
-                  ) : null}
-
-                  {issue.escalation.resolved && issue.escalation.resolutionNote && (
-                    <View className="border-t border-emerald-100/50 pt-2.5 dark:border-emerald-900/30">
-                      <Text className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
-                        Resolution Note
-                      </Text>
-                      <Text className="text-[12px] leading-[18px] text-emerald-700 dark:text-emerald-300 font-semibold mt-1">
-                        "{issue.escalation.resolutionNote}"
-                      </Text>
+                <View className="overflow-hidden rounded-2xl border border-slate-100 bg-white dark:border-slate-800 dark:bg-slate-900">
+                  {/* Operations Card Header / Tab Bar */}
+                  {tabs.length > 1 && (
+                    <View
+                      className="flex-row border-b border-slate-100 bg-slate-50/50 p-2 dark:border-slate-800 dark:bg-slate-900/50"
+                      style={{ gap: tabs.length > 2 ? 5 : 8 }}>
+                      {tabs.map((tab) => {
+                        const isActive = currentTab === tab.key;
+                        const IconComponent = tab.icon;
+                        return (
+                          <TouchableOpacity
+                            key={tab.key}
+                            onPress={() => setActiveOpsTab(tab.key)}
+                            activeOpacity={0.75}
+                            style={{
+                              backgroundColor: isActive ? `${tab.color}15` : 'transparent',
+                              borderColor: isActive ? `${tab.color}30` : 'transparent',
+                              borderWidth: 1,
+                              gap: tabs.length > 2 ? 4 : 6,
+                            }}
+                            className="flex-1 flex-row items-center justify-center rounded-xl px-1 py-3">
+                            <IconComponent
+                              color={isActive ? tab.color : isDark ? '#94A3B8' : '#64748B'}
+                              size={15}
+                              strokeWidth={isActive ? 3 : 2}
+                            />
+                            <Text
+                              numberOfLines={1}
+                              adjustsFontSizeToFit
+                              minimumFontScale={0.8}
+                              style={{
+                                color: isActive ? tab.color : isDark ? '#94A3B8' : '#64748B',
+                                fontWeight: isActive ? '900' : 'bold',
+                                fontSize: tabs.length > 2 ? 11 : 12,
+                              }}
+                              className="tracking-tight">
+                              {tab.label}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
                     </View>
                   )}
-                </View>
 
-                {/* Vertical Timeline */}
-                <Text className="text-[11px] font-black uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500 mb-4 ml-1">
-                  ESCALATION TIMELINE
-                </Text>
-                
-                <View className="pl-1">
-                  {(() => {
-                    const currentActions = escalationDetails?.actions?.filter(
-                      (a: any) => a.performedAt >= (issue.escalation?.escalatedAt || 0)
-                    ) || [];
-
-                    const reviewAction = currentActions.find(
-                      (a: any) => a.type === 'review_escalation'
-                    );
-
-                    const resolutionActions = currentActions.filter(
-                      (a: any) => a.type !== 'escalate' && a.type !== 'review_escalation'
-                    );
-                    const hasResolutionAction = resolutionActions.length > 0;
-                    const resolutionActionTime = resolutionActions[0]?.performedAt || null;
-
-                    const reviewTime =
-                      reviewAction?.performedAt ||
-                      (issue.escalation?.adminReviewStatus === 'resolved' ||
-                      issue.escalation?.adminReviewStatus === 'reviewed'
-                        ? (resolutionActionTime || issue.escalation?.resolvedAt)
-                        : null) ||
-                      null;
-
-                    const steps = [
-                      {
-                        label: 'Escalated',
-                        done: !!issue.escalation?.escalatedAt,
-                        time: issue.escalation?.escalatedAt,
-                      },
-                      {
-                        label: 'Admin Reviewed',
-                        done:
-                          issue.escalation?.adminReviewStatus === 'reviewed' ||
-                          issue.escalation?.adminReviewStatus === 'resolved',
-                        time: reviewTime,
-                      },
-                      {
-                        label: 'Resolution Action',
-                        done: hasResolutionAction || issue.escalation?.resolved,
-                        time: resolutionActionTime,
-                      },
-                      {
-                        label: 'Escalation Closed',
-                        done: !!issue.escalation?.resolved,
-                        time: issue.escalation?.resolvedAt,
-                      },
-                    ];
-
-                    return (
+                  {/* Operational Card Dynamic Content */}
+                  <View className="p-0">
+                    {currentTab === 'verify' && (
                       <View>
-                        {steps.map((step, idx) => {
-                          const isLast = idx === steps.length - 1;
-                          return (
-                            <View key={step.label} className="flex-row items-start mb-5 relative">
-                              {/* Connector Line */}
-                              {!isLast && (
-                                <View
-                                  style={{
-                                    position: 'absolute',
-                                    left: 11,
-                                    top: 24,
-                                    bottom: -24,
-                                    width: 2,
-                                    backgroundColor: steps[idx + 1].done ? '#10B981' : isDark ? '#334155' : '#E2E8F0',
-                                  }}
-                                />
-                              )}
-
-                              {/* Circle node */}
+                        {status === 'reopened' && (
+                          <View className="mx-5 mb-2 mt-5 overflow-hidden rounded-2xl">
+                            <LinearGradient
+                              colors={isDark ? ['#4a1938', '#2d1040'] : ['#fdf2f8', '#fce7f3']}
+                              start={{ x: 0, y: 0 }}
+                              end={{ x: 1, y: 1 }}
+                              style={{
+                                flexDirection: 'row',
+                                alignItems: 'flex-start',
+                                gap: 12,
+                                padding: 14,
+                                borderRadius: 16,
+                                borderWidth: 1,
+                                borderColor: isDark ? '#7c3a60' : '#f9a8d4',
+                              }}>
                               <View
                                 style={{
-                                  width: 24,
-                                  height: 24,
-                                  borderRadius: 12,
-                                  backgroundColor: step.done ? '#10B981' : isDark ? '#1E293B' : '#F1F5F9',
-                                  borderColor: step.done ? '#10B981' : isDark ? '#475569' : '#CBD5E1',
-                                  borderWidth: 2,
+                                  width: 36,
+                                  height: 36,
+                                  borderRadius: 10,
+                                  backgroundColor: isDark ? '#7c1d4a' : '#fce7f3',
                                   alignItems: 'center',
                                   justifyContent: 'center',
-                                  marginRight: 16,
-                                  zIndex: 1,
                                 }}>
-                                {step.done ? (
-                                  <ShieldCheck color="#FFFFFF" size={12} strokeWidth={3} />
-                                ) : (
-                                  <Clock color={isDark ? '#94A3B8' : '#64748B'} size={12} strokeWidth={2.5} />
-                                )}
+                                <RotateCcw color="#EC4899" size={17} strokeWidth={2.5} />
                               </View>
-
-                              {/* Label / Time */}
-                              <View className="flex-1 pt-0.5">
+                              <View style={{ flex: 1 }}>
                                 <Text
-                                  className={`text-[14px] font-black tracking-tight ${
-                                    step.done ? 'text-slate-800 dark:text-slate-100' : 'text-slate-400 dark:text-slate-500'
-                                  }`}>
-                                  {step.label}
+                                  style={{
+                                    fontSize: 12,
+                                    fontWeight: '800',
+                                    color: '#EC4899',
+                                    letterSpacing: 0.8,
+                                    marginBottom: 3,
+                                  }}>
+                                  ISSUE RE-OPENED{' '}
+                                  {mappedIssue.reopenCategory.includes[
+                                    ('work_incomplete', 'quality_issue', 'recurrence', 'other')
+                                  ]
+                                    ? 'BY CITIZEN'
+                                    : ''}
                                 </Text>
-                                {step.time ? (
-                                  <Text className="text-[11px] font-bold text-slate-400 dark:text-slate-500 mt-0.5">
-                                    {formatDateFull(step.time)}
-                                  </Text>
-                                ) : (
-                                  <Text className="text-[11px] font-bold text-slate-300 dark:text-slate-600 mt-0.5">
-                                    Pending action
-                                  </Text>
-                                )}
+                                <Text
+                                  style={{
+                                    fontSize: 13,
+                                    color: isDark ? '#f9a8d4' : '#be185d',
+                                    lineHeight: 18,
+                                    fontWeight: '500',
+                                  }}>
+                                  The citizen has re-opened this issue. Review the original concern
+                                  and re-verify to reassign for resolution.
+                                </Text>
                               </View>
-                            </View>
-                          );
-                        })}
+                            </LinearGradient>
+                          </View>
+                        )}
+                        <VerificationFlow
+                          onVerify={handleVerify}
+                          onReject={() => setActiveOpsTab('reject')}
+                          duplicateFlags={duplicateFlags}
+                          onRequestScrollToDuplicates={handleScrollToDuplicates}
+                        />
+                      </View>
+                    )}
 
-                        {/* Audit Action Log */}
-                        {currentActions.length > 0 ? (
-                          <View className="mt-4 border-t border-slate-100 pt-5 dark:border-slate-800">
-                            <Text className="text-[11px] font-black uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500 mb-3.5">
-                              RESOLUTION ACTIONS TAKEN
+                    {currentTab === 'reject' && (
+                      <View className="bg-red-50/30 p-5 dark:bg-red-950/10">
+                        <View className="mb-2 flex-row items-center gap-2">
+                          <AlertTriangle color="#DC2626" size={18} strokeWidth={2.5} />
+                          <Text className="text-[17px] font-extrabold text-slate-800 dark:text-slate-100">
+                            Reject Issue
+                          </Text>
+                        </View>
+                        <Text className="mb-5 text-[13px] leading-5 text-slate-500 dark:text-slate-400">
+                          {status === 'reopened'
+                            ? `Reject the citizen's re-open request if the concern is invalid or already resolved. The citizen will be notified.`
+                            : `Provide a reason for rejecting this issue. The citizen will be notified.`}
+                        </Text>
+                        <TouchableOpacity
+                          onPress={() => setShowRejectionModal(true)}
+                          activeOpacity={0.85}
+                          className="flex-row items-center justify-center gap-2 rounded-2xl bg-red-500 py-4 dark:bg-red-600">
+                          <XCircle color="#FFFFFF" size={19} strokeWidth={2.5} />
+                          <Text className="text-[15px] font-bold text-white">
+                            Select Rejection Reason
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+
+                    {currentTab === 'assign' && (
+                      <View className="p-5">
+                        <View className="mb-1 flex-row items-center gap-2">
+                          <UserCheck color="#0D9488" size={18} strokeWidth={2.5} />
+                          <Text className="text-[17px] font-extrabold text-slate-800 dark:text-slate-100">
+                            Assign Field Officer
+                          </Text>
+                        </View>
+                        <Text className="mb-5 text-[13px] text-slate-500 dark:text-slate-400">
+                          Issue is verified. Assign a field officer to begin work.
+                        </Text>
+                        <TouchableOpacity
+                          onPress={() => setShowAssignModal(true)}
+                          activeOpacity={0.85}
+                          style={styles.actionBtn}>
+                          <LinearGradient
+                            colors={['#0D9488', '#0891B2']}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 0 }}
+                            style={styles.actionBtnGradient}>
+                            <UserCheck color="#FFFFFF" size={19} strokeWidth={2.5} />
+                            <Text className="text-[15px] font-bold text-white">
+                              Assign to Officer
                             </Text>
-                            {currentActions.map((action: any) => {
-                              let icon = ShieldAlert;
-                              let iconColor = '#7C3AED';
-                              let actionLabel = action.type;
+                            <ChevronRight
+                              color="rgba(255,255,255,0.7)"
+                              size={18}
+                              strokeWidth={2.5}
+                            />
+                          </LinearGradient>
+                        </TouchableOpacity>
+                      </View>
+                    )}
 
-                              if (action.type === 'escalate') {
-                                icon = ShieldAlert;
-                                iconColor = '#7C3AED';
-                                actionLabel = 'Issue Escalated';
-                              } else if (action.type === 'review_escalation') {
-                                icon = Eye;
-                                iconColor = '#3B82F6';
-                                actionLabel = 'Escalation Reviewed';
-                              } else if (action.type === 'extend_sla') {
-                                icon = Clock;
-                                iconColor = '#F59E0B';
-                                actionLabel = 'SLA Target Extended';
-                              } else if (action.type === 'reassign_officer') {
-                                icon = UserCheck;
-                                iconColor = '#0EA5E9';
-                                actionLabel = 'Officer Reassigned';
-                              } else if (action.type === 'approve_escalation') {
-                                icon = ShieldCheck;
-                                iconColor = '#10B981';
-                                actionLabel = 'Escalation Approved';
-                              } else if (action.type === 'reject_escalation') {
-                                icon = XCircle;
-                                iconColor = '#EF4444';
-                                actionLabel = 'Escalation Rejected';
-                              }
+                    {currentTab === 'review' && (
+                      <UOVerificationPanel
+                        issue={mappedIssue}
+                        onApprove={handleUOApprove}
+                        onRework={handleUORework}
+                      />
+                    )}
 
-                              const IconComponent = icon;
+                    {currentTab === 'escalate' && (
+                      <View>
+                        {/* SLA OVERDUE PANEL */}
+                        {isSLAOverdue && assignedFO && (
+                          <View className="border-b border-slate-100 pb-2 dark:border-slate-800">
+                            <SLAOverduePanel
+                              issue={mappedIssue}
+                              fieldOfficers={assignedFO.filter(
+                                (officer: any) => officer?._id !== assignedOfficerData?._id
+                              )}
+                              onReassign={handleSLAReassign}
+                              onReject={handleSLAReject}
+                              onExtend={handleSLAExtend}
+                              onEscalate={handleSLAEscalate}
+                            />
+                          </View>
+                        )}
 
-                              return (
-                                <View
-                                  key={action.id}
-                                  className="flex-row items-start mb-4 rounded-2xl bg-slate-50/50 p-4 border border-slate-100/50 dark:bg-slate-800/20 dark:border-slate-800/50">
+                        {/* ADMINISTRATIVE ESCALATION BUTTON */}
+                        {!issue.escalatedToAdmin &&
+                          issue.status !== 'escalated' &&
+                          !completedStatuses.includes(mappedIssue.status.toLowerCase()) && (
+                            <View className="p-5">
+                              <View className="mb-1 flex-row items-center gap-2">
+                                <ShieldAlert color="#7C3AED" size={18} strokeWidth={2.5} />
+                                <Text className="text-[17px] font-extrabold text-slate-800 dark:text-slate-100">
+                                  {issue.escalation
+                                    ? 'Re-escalate Issue'
+                                    : 'Administrative Escalation'}
+                                </Text>
+                              </View>
+                              <Text className="mb-5 text-[13px] text-slate-500 dark:text-slate-400">
+                                {issue.escalation
+                                  ? 'This issue was previously escalated. You can re-escalate it to Admin if further administrative intervention is required.'
+                                  : 'If this issue is facing critical delays, resource shortages, or third-party blocks, escalate it to the Admin.'}
+                              </Text>
+                              <TouchableOpacity
+                                onPress={() => {
+                                  setEscalateIsReescalate(!!issue.escalation);
+                                  setEscalateInitialReason('');
+                                  setShowEscalateModal(true);
+                                }}
+                                activeOpacity={0.85}
+                                style={styles.actionBtn}>
+                                <LinearGradient
+                                  colors={['#7C3AED', '#6D28D9']}
+                                  start={{ x: 0, y: 0 }}
+                                  end={{ x: 1, y: 0 }}
+                                  style={styles.actionBtnGradient}>
+                                  <ShieldAlert color="#FFFFFF" size={19} strokeWidth={2.5} />
+                                  <Text className="text-[15px] font-bold text-white">
+                                    {issue.escalation
+                                      ? 'Re-escalate to Admin'
+                                      : 'Escalate to Admin'}
+                                  </Text>
+                                  <ChevronRight
+                                    color="rgba(255,255,255,0.7)"
+                                    size={18}
+                                    strokeWidth={2.5}
+                                  />
+                                </LinearGradient>
+                              </TouchableOpacity>
+                            </View>
+                          )}
+
+                        {/* ACTIVE ESCALATION BANNER */}
+                        {(issue.escalatedToAdmin || issue.status === 'escalated') && (
+                          <View className="flex-row items-center gap-4 p-5">
+                            <View className="h-12 w-12 items-center justify-center rounded-2xl bg-purple-100 dark:bg-purple-900/30">
+                              <ShieldAlert color="#7C3AED" size={22} strokeWidth={2.5} />
+                            </View>
+                            <View className="flex-1">
+                              <Text className="mb-1 text-[16px] font-extrabold text-slate-800 dark:text-slate-100">
+                                Escalated to Admin
+                              </Text>
+                              <Text className="text-[13px] leading-5 text-slate-500 dark:text-slate-400">
+                                This issue has been escalated to administration. A review is
+                                currently pending.
+                              </Text>
+                            </View>
+                          </View>
+                        )}
+
+                        {/* ESCALATION HISTORY LEDGER */}
+                        {issue.escalation && (
+                          <View className="border-t border-slate-100 p-5 dark:border-slate-800">
+                            <View className="mb-4 flex-row items-center gap-2 border-b border-slate-100 pb-3 dark:border-slate-800">
+                              <ShieldAlert color="#7C3AED" size={18} strokeWidth={2.5} />
+                              <Text className="text-[17px] font-extrabold text-slate-800 dark:text-slate-100">
+                                Escalation Ledger
+                              </Text>
+                            </View>
+
+                            {/* Current Escalation Details */}
+                            <View className="mb-5 gap-3 rounded-2xl border border-slate-100/50 bg-slate-50/50 p-4 dark:border-slate-800/50 dark:bg-slate-800/20">
+                              <View className="flex-row justify-between">
+                                <View className="flex-1 pr-2">
+                                  <Text className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                                    Category
+                                  </Text>
+                                  <Text className="mt-0.5 text-[13px] font-black text-slate-800 dark:text-slate-200">
+                                    {ESCALATION_CATEGORY_LABELS[issue.escalation.category] ||
+                                      issue.escalation.category}
+                                  </Text>
+                                </View>
+                                <View className="items-end">
+                                  <Text className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                                    Priority
+                                  </Text>
                                   <View
-                                    style={{ backgroundColor: `${iconColor}1A` }}
-                                    className="h-9 w-9 rounded-xl items-center justify-center mr-3.5">
-                                    <IconComponent color={iconColor} size={18} strokeWidth={2.5} />
-                                  </View>
-                                  <View className="flex-1">
-                                    <View className="flex-row items-center justify-between mb-1.5 flex-wrap gap-1">
-                                      <Text className="text-[13px] font-extrabold text-slate-800 dark:text-slate-200" numberOfLines={1}>
-                                        {actionLabel}
-                                      </Text>
-                                      <Text className="text-[10px] font-bold text-slate-400 dark:text-slate-500">
-                                        {formatTimestamp(action.performedAt)}
-                                      </Text>
-                                    </View>
-                                    {action.notes && (
-                                      <Text className="text-[12px] leading-[18px] text-slate-600 dark:text-slate-400 font-medium mb-1">
-                                        "{action.notes}"
-                                      </Text>
-                                    )}
-                                    <Text className="text-[10px] font-bold text-slate-400 dark:text-slate-500">
-                                      Performed by: <Text className="text-slate-500 dark:text-slate-400">{action.performedBy}</Text>
+                                    style={{
+                                      backgroundColor: `${ESCALATION_PRIORITY_COLORS[issue.escalation.priority] || '#7C3AED'}1A`,
+                                      borderColor: `${ESCALATION_PRIORITY_COLORS[issue.escalation.priority] || '#7C3AED'}40`,
+                                    }}
+                                    className="mt-1 rounded-full border px-2.5 py-0.5">
+                                    <Text
+                                      style={{
+                                        color:
+                                          ESCALATION_PRIORITY_COLORS[issue.escalation.priority] ||
+                                          '#7C3AED',
+                                      }}
+                                      className="text-[10px] font-black uppercase tracking-wider">
+                                      {ESCALATION_PRIORITY_LABELS[issue.escalation.priority] ||
+                                        issue.escalation.priority}
                                     </Text>
                                   </View>
                                 </View>
-                              );
-                            })}
+                              </View>
+
+                              <View className="border-t border-slate-100/50 pt-2.5 dark:border-slate-800/50">
+                                <Text className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                                  Reason
+                                </Text>
+                                <Text className="mt-1 text-[12px] font-semibold leading-[18px] text-slate-600 dark:text-slate-300">
+                                  "{issue.escalation.reason}"
+                                </Text>
+                              </View>
+
+                              {issue.escalation.comments ? (
+                                <View className="border-t border-slate-100/50 pt-2.5 dark:border-slate-800/50">
+                                  <Text className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                                    Comments
+                                  </Text>
+                                  <Text className="mt-1 text-[12px] font-semibold leading-[18px] text-slate-600 dark:text-slate-300">
+                                    "{issue.escalation.comments}"
+                                  </Text>
+                                </View>
+                              ) : null}
+
+                              {issue.escalation.resolved && issue.escalation.resolutionNote && (
+                                <View className="border-t border-emerald-100/50 pt-2.5 dark:border-emerald-900/30">
+                                  <Text className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                                    Resolution Note
+                                  </Text>
+                                  <Text className="mt-1 text-[12px] font-semibold leading-[18px] text-emerald-700 dark:text-emerald-300">
+                                    "{issue.escalation.resolutionNote}"
+                                  </Text>
+                                </View>
+                              )}
+                            </View>
+
+                            {/* Timeline ledger */}
+                            <Text className="mb-4 ml-1 text-[11px] font-black uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500">
+                              ESCALATION TIMELINE
+                            </Text>
+
+                            <View className="pl-1">
+                              {(() => {
+                                const currentActions =
+                                  escalationDetails?.actions?.filter(
+                                    (a: any) =>
+                                      a.performedAt >= (issue.escalation?.escalatedAt || 0)
+                                  ) || [];
+
+                                const reviewAction = currentActions.find(
+                                  (a: any) => a.type === 'review_escalation'
+                                );
+
+                                const resolutionActions = currentActions.filter(
+                                  (a: any) =>
+                                    a.type !== 'escalate' && a.type !== 'review_escalation'
+                                );
+                                const hasResolutionAction = resolutionActions.length > 0;
+                                const resolutionActionTime =
+                                  resolutionActions[0]?.performedAt || null;
+
+                                const reviewTime =
+                                  reviewAction?.performedAt ||
+                                  (issue.escalation?.adminReviewStatus === 'resolved' ||
+                                  issue.escalation?.adminReviewStatus === 'reviewed'
+                                    ? resolutionActionTime || issue.escalation?.resolvedAt
+                                    : null) ||
+                                  null;
+
+                                const steps = [
+                                  {
+                                    label: 'Escalated',
+                                    done: !!issue.escalation?.escalatedAt,
+                                    time: issue.escalation?.escalatedAt,
+                                  },
+                                  {
+                                    label: 'Admin Reviewed',
+                                    done:
+                                      issue.escalation?.adminReviewStatus === 'reviewed' ||
+                                      issue.escalation?.adminReviewStatus === 'resolved',
+                                    time: reviewTime,
+                                  },
+                                  {
+                                    label: 'Resolution Action',
+                                    done: hasResolutionAction || issue.escalation?.resolved,
+                                    time: resolutionActionTime,
+                                  },
+                                  {
+                                    label: 'Escalation Closed',
+                                    done: !!issue.escalation?.resolved,
+                                    time: issue.escalation?.resolvedAt,
+                                  },
+                                ];
+
+                                return (
+                                  <View>
+                                    {steps.map((step, idx) => {
+                                      const isLast = idx === steps.length - 1;
+                                      return (
+                                        <View
+                                          key={step.label}
+                                          className="relative mb-5 flex-row items-start">
+                                          {/* Connector Line */}
+                                          {!isLast && (
+                                            <View
+                                              style={{
+                                                position: 'absolute',
+                                                left: 11,
+                                                top: 24,
+                                                bottom: -24,
+                                                width: 2,
+                                                backgroundColor: steps[idx + 1].done
+                                                  ? '#10B981'
+                                                  : isDark
+                                                    ? '#334155'
+                                                    : '#E2E8F0',
+                                              }}
+                                            />
+                                          )}
+
+                                          {/* Circle node */}
+                                          <View
+                                            style={{
+                                              width: 24,
+                                              height: 24,
+                                              borderRadius: 12,
+                                              backgroundColor: step.done
+                                                ? '#10B981'
+                                                : isDark
+                                                  ? '#1E293B'
+                                                  : '#F1F5F9',
+                                              borderColor: step.done
+                                                ? '#10B981'
+                                                : isDark
+                                                  ? '#475569'
+                                                  : '#CBD5E1',
+                                              borderWidth: 2,
+                                              alignItems: 'center',
+                                              justifyContent: 'center',
+                                              marginRight: 16,
+                                              zIndex: 1,
+                                            }}>
+                                            {step.done ? (
+                                              <ShieldCheck
+                                                color="#FFFFFF"
+                                                size={12}
+                                                strokeWidth={3}
+                                              />
+                                            ) : (
+                                              <Clock
+                                                color={isDark ? '#94A3B8' : '#64748B'}
+                                                size={12}
+                                                strokeWidth={2.5}
+                                              />
+                                            )}
+                                          </View>
+
+                                          {/* Label / Time */}
+                                          <View className="flex-1 pt-0.5">
+                                            <Text
+                                              className={`text-[14px] font-black tracking-tight ${
+                                                step.done
+                                                  ? 'text-slate-800 dark:text-slate-100'
+                                                  : 'text-slate-400 dark:text-slate-500'
+                                              }`}>
+                                              {step.label}
+                                            </Text>
+                                            {step.time ? (
+                                              <Text className="mt-0.5 text-[11px] font-bold text-slate-400 dark:text-slate-500">
+                                                {formatDateFull(step.time)}
+                                              </Text>
+                                            ) : (
+                                              <Text className="mt-0.5 text-[11px] font-bold text-slate-300 dark:text-slate-600">
+                                                Pending action
+                                              </Text>
+                                            )}
+                                          </View>
+                                        </View>
+                                      );
+                                    })}
+
+                                    {/* Audit Action Log */}
+                                    {currentActions.length > 0 ? (
+                                      <View className="mt-4 border-t border-slate-100 pt-5 dark:border-slate-800">
+                                        <Text className="mb-3.5 text-[11px] font-black uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500">
+                                          RESOLUTION ACTIONS TAKEN
+                                        </Text>
+                                        {currentActions.map((action: any) => {
+                                          let icon = ShieldAlert;
+                                          let iconColor = '#7C3AED';
+                                          let actionLabel = action.type;
+
+                                          if (action.type === 'escalate') {
+                                            icon = ShieldAlert;
+                                            iconColor = '#7C3AED';
+                                            actionLabel = 'Issue Escalated';
+                                          } else if (action.type === 'review_escalation') {
+                                            icon = Eye;
+                                            iconColor = '#3B82F6';
+                                            actionLabel = 'Escalation Reviewed';
+                                          } else if (action.type === 'extend_sla') {
+                                            icon = Clock;
+                                            iconColor = '#F59E0B';
+                                            actionLabel = 'SLA Target Extended';
+                                          } else if (action.type === 'reassign_officer') {
+                                            icon = UserCheck;
+                                            iconColor = '#0EA5E9';
+                                            actionLabel = 'Officer Reassigned';
+                                          } else if (action.type === 'approve_escalation') {
+                                            icon = ShieldCheck;
+                                            iconColor = '#10B981';
+                                            actionLabel = 'Escalation Approved';
+                                          } else if (action.type === 'reject_escalation') {
+                                            icon = XCircle;
+                                            iconColor = '#EF4444';
+                                            actionLabel = 'Escalation Rejected';
+                                          }
+
+                                          const IconComponent = icon;
+
+                                          return (
+                                            <View
+                                              key={action.id}
+                                              className="mb-4 flex-row items-start rounded-2xl border border-slate-100/50 bg-slate-50/50 p-4 dark:border-slate-800/50 dark:bg-slate-800/20">
+                                              <View
+                                                style={{ backgroundColor: `${iconColor}1A` }}
+                                                className="mr-3.5 h-9 w-9 items-center justify-center rounded-xl">
+                                                <IconComponent
+                                                  color={iconColor}
+                                                  size={18}
+                                                  strokeWidth={2.5}
+                                                />
+                                              </View>
+                                              <View className="flex-1">
+                                                <View className="mb-1.5 flex-row flex-wrap items-center justify-between gap-1">
+                                                  <Text
+                                                    className="text-[13px] font-extrabold text-slate-800 dark:text-slate-200"
+                                                    numberOfLines={1}>
+                                                    {actionLabel}
+                                                  </Text>
+                                                  <Text className="text-[10px] font-bold text-slate-400 dark:text-slate-500">
+                                                    {formatTimestamp(action.performedAt)}
+                                                  </Text>
+                                                </View>
+                                                {action.notes && (
+                                                  <Text className="mb-1 text-[12px] font-medium leading-[18px] text-slate-600 dark:text-slate-400">
+                                                    "{action.notes}"
+                                                  </Text>
+                                                )}
+                                                <Text className="text-[10px] font-bold text-slate-400 dark:text-slate-500">
+                                                  Performed by:{' '}
+                                                  <Text className="text-slate-500 dark:text-slate-400">
+                                                    {action.performedBy}
+                                                  </Text>
+                                                </Text>
+                                              </View>
+                                            </View>
+                                          );
+                                        })}
+                                      </View>
+                                    ) : null}
+                                  </View>
+                                );
+                              })()}
+                            </View>
                           </View>
-                        ) : null}
+                        )}
                       </View>
-                    );
-                  })()}
-                </View>
-              </View>
-            </SectionCard>
-          )}
-
-          {/* Issue Verification & Rejection (Pending) */}
-          {mappedIssue.status === 'pending' && (
-            <SectionCard>
-              <View className="flex-row border-b border-slate-100 dark:border-slate-700">
-                <TouchableOpacity
-                  onPress={() => setVerificationTab('verify')}
-                  activeOpacity={0.75}
-                  className={`flex-1 flex-row items-center justify-center gap-2 border-b-[3px] py-4 ${
-                    verificationTab === 'verify' ? 'border-emerald-500' : 'border-transparent'
-                  }`}>
-                  <CheckCircle
-                    color={
-                      verificationTab === 'verify' ? '#10B981' : isDark ? '#475569' : '#9CA3AF'
-                    }
-                    size={18}
-                    strokeWidth={2.5}
-                  />
-                  <Text
-                    className={`text-[14px] font-bold ${
-                      verificationTab === 'verify'
-                        ? 'text-emerald-600 dark:text-emerald-400'
-                        : 'text-slate-400 dark:text-slate-500'
-                    }`}>
-                    Verify
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => setVerificationTab('reject')}
-                  activeOpacity={0.75}
-                  className={`flex-1 flex-row items-center justify-center gap-2 border-b-[3px] py-4 ${
-                    verificationTab === 'reject' ? 'border-red-500' : 'border-transparent'
-                  }`}>
-                  <XCircle
-                    color={
-                      verificationTab === 'reject' ? '#EF4444' : isDark ? '#475569' : '#9CA3AF'
-                    }
-                    size={18}
-                    strokeWidth={2.5}
-                  />
-                  <Text
-                    className={`text-[14px] font-bold ${
-                      verificationTab === 'reject'
-                        ? 'text-red-500 dark:text-red-400'
-                        : 'text-slate-400 dark:text-slate-500'
-                    }`}>
-                    Reject
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              {verificationTab === 'verify' ? (
-                <VerificationFlow
-                  onVerify={handleVerify}
-                  onReject={() => setVerificationTab('reject')}
-                  duplicateFlags={duplicateFlags}
-                  onRequestScrollToDuplicates={handleScrollToDuplicates}
-                />
-              ) : (
-                <View className="bg-red-50 p-5 dark:bg-red-900/10">
-                  <View className="mb-2 flex-row items-center gap-2">
-                    <AlertTriangle color="#DC2626" size={18} strokeWidth={2.5} />
-                    <Text className="text-[17px] font-extrabold text-slate-800 dark:text-slate-100">
-                      Reject Issue
-                    </Text>
+                    )}
                   </View>
-                  <Text className="mb-5 text-[13px] leading-5 text-slate-500 dark:text-slate-400">
-                    Provide a reason for rejecting this issue. The citizen will be notified.
-                  </Text>
-                  <TouchableOpacity
-                    onPress={() => setShowRejectionModal(true)}
-                    activeOpacity={0.85}
-                    className="flex-row items-center justify-center gap-2 rounded-2xl bg-red-500 py-4 dark:bg-red-600">
-                    <XCircle color="#FFFFFF" size={19} strokeWidth={2.5} />
-                    <Text className="text-[15px] font-bold text-white">
-                      Select Rejection Reason
-                    </Text>
-                  </TouchableOpacity>
                 </View>
-              )}
-            </SectionCard>
-          )}
-
-          {/* Issue Re-Verification & Re-Rejection (Reopened) */}
-          {mappedIssue.status === 'reopened' && (
-            <SectionCard>
-              {/* Reopened context banner */}
-              <View className="mx-5 mb-4 mt-5 overflow-hidden rounded-2xl">
-                <LinearGradient
-                  colors={isDark ? ['#4a1938', '#2d1040'] : ['#fdf2f8', '#fce7f3']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'flex-start',
-                    gap: 12,
-                    padding: 14,
-                    borderRadius: 16,
-                    borderWidth: 1,
-                    borderColor: isDark ? '#7c3a60' : '#f9a8d4',
-                  }}>
-                  <View
-                    style={{
-                      width: 36,
-                      height: 36,
-                      borderRadius: 10,
-                      backgroundColor: isDark ? '#7c1d4a' : '#fce7f3',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}>
-                    <RotateCcw color="#EC4899" size={17} strokeWidth={2.5} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text
-                      style={{
-                        fontSize: 12,
-                        fontWeight: '800',
-                        color: '#EC4899',
-                        letterSpacing: 0.8,
-                        marginBottom: 3,
-                      }}>
-                      ISSUE RE-OPENED BY CITIZEN
-                    </Text>
-                    <Text
-                      style={{
-                        fontSize: 13,
-                        color: isDark ? '#f9a8d4' : '#be185d',
-                        lineHeight: 18,
-                        fontWeight: '500',
-                      }}>
-                      The citizen has re-opened this issue. Review the original concern and
-                      re-verify to reassign for resolution.
-                    </Text>
-                  </View>
-                </LinearGradient>
-              </View>
-
-              {/* Re-verification tabs — same UI as Pending */}
-              <View className="flex-row border-b border-slate-100 dark:border-slate-700">
-                <TouchableOpacity
-                  onPress={() => setVerificationTab('verify')}
-                  activeOpacity={0.75}
-                  className={`flex-1 flex-row items-center justify-center gap-2 border-b-[3px] py-4 ${
-                    verificationTab === 'verify' ? 'border-emerald-500' : 'border-transparent'
-                  }`}>
-                  <CheckCircle
-                    color={
-                      verificationTab === 'verify' ? '#10B981' : isDark ? '#475569' : '#9CA3AF'
-                    }
-                    size={18}
-                    strokeWidth={2.5}
-                  />
-                  <Text
-                    className={`text-[14px] font-bold ${
-                      verificationTab === 'verify'
-                        ? 'text-emerald-600 dark:text-emerald-400'
-                        : 'text-slate-400 dark:text-slate-500'
-                    }`}>
-                    Re-Verify
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => setVerificationTab('reject')}
-                  activeOpacity={0.75}
-                  className={`flex-1 flex-row items-center justify-center gap-2 border-b-[3px] py-4 ${
-                    verificationTab === 'reject' ? 'border-red-500' : 'border-transparent'
-                  }`}>
-                  <XCircle
-                    color={
-                      verificationTab === 'reject' ? '#EF4444' : isDark ? '#475569' : '#9CA3AF'
-                    }
-                    size={18}
-                    strokeWidth={2.5}
-                  />
-                  <Text
-                    className={`text-[14px] font-bold ${
-                      verificationTab === 'reject'
-                        ? 'text-red-500 dark:text-red-400'
-                        : 'text-slate-400 dark:text-slate-500'
-                    }`}>
-                    Reject
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              {verificationTab === 'verify' ? (
-                <VerificationFlow
-                  onVerify={handleVerify}
-                  onReject={() => setVerificationTab('reject')}
-                  duplicateFlags={duplicateFlags}
-                  onRequestScrollToDuplicates={handleScrollToDuplicates}
-                />
-              ) : (
-                <View className="bg-red-50 p-5 dark:bg-red-900/10">
-                  <View className="mb-2 flex-row items-center gap-2">
-                    <AlertTriangle color="#DC2626" size={18} strokeWidth={2.5} />
-                    <Text className="text-[17px] font-extrabold text-slate-800 dark:text-slate-100">
-                      Reject Re-opened Issue
-                    </Text>
-                  </View>
-                  <Text className="mb-5 text-[13px] leading-5 text-slate-500 dark:text-slate-400">
-                    Reject the {"citizen's"} re-open request if the concern is invalid or already
-                    resolved. The citizen will be notified.
-                  </Text>
-                  <TouchableOpacity
-                    onPress={() => setShowRejectionModal(true)}
-                    activeOpacity={0.85}
-                    className="flex-row items-center justify-center gap-2 rounded-2xl bg-red-500 py-4 dark:bg-red-600">
-                    <XCircle color="#FFFFFF" size={19} strokeWidth={2.5} />
-                    <Text className="text-[15px] font-bold text-white">
-                      Select Rejection Reason
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-            </SectionCard>
-          )}
-
-          {/* ASSIGN OFFICER (Verified) */}
-          {mappedIssue.status === 'verified' && (
-            <SectionCard>
-              <View className="p-5">
-                <View className="mb-1 flex-row items-center gap-2">
-                  <UserCheck color="#0D9488" size={18} strokeWidth={2.5} />
-                  <Text className="text-[17px] font-extrabold text-slate-800 dark:text-slate-100">
-                    Assign Field Officer
-                  </Text>
-                </View>
-                <Text className="mb-5 text-[13px] text-slate-500 dark:text-slate-400">
-                  Issue is verified. Assign a field officer to begin work.
-                </Text>
-                <TouchableOpacity
-                  onPress={() => setShowAssignModal(true)}
-                  activeOpacity={0.85}
-                  style={styles.actionBtn}>
-                  <LinearGradient
-                    colors={['#0D9488', '#0891B2']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.actionBtnGradient}>
-                    <UserCheck color="#FFFFFF" size={19} strokeWidth={2.5} />
-                    <Text className="text-[15px] font-bold text-white">Assign to Officer</Text>
-                    <ChevronRight color="rgba(255,255,255,0.7)" size={18} strokeWidth={2.5} />
-                  </LinearGradient>
-                </TouchableOpacity>
-              </View>
-            </SectionCard>
-            // <>
-            //   <Text>Assigned Officer </Text>
-            // </>
-          )}
-
-          {/* IN PROGRESS */}
-          {mappedIssue.status === 'in_progress' && (
-            <SectionCard>
-              <View className="flex-row items-center gap-4 p-5">
-                <View className="h-12 w-12 items-center justify-center rounded-2xl bg-sky-100 dark:bg-sky-900/30">
-                  <Clock color="#0EA5E9" size={22} strokeWidth={2.5} />
-                </View>
-                <View className="flex-1">
-                  <Text className="mb-1 text-[16px] font-extrabold text-slate-800 dark:text-slate-100">
-                    Work in Progress
-                  </Text>
-                  <Text className="text-[13px] leading-5 text-slate-500 dark:text-slate-400">
-                    Field officer is currently working on this issue
-                  </Text>
-                </View>
-              </View>
-            </SectionCard>
-          )}
-
-          {/* RESOLUTION */}
-          {mappedIssue.status === 'assigned' && mappedIssue.afterPhotos && (
-            // <SectionCard>
-            //   <View className="p-5">
-            //     <Text className="mb-1 text-[17px] font-extrabold text-slate-800 dark:text-slate-100">
-            //       Resolution Confirmation
-            //     </Text>
-            //     <Text className="mb-4 text-[13px] text-slate-500 dark:text-slate-400">
-            //       Review work completion and confirm resolution.
-            //     </Text>
-            //     <TouchableOpacity
-            //       onPress={handleMarkResolved}
-            //       activeOpacity={0.85}
-            //       style={styles.actionBtn}>
-            //       <LinearGradient
-            //         colors={['#10B981', '#059669']}
-            //         start={{ x: 0, y: 0 }}
-            //         end={{ x: 1, y: 0 }}
-            //         style={styles.actionBtnGradient}>
-            //         <CheckCircle color="#FFFFFF" size={19} strokeWidth={2.5} />
-            //         <Text className="text-[15px] font-bold text-white">Mark as Resolved</Text>
-            //       </LinearGradient>
-            //     </TouchableOpacity>
-            //     <TouchableOpacity
-            //       onPress={handleReopen}
-            //       activeOpacity={0.85}
-            //       className="mt-3 flex-row items-center justify-center gap-2 rounded-2xl border-2 border-amber-400 bg-amber-50 py-3.5 dark:border-amber-500 dark:bg-amber-900/20">
-            //       <RotateCcw color="#D97706" size={17} strokeWidth={2.5} />
-            //       <Text className="text-[14px] font-bold text-amber-600 dark:text-amber-400">
-            //         Reopen Issue
-            //       </Text>
-            //     </TouchableOpacity>
-            //   </View>
-            // </SectionCard>
-            <></>
-          )}
-
-          {/* PENDING UO VERIFICATION */}
-          {mappedIssue.status === 'pending_uo_verification' && (
-            <SectionCard>
-              <UOVerificationPanel
-                issue={mappedIssue}
-                onApprove={handleUOApprove}
-                onRework={handleUORework}
-              />
-            </SectionCard>
-          )}
+              </SectionCard>
+            );
+          })()}
 
           {/* RESOLVED */}
           {/* @ts-ignore */}
-          {mappedIssue.status === 'Resolved' && (
-            // <SectionCard>
-            //   <View className="p-5">
-            //     <View className="mb-4 flex-row items-center gap-3">
-            //       <View className="h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 dark:bg-emerald-900/30">
-            //         <CheckCircle color="#10B981" size={22} strokeWidth={2.5} />
-            //       </View>
-            //       <View className="flex-1">
-            //         <Text className="mb-0.5 text-[16px] font-extrabold text-emerald-700 dark:text-emerald-400">
-            //           Issue Resolved
-            //         </Text>
-            //         <Text className="text-[13px] text-slate-500 dark:text-slate-400">
-            //           This issue has been successfully resolved
-            //         </Text>
-            //       </View>
-            //     </View>
-            //     <TouchableOpacity
-            //       onPress={handleReopen}
-            //       activeOpacity={0.85}
-            //       className="flex-row items-center justify-center gap-2 rounded-2xl border-2 border-amber-400 bg-amber-50 py-3.5 dark:border-amber-500 dark:bg-amber-900/20">
-            //       <RotateCcw color="#D97706" size={17} strokeWidth={2.5} />
-            //       <Text className="text-[14px] font-bold text-amber-600 dark:text-amber-400">
-            //         Reopen if Needed
-            //       </Text>
-            //     </TouchableOpacity>
-            //   </View>
-            // </SectionCard>
-            <></>
+          {mappedIssue.status === 'resolved' && (
+            <SectionCard>
+              <View className="p-5">
+                <View className="mb-4 flex-row items-center gap-3">
+                  <View className="h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 dark:bg-emerald-900/30">
+                    <CheckCircle color="#10B981" size={22} strokeWidth={2.5} />
+                  </View>
+                  <View className="flex-1">
+                    <Text className="mb-0.5 text-[16px] font-extrabold text-emerald-700 dark:text-emerald-400">
+                      Issue Resolved
+                    </Text>
+                    <Text className="text-[13px] text-slate-500 dark:text-slate-400">
+                      This issue has been successfully resolved
+                    </Text>
+                  </View>
+                </View>
+                {!showReopenForm ? (
+                  <TouchableOpacity
+                    onPress={() => setShowReopenForm(true)}
+                    activeOpacity={0.85}
+                    className="flex-row items-center justify-center gap-2 rounded-2xl border-2 border-amber-400 bg-amber-50 py-3.5 dark:border-amber-500 dark:bg-amber-900/20">
+                    <RotateCcw color="#D97706" size={17} strokeWidth={2.5} />
+                    <Text className="text-[14px] font-bold text-amber-600 dark:text-amber-400">
+                      Reopen if Needed
+                    </Text>
+                  </TouchableOpacity>
+                ) : (
+                  <View className="mt-4 border-t border-slate-100 pt-4 dark:border-slate-800">
+                    <Text className="mb-3 text-[14px] font-extrabold text-slate-800 dark:text-slate-200">
+                      Reopen Details
+                    </Text>
+
+                    {/* Reopen Category Selector */}
+                    <View className="mb-4">
+                      <Text className="mb-2 text-[12px] font-bold text-slate-600 dark:text-slate-400">
+                        Category
+                      </Text>
+                      <View className="flex-row flex-wrap gap-2">
+                        {(
+                          [
+                            { value: 'work_incomplete', label: 'Work Incomplete' },
+                            { value: 'quality_issue', label: 'Quality Issue' },
+                            { value: 'recurrence', label: 'Recurrence' },
+                            { value: 'other', label: 'Other' },
+                          ] as const
+                        ).map((cat) => {
+                          const isSelected = reopenCategory === cat.value;
+                          return (
+                            <TouchableOpacity
+                              key={cat.value}
+                              onPress={() => setReopenCategory(cat.value)}
+                              activeOpacity={0.8}
+                              style={{
+                                backgroundColor: isSelected
+                                  ? '#D97706'
+                                  : isDark
+                                    ? '#1E293B'
+                                    : '#F1F5F9',
+                                paddingHorizontal: 12,
+                                paddingVertical: 8,
+                                borderRadius: 10,
+                              }}>
+                              <Text
+                                style={{
+                                  color: isSelected ? '#FFFFFF' : isDark ? '#94A3B8' : '#475569',
+                                  fontSize: 12,
+                                  fontWeight: '700',
+                                }}>
+                                {cat.label}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    </View>
+
+                    {/* Reopen Reason Input */}
+                    <View className="mb-4">
+                      <Text className="mb-2 text-[12px] font-bold text-slate-600 dark:text-slate-400">
+                        Reopen Reason
+                      </Text>
+                      <TextInput
+                        style={{
+                          borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)',
+                          borderWidth: 1,
+                          borderRadius: 12,
+                          padding: 12,
+                          minHeight: 80,
+                          textAlignVertical: 'top',
+                          color: isDark ? '#F8FAFC' : '#0F172A',
+                          backgroundColor: isDark ? '#0F172A' : '#FFFFFF',
+                        }}
+                        placeholder="Explain why this issue is being reopened..."
+                        placeholderTextColor={isDark ? '#475569' : '#94A3B8'}
+                        value={reopenReason}
+                        onChangeText={setReopenReason}
+                        multiline
+                      />
+                    </View>
+
+                    <View className="flex-row gap-3">
+                      <TouchableOpacity
+                        onPress={() => {
+                          setShowReopenForm(false);
+                          setReopenReason('');
+                          setReopenCategory('work_incomplete');
+                        }}
+                        disabled={isReopening}
+                        activeOpacity={0.8}
+                        className="flex-1 items-center justify-center rounded-2xl border border-slate-200 py-3.5 dark:border-slate-800">
+                        <Text className="text-[14px] font-bold text-slate-600 dark:text-slate-400">
+                          Cancel
+                        </Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        onPress={handleReopenAction}
+                        disabled={isReopening || !reopenReason.trim()}
+                        activeOpacity={0.85}
+                        style={{
+                          opacity: isReopening || !reopenReason.trim() ? 0.6 : 1,
+                        }}
+                        className="flex-[2] flex-row items-center justify-center gap-2 rounded-2xl bg-amber-500 py-3.5 dark:bg-amber-600">
+                        {isReopening ? (
+                          <ActivityIndicator size="small" color="#FFFFFF" />
+                        ) : (
+                          <RotateCcw color="#FFFFFF" size={17} strokeWidth={2.5} />
+                        )}
+                        <Text className="text-[14px] font-bold text-white">
+                          {isReopening ? 'Reopening...' : 'Confirm Reopen'}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                )}
+              </View>
+            </SectionCard>
           )}
         </ScrollView>
 

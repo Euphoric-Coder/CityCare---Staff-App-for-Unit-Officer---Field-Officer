@@ -1,7 +1,10 @@
 import { awardCitizenPoints, checkAndAwardCitizenBadges } from 'lib/gamificationAwards';
 import { Id } from './_generated/dataModel';
-import { internalMutation, mutation, query } from './_generated/server';
+import { action, internalMutation, mutation, query } from './_generated/server';
 import { v } from 'convex/values';
+import { internal } from './_generated/api';
+import { Redis } from '@upstash/redis';
+import { Ratelimit } from '@upstash/ratelimit';
 
 const CATEGORY_PREFIX = {
   road: 'RD',
@@ -14,6 +17,46 @@ const CATEGORY_PREFIX = {
   other: 'OT',
 };
 
+const ISSUE_REPORT_WINDOW_LIMIT = Number(process.env.ISSUE_REPORT_WINDOW_LIMIT ?? 3);
+
+const ISSUE_REPORT_WINDOW = process.env.ISSUE_REPORT_WINDOW ?? '8 h';
+
+const ISSUE_REPORT_COOLDOWN_LIMIT = Number(process.env.ISSUE_REPORT_COOLDOWN_LIMIT ?? 1);
+
+const ISSUE_REPORT_COOLDOWN_WINDOW = process.env.ISSUE_REPORT_COOLDOWN_WINDOW ?? '30 m';
+
+function validateIssueRateLimitConfig() {
+  if (!Number.isFinite(ISSUE_REPORT_WINDOW_LIMIT) || ISSUE_REPORT_WINDOW_LIMIT <= 0) {
+    throw new Error('Invalid ISSUE_REPORT_WINDOW_LIMIT configuration.');
+  }
+
+  if (!Number.isFinite(ISSUE_REPORT_COOLDOWN_LIMIT) || ISSUE_REPORT_COOLDOWN_LIMIT <= 0) {
+    throw new Error('Invalid ISSUE_REPORT_COOLDOWN_LIMIT configuration.');
+  }
+}
+
+function getIssueReportWindowLimiter() {
+  validateIssueRateLimitConfig();
+
+  return new Ratelimit({
+    redis: Redis.fromEnv(),
+    limiter: Ratelimit.slidingWindow(ISSUE_REPORT_WINDOW_LIMIT, ISSUE_REPORT_WINDOW),
+    analytics: false,
+    prefix: 'citycare:issue_reports:window',
+  });
+}
+
+function getIssueReportCooldownLimiter() {
+  validateIssueRateLimitConfig();
+
+  return new Ratelimit({
+    redis: Redis.fromEnv(),
+    limiter: Ratelimit.slidingWindow(ISSUE_REPORT_COOLDOWN_LIMIT, ISSUE_REPORT_COOLDOWN_WINDOW),
+    analytics: false,
+    prefix: 'citycare:issue_reports:cooldown',
+  });
+}
+
 function generateRandomCode(length = 6) {
   return Math.random()
     .toString(36)
@@ -21,7 +64,7 @@ function generateRandomCode(length = 6) {
     .toUpperCase();
 }
 
-export const createIssue = mutation({
+export const internalCreateIssue = internalMutation({
   args: {
     // --- Issue Details ---
     title: v.string(),
@@ -139,42 +182,42 @@ export const createIssue = mutation({
       createdAt: Date.now(),
     });
 
-      const citizen = await ctx.db
-      .query("citizens")
-      .withIndex("by_user", (q) => q.eq("userId", args.reportedBy))
+    const citizen = await ctx.db
+      .query('citizens')
+      .withIndex('by_user', (q) => q.eq('userId', args.reportedBy))
       .first();
 
-      if (citizen) {
+    if (citizen) {
+      await awardCitizenPoints(ctx, {
+        citizenId: citizen._id,
+        userId: citizen.userId,
+        type: 'issue_submitted',
+        relatedIssueId: issueId,
+        reason: 'Citizen submitted a civic issue',
+        metadata: {
+          source: 'issue_creation',
+        },
+      });
+
+      if (args.videos) {
         await awardCitizenPoints(ctx, {
           citizenId: citizen._id,
           userId: citizen.userId,
-          type: "issue_submitted",
+          type: 'video_evidence_added',
           relatedIssueId: issueId,
-          reason: "Citizen submitted a civic issue",
+          reason: 'Citizen added video evidence to strengthen the issue report',
           metadata: {
-            source: "issue_creation",
+            source: 'issue_creation',
           },
         });
-
-        if (args.videos) {
-          await awardCitizenPoints(ctx, {
-            citizenId: citizen._id,
-            userId: citizen.userId,
-            type: "video_evidence_added",
-            relatedIssueId: issueId,
-            reason: "Citizen added video evidence to strengthen the issue report",
-            metadata: {
-              source: "issue_creation",
-            },
-          });
-        }
-
-        await checkAndAwardCitizenBadges(ctx, {
-          citizenId: citizen._id,
-          userId: citizen.userId,
-          relatedIssueId: issueId,
-        });
       }
+
+      await checkAndAwardCitizenBadges(ctx, {
+        citizenId: citizen._id,
+        userId: citizen.userId,
+        relatedIssueId: issueId,
+      });
+    }
 
     return {
       success: true,
@@ -659,5 +702,121 @@ export const getIssuesByOfficial = query({
     const uniqueIssues = Array.from(new Map(merged.map((issue) => [issue._id, issue])).values());
 
     return uniqueIssues.sort((a, b) => b.createdAt - a.createdAt);
+  },
+});
+
+export const createIssue = action({
+  args: {
+    title: v.string(),
+    description: v.string(),
+    category: v.string(),
+    subcategory: v.array(v.string()),
+    otherCategoryName: v.optional(v.string()),
+    priority: v.string(),
+    tags: v.array(v.string()),
+    latitude: v.string(),
+    longitude: v.string(),
+    address: v.string(),
+    city: v.string(),
+    state: v.string(),
+    postal: v.string(),
+    googleMapUrl: v.string(),
+    reportedBy: v.id('users'),
+    isAnonymous: v.boolean(),
+    additionalEmail: v.optional(v.union(v.string(), v.null())),
+    photos: v.array(v.id('_storage')),
+    videos: v.union(v.id('_storage'), v.null()),
+  },
+
+  handler: async (ctx, args) => {
+    const identifier = String(args.reportedBy);
+
+    const windowLimiter = getIssueReportWindowLimiter();
+    const cooldownLimiter = getIssueReportCooldownLimiter();
+
+    const windowResult = await windowLimiter.limit(identifier);
+
+    if (!windowResult.success) {
+      const resetTime = new Date(windowResult.reset).toLocaleString('en-IN', {
+        timeZone: 'Asia/Kolkata',
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      });
+
+      throw new Error(
+        `Issue report limit reached. You can submit only ${windowResult.limit} reports every 8 hours. Please try again after ${resetTime}.`
+      );
+    }
+
+    const cooldownResult = await cooldownLimiter.limit(identifier);
+
+    if (!cooldownResult.success) {
+      const resetTime = new Date(cooldownResult.reset).toLocaleString('en-IN', {
+        timeZone: 'Asia/Kolkata',
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      });
+
+      throw new Error(
+        `Please wait before submitting another issue report. You can report again after ${resetTime}.`
+      );
+    }
+
+    try {
+      const result = await ctx.runMutation(internal.issues.internalCreateIssue, args);
+
+      return {
+        ...result,
+        rateLimit: {
+          limit: windowResult.limit,
+          remaining: windowResult.remaining,
+          used: windowResult.limit - windowResult.remaining,
+          reset: windowResult.reset,
+          window: '8 hours',
+          cooldown: {
+            limit: cooldownResult.limit,
+            remaining: cooldownResult.remaining,
+            used: cooldownResult.limit - cooldownResult.remaining,
+            reset: cooldownResult.reset,
+            window: '30 minutes',
+          },
+        },
+      };
+    } catch (error) {
+      throw error;
+    }
+  },
+});
+
+export const getIssueReportLimitStatus = action({
+  args: {
+    userId: v.id('users'),
+  },
+
+  handler: async (ctx, args) => {
+    const identifier = String(args.userId);
+
+    const windowLimiter = getIssueReportWindowLimiter();
+    const cooldownLimiter = getIssueReportCooldownLimiter();
+
+    const windowStatus = await windowLimiter.getRemaining(identifier);
+    const cooldownStatus = await cooldownLimiter.getRemaining(identifier);
+
+    return {
+      limit: windowStatus.limit,
+      remaining: windowStatus.remaining,
+      used: windowStatus.limit - windowStatus.remaining,
+      reset: windowStatus.reset,
+      allowed: windowStatus.remaining > 0 && cooldownStatus.remaining > 0,
+      window: '8 hours',
+      cooldown: {
+        limit: cooldownStatus.limit,
+        remaining: cooldownStatus.remaining,
+        used: cooldownStatus.limit - cooldownStatus.remaining,
+        reset: cooldownStatus.reset,
+        allowed: cooldownStatus.remaining > 0,
+        window: '30 minutes',
+      },
+    };
   },
 });

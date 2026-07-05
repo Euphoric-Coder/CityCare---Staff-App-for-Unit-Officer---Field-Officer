@@ -187,31 +187,70 @@ export default function FieldProfileTab({ profile, onLogout }: FieldProfileTabPr
     userId: profile.userId as Id<'users'> 
   });
   
+  const performance = useQuery(api.officerPerformance.getFieldOfficerPerformanceByUserId, {
+    userId: profile.userId as Id<'users'>,
+    range: '30d'
+  });
+  
   const generateUploadUrl = useMutation(api.issuesMedia.generateUploadUrl);
   const updateProfilePicture = useMutation(api.fieldOfficers.updateFieldOfficerProfilePicture);
 
-  const officerName = fieldOfficer?.fullName || profile.name;
-  const officerEmail = fieldOfficer?.email || profile.email;
-  const officerPhone = fieldOfficer?.phone || profile.phone;
-  const rawDepartment = fieldOfficer?.department || '';
+  if (!fieldOfficer || !performance) {
+    return (
+      <SafeAreaView className="flex-1 justify-center items-center bg-slate-50 dark:bg-slate-950">
+        <ActivityIndicator size="large" color="#0EA5A4" />
+      </SafeAreaView>
+    );
+  }
+
+  const officerName = performance.officer?.fullName || fieldOfficer?.fullName || profile.name;
+  const officerEmail = performance.officer?.email || fieldOfficer?.email || profile.email;
+  const officerPhone = performance.officer?.phone || fieldOfficer?.phone || profile.phone;
+  const rawDepartment = performance.officer?.department || fieldOfficer?.department || '';
   const departmentLabel = rawDepartment ? (DEPARTMENT_LABELS[rawDepartment] || rawDepartment) : 'N/A';
-  const city = fieldOfficer?.city || 'N/A';
-  const district = fieldOfficer?.district || 'N/A';
-  const state = fieldOfficer?.state || 'N/A';
-  const specialisations = fieldOfficer?.specialisations || [];
+  const city = performance.officer?.city || fieldOfficer?.city || 'N/A';
+  const district = performance.officer?.district || fieldOfficer?.district || 'N/A';
+  const state = performance.officer?.state || fieldOfficer?.state || 'N/A';
+  const specialisations = performance.officer?.specialisations || fieldOfficer?.specialisations || [];
   
-  const rating = fieldOfficer?.rating ?? profile.rating;
-  const efficiencyScore = fieldOfficer?.efficiencyScore ?? 92;
-  const activeIssues = fieldOfficer?.currentActiveIssues ?? 3;
-  const maxCapacity = fieldOfficer?.maxIssueCapacity ?? 15;
-  const totalResolved = fieldOfficer?.totalResolvedIssues ?? profile.total_resolved;
-  const avgResolutionHrs = fieldOfficer?.avgResolutionTime ?? 18;
-  const onTimeRate = fieldOfficer?.onTimeCompletionRate ?? 96;
+  const rating = performance.summary.rating;
+  const efficiencyScore = performance.summary.efficiencyScore;
+  const activeIssues = performance.summary.activeIssues;
+  const maxCapacity = performance.summary.maxCapacity;
+  const totalResolved = performance.summary.totalResolved;
+  const avgResolutionHrs = performance.summary.avgResolutionTime;
+  const onTimeRate = performance.summary.slaComplianceRate;
   const lastLogin = fieldOfficer?.lastLogin;
+
+  const performanceBadges = [];
+  if (onTimeRate >= 90) {
+    performanceBadges.push({
+      label: 'SLA Champion',
+      icon: <Target size={12} color="#10B981" strokeWidth={2.5} />,
+    });
+  }
+  if (avgResolutionHrs <= 24 && avgResolutionHrs > 0) {
+    performanceBadges.push({
+      label: 'Fast Response',
+      icon: <Zap size={12} color="#8B5CF6" strokeWidth={2.5} />,
+    });
+  }
+  if (efficiencyScore >= 85) {
+    performanceBadges.push({
+      label: 'Top Resolver',
+      icon: <Award size={12} color="#F59E0B" strokeWidth={2.5} />,
+    });
+  }
+  if (performanceBadges.length === 0) {
+    performanceBadges.push({
+      label: 'Active Responder',
+      icon: <Award size={12} color="#3B82F6" strokeWidth={2.5} />,
+    });
+  }
 
   const initials = officerName
     .split(' ')
-    .map((n) => n[0])
+    .map((n: string) => n[0])
     .slice(0, 2)
     .join('')
     .toUpperCase();
@@ -465,7 +504,7 @@ export default function FieldProfileTab({ profile, onLogout }: FieldProfileTabPr
 
           {/* Performance badges */}
           <View className="flex-row flex-wrap justify-center gap-2">
-            {PERFORMANCE_BADGES.map((badge, i) => (
+            {performanceBadges.map((badge, i) => (
               <View
                 key={i}
                 className="flex-row items-center gap-1.5 rounded-xl px-3 py-1.5"
@@ -575,30 +614,30 @@ export default function FieldProfileTab({ profile, onLogout }: FieldProfileTabPr
             <View>
               <View className="mb-1.5 flex-row items-center justify-between">
                 <Text className="text-[12px] font-semibold text-slate-500 dark:text-slate-400">
-                  Response Rate
+                  Response Rate (SLA Compliance)
                 </Text>
                 <Text className="text-[12px] font-extrabold text-teal-600 dark:text-teal-400">
-                  96%
+                  {onTimeRate}%
                 </Text>
               </View>
               <View className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
                 <View
                   className="h-full rounded-full"
-                  style={[styles.progressBar, { width: '96%', backgroundColor: '#0EA5A4' }]}
+                  style={[styles.progressBar, { width: `${onTimeRate}%`, backgroundColor: '#0EA5A4' }]}
                 />
               </View>
             </View>
             <View>
               <View className="mb-1.5 flex-row items-center justify-between">
                 <Text className="text-[12px] font-semibold text-slate-500 dark:text-slate-400">
-                  Quality Score
+                  Quality Score (First-Time Fix)
                 </Text>
-                <Text className="text-[12px] font-extrabold text-amber-500">88%</Text>
+                <Text className="text-[12px] font-extrabold text-amber-500">{performance.summary.firstTimeFixRate}%</Text>
               </View>
               <View className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
                 <View
                   className="h-full rounded-full"
-                  style={[styles.progressBar, { width: '88%', backgroundColor: '#F59E0B' }]}
+                  style={[styles.progressBar, { width: `${performance.summary.firstTimeFixRate}%`, backgroundColor: '#F59E0B' }]}
                 />
               </View>
             </View>
@@ -607,12 +646,12 @@ export default function FieldProfileTab({ profile, onLogout }: FieldProfileTabPr
                 <Text className="text-[12px] font-semibold text-slate-500 dark:text-slate-400">
                   Citizen Satisfaction
                 </Text>
-                <Text className="text-[12px] font-extrabold text-emerald-600">94%</Text>
+                <Text className="text-[12px] font-extrabold text-emerald-600">{Math.round(performance.charts.qualityMetrics.citizenSatisfaction)}%</Text>
               </View>
               <View className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
                 <View
                   className="h-full rounded-full"
-                  style={[styles.progressBar, { width: '94%', backgroundColor: '#10B981' }]}
+                  style={[styles.progressBar, { width: `${Math.round(performance.charts.qualityMetrics.citizenSatisfaction)}%`, backgroundColor: '#10B981' }]}
                 />
               </View>
             </View>
@@ -744,7 +783,7 @@ export default function FieldProfileTab({ profile, onLogout }: FieldProfileTabPr
           
           <View className="flex-row flex-wrap gap-2.5">
             {specialisations.length > 0 ? (
-              specialisations.map((spec, index) => (
+              specialisations.map((spec: string, index: number) => (
                 <View 
                   key={index} 
                   className="rounded-full bg-purple-50 px-4 py-2 border border-purple-100 dark:bg-purple-900/20 dark:border-purple-800/50">
@@ -759,6 +798,84 @@ export default function FieldProfileTab({ profile, onLogout }: FieldProfileTabPr
               </Text>
             )}
           </View>
+        </View>
+
+        {/* ── Quality Metrics ── */}
+        <View className="mb-4 rounded-3xl bg-white p-5 dark:bg-slate-900" style={styles.card}>
+          <View className="mb-4 flex-row items-center gap-2.5">
+            <View className="h-8 w-8 items-center justify-center rounded-xl bg-purple-50 dark:bg-purple-900/30">
+              <Zap size={16} color="#A855F7" strokeWidth={2.5} />
+            </View>
+            <Text className="text-[15px] font-extrabold tracking-tight text-slate-800 dark:text-slate-100">
+              Quality Metrics
+            </Text>
+          </View>
+          <View className="gap-3.5">
+            <View className="flex-row items-center justify-between border-b border-slate-100 pb-3 dark:border-slate-850">
+              <Text className="text-[13px] font-semibold text-slate-500 dark:text-slate-400">First-Time Fix Rate</Text>
+              <Text className="text-[14px] font-extrabold text-slate-800 dark:text-slate-200">{performance.summary.firstTimeFixRate}%</Text>
+            </View>
+            <View className="flex-row items-center justify-between border-b border-slate-100 pb-3 dark:border-slate-850">
+              <Text className="text-[13px] font-semibold text-slate-500 dark:text-slate-400">Rework Count</Text>
+              <Text className="text-[14px] font-extrabold text-slate-800 dark:text-slate-200">{performance.summary.reworkCount}</Text>
+            </View>
+            <View className="flex-row items-center justify-between border-b border-slate-100 pb-3 dark:border-slate-850">
+              <Text className="text-[13px] font-semibold text-slate-500 dark:text-slate-400">Reopen Count</Text>
+              <Text className="text-[14px] font-extrabold text-slate-800 dark:text-slate-200">{performance.summary.reopenCount}</Text>
+            </View>
+            <View className="flex-row items-center justify-between">
+              <Text className="text-[13px] font-semibold text-slate-500 dark:text-slate-400">Escalated Count</Text>
+              <Text className="text-[14px] font-extrabold text-slate-800 dark:text-slate-200">{performance.summary.escalatedCount}</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* ── Recent Completed Issues ── */}
+        <View className="mb-4 rounded-3xl bg-white p-5 dark:bg-slate-900" style={styles.card}>
+          <View className="mb-4 flex-row items-center gap-2.5">
+            <View className="h-8 w-8 items-center justify-center rounded-xl bg-emerald-50 dark:bg-emerald-900/30">
+              <CheckCircle size={16} color="#10B981" strokeWidth={2.5} />
+            </View>
+            <Text className="text-[15px] font-extrabold tracking-tight text-slate-800 dark:text-slate-100">
+              Recent Completed Issues
+            </Text>
+          </View>
+          {performance?.recentIssues && performance.recentIssues.length > 0 ? (
+            performance.recentIssues.map((issue: any) => (
+              <View key={issue._id} className="mb-3.5 border-b border-slate-100 pb-3 last:border-0 last:pb-0 dark:border-slate-800">
+                <View className="flex-row items-center justify-between">
+                  <Text className="text-[14px] font-extrabold text-slate-800 dark:text-slate-200">
+                    {issue.issueCode}
+                  </Text>
+                  <View className="flex-row items-center gap-1">
+                    {issue.citizenRating !== undefined && issue.citizenRating !== null && (
+                      <>
+                        <Star size={12} color="#F59E0B" fill="#F59E0B" />
+                        <Text className="text-[12px] font-bold text-amber-500">{issue.citizenRating}</Text>
+                      </>
+                    )}
+                  </View>
+                </View>
+                <Text className="text-[13px] font-semibold text-slate-600 dark:text-slate-400 mt-0.5" numberOfLines={1}>
+                  {issue.title}
+                </Text>
+                <View className="flex-row justify-between items-center mt-1.5">
+                  <View className="rounded bg-slate-100 px-1.5 py-0.5 dark:bg-slate-850">
+                    <Text className="text-[10px] font-bold text-slate-500 capitalize dark:text-slate-400">
+                      {issue.status}
+                    </Text>
+                  </View>
+                  <Text className="text-[11px] text-slate-400 dark:text-slate-500">
+                    {new Date(issue.completedAt).toLocaleDateString()}
+                  </Text>
+                </View>
+              </View>
+            ))
+          ) : (
+            <Text className="text-[13px] font-medium italic text-slate-500 dark:text-slate-400">
+              No completed issues found
+            </Text>
+          )}
         </View>
 
         {/* ── Settings ── */}

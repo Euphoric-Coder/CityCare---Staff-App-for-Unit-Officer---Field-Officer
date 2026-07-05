@@ -38,10 +38,11 @@ import {
   Image as ImageIcon,
   X,
   Trash2,
+  Zap,
 } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 
-import { User } from '../lib/auth';
+import { User } from '../../lib/auth';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from 'convex/_generated/api';
 import { Id } from 'convex/_generated/dataModel';
@@ -146,23 +147,37 @@ export default function ProfileTab({
     user.role === 'unit_officer' ? { userId: user.id } : 'skip'
   );
 
+  const performance = useQuery(
+    api.officerPerformance.getUnitOfficerProfilePerformance,
+    // @ts-ignore
+    user.role === 'unit_officer' ? { userId: user.id as Id<'users'>, range: '30d' } : 'skip'
+  );
+
+  if (user.role === 'unit_officer' && (!unitOfficer || !performance)) {
+    return (
+      <SafeAreaView className="flex-1 justify-center items-center bg-slate-50 dark:bg-slate-950">
+        <ActivityIndicator size="large" color="#0EA5A4" />
+      </SafeAreaView>
+    );
+  }
+
   // @ts-ignore
-  const userName = unitOfficer?.fullName || user.name || 'Officer';
-  const userEmail = unitOfficer?.email || user.email;
+  const userName = performance?.officer?.fullName || unitOfficer?.fullName || user.name || 'Officer';
+  const userEmail = performance?.officer?.email || unitOfficer?.email || user.email;
   const role = user.role;
 
-  const rawDepartment = unitOfficer?.department || '';
+  const rawDepartment = performance?.officer?.department || unitOfficer?.department || '';
   const department = rawDepartment ? (DEPARTMENT_LABELS[rawDepartment] || rawDepartment) : 'N/A';
-  const city = unitOfficer?.city || 'Varanasi';
-  const district = unitOfficer?.district || 'Varanasi District';
-  const state = unitOfficer?.state || 'Uttar Pradesh';
+  const city = performance?.officer?.city || unitOfficer?.city || 'Varanasi';
+  const district = performance?.officer?.district || unitOfficer?.district || 'Varanasi District';
+  const state = performance?.officer?.state || unitOfficer?.state || 'Uttar Pradesh';
 
-  const rating = unitOfficer?.rating || 4.8;
-  const efficiency = unitOfficer?.efficiencyScore || 94;
+  const rating = performance?.personal?.rating ?? 0;
+  const efficiency = performance?.personal?.efficiencyScore ?? 0;
 
-  const totalVerified = unitOfficer?.totalVerifiedIssues || 128;
-  const totalRejected = unitOfficer?.totalRejectedIssues || 12;
-  const totalIssues = totalVerified + totalRejected + 15; // Mocking some pending
+  const totalVerified = performance?.personal?.totalVerified ?? 0;
+  const totalRejected = performance?.personal?.totalRejected ?? 0;
+  const totalIssues = performance?.personal?.totalReviewed ?? 0;
 
   const roleBadge = getRoleBadgeStyle(role, isDark);
 
@@ -424,39 +439,137 @@ export default function ProfileTab({
                 icon={<MapPin color={isDark ? '#22D3EE' : '#0891B2'} size={18} />}
                 label="Assigned City"
                 value={city}
+                iconBg={isDark ? '#164E6340' : '#CFFAFE'}
+              />
+              <InfoRow
+                icon={<Briefcase color={isDark ? '#22D3EE' : '#0891B2'} size={18} />}
+                label="Assigned Field Officers"
+                value={`${performance?.team?.assignedFieldOfficerCount ?? 0} Officers`}
                 last
                 iconBg={isDark ? '#164E6340' : '#CFFAFE'}
               />
             </View>
           </View>
 
-          {/* Performance Metrics Card */}
+          {/* Personal Performance Card */}
           <View className="mb-7">
             <View className="mb-3 ml-1 flex-row items-center gap-2">
               <TrendingUp color={isDark ? '#22D3EE' : '#0891B2'} size={14} />
               <Text className="text-[11px] font-black uppercase tracking-[2px] text-slate-400 dark:text-cyan-500/50">
-                Performance Analytics
+                Personal Performance
               </Text>
             </View>
             <View className="overflow-hidden rounded-[32px] border border-slate-200 bg-white px-5 shadow-sm dark:border-cyan-900/30 dark:bg-slate-900/80">
               <InfoRow
                 icon={<CheckCircle2 color={isDark ? '#22D3EE' : '#0891B2'} size={18} />}
                 label="Verified Issues"
-                value={`${totalVerified} Resolved`}
+                value={`${totalVerified} Issues`}
                 iconBg={isDark ? '#164E6340' : '#CFFAFE'}
               />
               <InfoRow
                 icon={<XCircle color={isDark ? '#F87171' : '#DC2626'} size={18} />}
                 label="Rejected Issues"
-                value={`${totalRejected} Cases`}
+                value={`${totalRejected} Issues`}
                 iconBg={isDark ? '#450A0A40' : '#FEF2F2'}
               />
               <InfoRow
                 icon={<TrendingUp color={isDark ? '#22D3EE' : '#0891B2'} size={18} />}
-                label="Success Rate"
-                value={`${efficiency}% Efficiency`}
+                label="Verification Rate"
+                value={`${performance?.personal?.verificationRate ?? 0}% Rate`}
+                iconBg={isDark ? '#164E6340' : '#CFFAFE'}
+              />
+              <InfoRow
+                icon={<CheckCircle2 color={isDark ? '#22D3EE' : '#0891B2'} size={18} />}
+                label="Avg Verification Time"
+                value={`${performance?.personal?.avgVerificationTime ?? 0} Hours`}
+                iconBg={isDark ? '#164E6340' : '#CFFAFE'}
+              />
+              <InfoRow
+                icon={<Briefcase color={isDark ? '#22D3EE' : '#0891B2'} size={18} />}
+                label="Avg Assignment Time"
+                value={`${performance?.personal?.avgAssignmentTime ?? 0} Hours`}
                 last
                 iconBg={isDark ? '#164E6340' : '#CFFAFE'}
+              />
+            </View>
+          </View>
+
+          {/* Team Performance Card */}
+          <View className="mb-7">
+            <View className="mb-3 ml-1 flex-row items-center gap-2">
+              <TrendingUp color={isDark ? '#22D3EE' : '#0891B2'} size={14} />
+              <Text className="text-[11px] font-black uppercase tracking-[2px] text-slate-400 dark:text-cyan-500/50">
+                Team Performance
+              </Text>
+            </View>
+            <View className="overflow-hidden rounded-[32px] border border-slate-200 bg-white px-5 shadow-sm dark:border-cyan-900/30 dark:bg-slate-900/80">
+              <InfoRow
+                icon={<CheckCircle2 color={isDark ? '#22D3EE' : '#0891B2'} size={18} />}
+                label="Team Resolved Issues"
+                value={`${performance?.team?.teamResolvedIssues ?? 0} Resolved`}
+                iconBg={isDark ? '#164E6340' : '#CFFAFE'}
+              />
+              <InfoRow
+                icon={<Briefcase color={isDark ? '#22D3EE' : '#0891B2'} size={18} />}
+                label="Team Active Issues"
+                value={`${performance?.team?.teamActiveIssues ?? 0} Active`}
+                iconBg={isDark ? '#164E6340' : '#CFFAFE'}
+              />
+              <InfoRow
+                icon={<TrendingUp color={isDark ? '#22D3EE' : '#0891B2'} size={18} />}
+                label="Team SLA Compliance"
+                value={`${performance?.team?.teamSlaCompliance ?? 0}% Rate`}
+                iconBg={isDark ? '#164E6340' : '#CFFAFE'}
+              />
+              <InfoRow
+                icon={<CheckCircle2 color={isDark ? '#22D3EE' : '#0891B2'} size={18} />}
+                label="Team Avg Resolution Time"
+                value={`${performance?.team?.teamAvgResolutionTime ?? 0} Hours`}
+                iconBg={isDark ? '#164E6340' : '#CFFAFE'}
+              />
+              <InfoRow
+                icon={<Star color={isDark ? '#FCD34D' : '#F59E0B'} size={18} fill={isDark ? '#FCD34D' : '#F59E0B'} />}
+                label="Team Citizen Rating"
+                value={`${performance?.team?.teamCitizenRating ?? 0} / 5`}
+                iconBg={isDark ? '#451A0340' : '#FEF3C7'}
+              />
+              <InfoRow
+                icon={<Award color={isDark ? '#22D3EE' : '#0891B2'} size={18} />}
+                label="Team Efficiency Score"
+                value={`${performance?.team?.teamEfficiencyScore ?? 0}% Score`}
+                last
+                iconBg={isDark ? '#164E6340' : '#CFFAFE'}
+              />
+            </View>
+          </View>
+
+          {/* Quality Metrics Card */}
+          <View className="mb-7">
+            <View className="mb-3 ml-1 flex-row items-center gap-2">
+              <Zap color={isDark ? '#22D3EE' : '#0891B2'} size={14} />
+              <Text className="text-[11px] font-black uppercase tracking-[2px] text-slate-400 dark:text-cyan-500/50">
+                Quality Metrics
+              </Text>
+            </View>
+            <View className="overflow-hidden rounded-[32px] border border-slate-200 bg-white px-5 shadow-sm dark:border-cyan-900/30 dark:bg-slate-900/80">
+              <InfoRow
+                icon={<XCircle color={isDark ? '#F87171' : '#DC2626'} size={18} />}
+                label="Rework Rate"
+                value={`${performance?.charts?.qualityMetrics?.reworkRate ?? 0}% Rate`}
+                iconBg={isDark ? '#450A0A40' : '#FEF2F2'}
+              />
+              <InfoRow
+                icon={<XCircle color={isDark ? '#F87171' : '#DC2626'} size={18} />}
+                label="Escalation Rate"
+                value={`${performance?.charts?.qualityMetrics?.escalationRate ?? 0}% Rate`}
+                iconBg={isDark ? '#450A0A40' : '#FEF2F2'}
+              />
+              <InfoRow
+                icon={<Star color={isDark ? '#FCD34D' : '#F59E0B'} size={18} fill={isDark ? '#FCD34D' : '#F59E0B'} />}
+                label="Citizen Satisfaction"
+                value={`${performance?.charts?.qualityMetrics?.citizenSatisfaction ?? 0}% Score`}
+                last
+                iconBg={isDark ? '#451A0340' : '#FEF3C7'}
               />
             </View>
           </View>

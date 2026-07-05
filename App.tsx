@@ -144,11 +144,11 @@ function UnitOfficerTabNavigator({ user, onSignOut }: TabNavigatorProps) {
       />
       <Tab.Screen
         name="Analytics"
-        component={AnalyticsTab}
         options={{
           tabBarIcon: ({ color, size }) => <BarChart3 size={size} color={color} />,
-        }}
-      />
+        }}>
+        {() => <AnalyticsTab user={user} />}
+      </Tab.Screen>
       <Tab.Screen
         name="Profile"
         options={{

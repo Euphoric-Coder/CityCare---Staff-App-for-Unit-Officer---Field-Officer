@@ -39,6 +39,7 @@ import {
   X,
   Trash2,
   Zap,
+  Clock,
 } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 
@@ -488,6 +489,12 @@ export default function ProfileTab({
                 icon={<Briefcase color={isDark ? '#22D3EE' : '#0891B2'} size={18} />}
                 label="Avg Assignment Time"
                 value={`${performance?.personal?.avgAssignmentTime ?? 0} Hours`}
+                iconBg={isDark ? '#164E6340' : '#CFFAFE'}
+              />
+              <InfoRow
+                icon={<Clock color={isDark ? '#22D3EE' : '#0891B2'} size={18} />}
+                label="Overall Avg Resolution"
+                value={`${performance?.personal?.overallAvgResolutionTime ?? 0} Hours`}
                 last
                 iconBg={isDark ? '#164E6340' : '#CFFAFE'}
               />

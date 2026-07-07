@@ -105,6 +105,8 @@ import CitizenMessagingInterface from 'components/CitizenMessagingInterface';
 import { getDuplicateFlagsByIssueId } from 'lib/duplicateDetection';
 import DuplicateIssueCard from 'components/UnitOfficer/DuplicateIssueCard';
 import AIReviewCard from 'components/UnitOfficer/AIReviewCard';
+import CurrentIssueTrendCard from 'components/UnitOfficer/CurrentIssueTrendCard';
+import { normalizeIssueForDuplicateDetection } from 'lib/trendAnalyzer';
 
 interface IssueDetailScreenProps {
   route: { params: { issueId: string } };
@@ -458,18 +460,54 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
     true ? { issueId: issueId } : 'skip'
   );
 
-  const duplicateFlags = getDuplicateFlagsByIssueId(
-    (rawIssues?.filter((i: any) => i.status === 'pending' || i.status === 'reopened') as any) || [],
-    (issueId as string) || ''
-  );
-
   // @ts-ignore
   const issue = useQuery(api.unitOfficers.getIssueById, { issueId });
+
+  const duplicatePool = useMemo(() => {
+    if (!rawIssues || !issue) return [];
+    const pool = [...rawIssues];
+    if (!pool.some((i) => (i._id ?? i.id) === (issue._id ?? issue.id))) {
+      pool.push(issue);
+    }
+    return pool.map(normalizeIssueForDuplicateDetection);
+  }, [rawIssues, issue]);
+
+  const duplicateFlags = useMemo(() => {
+    if (!duplicatePool.length || !issueId) {
+      return {
+        issueId,
+        hasDuplicateFlags: false,
+        duplicateGroupCount: 0,
+        duplicateIssueCount: 0,
+        groups: [],
+      };
+    }
+    return getDuplicateFlagsByIssueId(
+      duplicatePool.filter(
+        (i: any) =>
+          i.status === 'pending' ||
+          i.status === 'reopened' ||
+          (i._id ?? i.id) === (issue?._id ?? issue?.id)
+      ),
+      issueId
+    );
+  }, [duplicatePool, issueId, issue]);
 
   const escalationDetails = useQuery(
     api.escalation.getEscalationDetailsByIssueId,
     // @ts-ignore
     issue?._id ? { issueId: issue._id } : 'skip'
+  );
+
+  const currentIssueTrend = useQuery(
+    api.issueAnalytics.getCurrentIssueTrendAnalysis,
+    user?.id && issue?._id
+      ? {
+          userId: user.id as Id<"users">,
+          issueId: issue._id as Id<"issues">,
+          days: 90,
+        }
+      : "skip"
   );
 
   const generateUploadUrl = useMutation(api.issuesMedia.generateUploadUrl);
@@ -1876,6 +1914,9 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
               }}
             />
           </View>
+
+          {/* Current Issue Trend Analysis */}
+          <CurrentIssueTrendCard currentIssueTrend={currentIssueTrend} />
 
           {/* CATEGORY CARD*/}
           <View

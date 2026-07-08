@@ -838,13 +838,28 @@ export function analyseIssueTrends(
   return analytics;
 }
 
-export function analyseCurrentIssueTrend(currentIssue: any, allIssues: any[], options?: { days?: number; now?: number }) {
+export function analyseCurrentIssueTrend(
+  currentIssue: any,
+  allIssues: any[],
+  options?: {
+    days?: number;
+    now?: number;
+  }
+) {
   const normalizedCurrent = normalizeIssueToRawIssue(currentIssue);
   const now = options?.now ?? Date.now();
+  const days = options?.days ?? 90;
+  const selectedCutoff = now - days * 24 * 60 * 60 * 1000;
 
   const comparisonPool = allIssues
     .map(normalizeIssueToRawIssue)
     .filter((issue) => issue && issue.id !== normalizedCurrent.id);
+
+  const recentComparisonPool = comparisonPool.filter(
+    (i) => getIssueCreatedMs(i) >= selectedCutoff
+  );
+
+  const trendPool = recentComparisonPool;
 
   const allNormalized = [normalizedCurrent, ...comparisonPool];
   const duplicateFlags = getDuplicateFlagsByIssueId(allNormalized, normalizedCurrent.id);
@@ -899,10 +914,11 @@ export function analyseCurrentIssueTrend(currentIssue: any, allIssues: any[], op
   ).length;
 
   const sameCategoryNearbyCount = nearby1000.filter((i) =>
-    i.category === normalizedCurrent.category
+    getIssueCreatedMs(i) >= selectedCutoff && i.category === normalizedCurrent.category
   ).length;
 
   const sameSubcategoryNearbyCount = nearby1000.filter((i) => {
+    if (getIssueCreatedMs(i) < selectedCutoff) return false;
     const currentSubs = normalizedCurrent.subcategory || [];
     const otherSubs = i.subcategory || [];
     return otherSubs.some((sub: string) => currentSubs.includes(sub));
@@ -938,10 +954,11 @@ export function analyseCurrentIssueTrend(currentIssue: any, allIssues: any[], op
 
   const cutoff7 = now - 7 * 24 * 60 * 60 * 1000;
   const cutoff30 = now - 30 * 24 * 60 * 60 * 1000;
+  const cutoff90 = now - 90 * 24 * 60 * 60 * 1000;
 
   const sameCategoryLast7Days = sameCatIssues.filter((i) => getIssueCreatedMs(i) >= cutoff7).length;
   const sameCategoryLast30Days = sameCatIssues.filter((i) => getIssueCreatedMs(i) >= cutoff30).length;
-  const sameCategoryLast90Days = sameCatIssues.length;
+  const sameCategoryLast90Days = sameCatIssues.filter((i) => getIssueCreatedMs(i) >= cutoff90).length;
 
   const previous30To60 = sameCatIssues.filter((i) => {
     const created = getIssueCreatedMs(i);
@@ -950,10 +967,21 @@ export function analyseCurrentIssueTrend(currentIssue: any, allIssues: any[], op
 
   const recentSpikeDetected = sameCategoryLast30Days >= 3 && (previous30To60 === 0 || (sameCategoryLast30Days - previous30To60) / previous30To60 >= 0.5);
 
+  const seasonalCategories = new Set([
+    'water',
+    'drainage',
+    'sanitation',
+    'public_health',
+    'solid_waste',
+  ]);
+
+  const currentCategoryKey = normalizeKey(normalizedCurrent.category);
+
   let seasonalHint = 'Not enough historical data for seasonal pattern.';
-  const seasonalCats = ['Water Supply', 'Drainage', 'Health & Sanitation', 'Mosquito Control'];
-  if (seasonalCats.includes(normalizedCurrent.category || '') && sameCategoryLast30Days >= 4) {
-    seasonalHint = 'Possible seasonal civic pattern detected.';
+  if (seasonalCategories.has(currentCategoryKey) && sameCategoryLast30Days >= 4) {
+    seasonalHint = 'Possible seasonal civic pattern detected based on recent complaint frequency.';
+  } else if (currentCategoryKey === 'road' && sameCategoryLast30Days >= 4) {
+    seasonalHint = 'Repeated road complaints detected recently. This may indicate a local infrastructure pattern rather than seasonality.';
   }
 
   const slaStatus = getSlaStatus(normalizedCurrent, now);
@@ -968,7 +996,7 @@ export function analyseCurrentIssueTrend(currentIssue: any, allIssues: any[], op
   else if (sameCategoryNearbyCount >= 6) recurrenceRisk = 'high';
   else if (sameCategoryNearbyCount >= 3) recurrenceRisk = 'medium';
 
-  const overdueActiveIssues = comparisonPool.filter((i) => {
+  const overdueActiveIssues = trendPool.filter((i) => {
     const isAct = ['assigned', 'in_progress', 'submitted_for_review', 'pending_uo_verification', 'rework_required'].includes(i.status || '');
     return isAct && getSlaStatus(i, now) === 'overdue';
   }).length;
@@ -1037,6 +1065,8 @@ export function analyseCurrentIssueTrend(currentIssue: any, allIssues: any[], op
       hotspotSeverity,
       locationPatternLabel,
     },
+    // categoryRank is useful for City Admin/System Admin multi-category analytics,
+    // but Unit Officer UI should use departmentTrend instead.
     categoryTrend: {
       category: normalizedCurrent.category || 'Other',
       categoryCount,
@@ -1048,6 +1078,14 @@ export function analyseCurrentIssueTrend(currentIssue: any, allIssues: any[], op
         direction: 'stable' as TrendDirection,
         label: 'stable',
       },
+      note: 'Category rank is intended for city/admin-level analytics, not Unit Officer UI.',
+    },
+    departmentTrend: {
+      department: normalizedCurrent.category || 'Other',
+      sameDepartmentIssueCount: categoryCount,
+      sameDepartmentNearbyCount: sameCategoryNearbyCount,
+      sameSubcategoryNearbyCount,
+      isRecurringDepartmentIssue: sameCategoryNearbyCount >= 3 || sameSubcategoryNearbyCount >= 2,
     },
     subcategoryTrend: {
       subcategories: normalizedCurrent.subcategory || [],

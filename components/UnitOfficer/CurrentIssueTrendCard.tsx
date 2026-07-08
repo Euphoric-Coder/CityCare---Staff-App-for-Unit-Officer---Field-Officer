@@ -23,12 +23,13 @@ export default function CurrentIssueTrendCard({ currentIssueTrend }: CurrentIssu
 
   if (!currentIssueTrend) return null;
 
-  const duplicate = currentIssueTrend.duplicateIntelligence;
-  const local = currentIssueTrend.localTrend;
-  const category = currentIssueTrend.categoryTrend;
-  const time = currentIssueTrend.timeTrend;
-  const risk = currentIssueTrend.operationalRisk;
-  const action = currentIssueTrend.suggestedOfficerAction;
+  const duplicate = currentIssueTrend?.duplicateIntelligence ?? {};
+  const local = currentIssueTrend?.localTrend ?? {};
+  const category = currentIssueTrend?.categoryTrend ?? {};
+  const department = currentIssueTrend?.departmentTrend ?? {};
+  const time = currentIssueTrend?.timeTrend ?? {};
+  const risk = currentIssueTrend?.operationalRisk ?? {};
+  const action = currentIssueTrend?.suggestedOfficerAction ?? {};
 
   const getRiskColor = (level: string) => {
     switch (level?.toLowerCase()) {
@@ -110,22 +111,23 @@ export default function CurrentIssueTrendCard({ currentIssueTrend }: CurrentIssu
           <Text className="text-[9.5px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">
             Local Area (500m)
           </Text>
-          <Text className="text-[14px] font-black text-slate-800 dark:text-slate-105">
-            {local?.nearbyIssueCount500m} Issues
+          <Text className="text-[14px] font-black text-slate-800 dark:text-slate-100">
+            {local?.nearbyIssueCount500m ?? 0} Issues
           </Text>
           <Text className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
-            {local?.unresolvedNearbyCount} unresolved nearby
+            {local?.unresolvedNearbyCount ?? 0} unresolved nearby
           </Text>
         </View>
+
         <View className="flex-1 rounded-xl bg-slate-50 p-2.5 dark:bg-slate-850">
           <Text className="text-[9.5px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">
-            Category Rank
+            Same Type Nearby
           </Text>
-          <Text className="text-[14px] font-black text-slate-800 dark:text-slate-105">
-            Rank #{category?.categoryRank}
+          <Text className="text-[14px] font-black text-slate-800 dark:text-slate-100">
+            {local?.sameCategoryNearbyCount ?? 0} Issues
           </Text>
           <Text className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
-            {category?.categoryCount} total ward issues
+            {(local?.sameSubcategoryNearbyCount ?? 0)} same subcategory
           </Text>
         </View>
       </View>
@@ -173,35 +175,69 @@ export default function CurrentIssueTrendCard({ currentIssueTrend }: CurrentIssu
           </View>
 
           {/* Time & Frequency Trend */}
-          <View className="mb-3.5 flex-row gap-2.5">
-            <View className="flex-1">
-              <Text className="text-[11px] font-black uppercase tracking-[1.5px] text-slate-400 dark:text-slate-500 mb-2">
-                Time Spikes
-              </Text>
-              <View className="rounded-xl bg-slate-50 p-3 dark:bg-slate-850">
-                <Text className="text-[11px] text-slate-700 dark:text-slate-300 font-bold mb-1">
-                  7-Day Count: <Text className="font-extrabold">{time?.sameCategoryLast7Days}</Text>
-                </Text>
-                <Text className="text-[11px] text-slate-700 dark:text-slate-300 font-bold mb-1">
-                  30-Day Count: <Text className="font-extrabold">{time?.sameCategoryLast30Days}</Text>
-                </Text>
-                {time?.recentSpikeDetected && (
-                  <View className="rounded bg-orange-100 dark:bg-orange-950/40 px-1.5 py-0.5 mt-1.5 self-start">
-                    <Text className="text-[9px] font-black text-orange-600 dark:text-orange-400 uppercase">
-                      Reporting Spike
+          <View className="mb-3.5">
+            <Text className="text-[11px] font-black uppercase tracking-[1.5px] text-slate-400 dark:text-slate-500 mb-2">
+              Time & Frequency Pattern
+            </Text>
+
+            <View className="gap-2.5">
+              {/* Time Spikes */}
+              <View className="rounded-xl bg-slate-50 p-3 dark:bg-slate-850 border border-slate-100 dark:border-slate-800/50">
+                <View className="flex-row items-center justify-between mb-2">
+                  <Text className="text-[10px] font-black uppercase tracking-[1.2px] text-slate-400 dark:text-slate-500">
+                    Time Spikes
+                  </Text>
+
+                  {time?.recentSpikeDetected && (
+                    <View className="rounded-md bg-orange-100 dark:bg-orange-950/40 px-2 py-0.5">
+                      <Text className="text-[9px] font-black text-orange-600 dark:text-orange-400 uppercase">
+                        Spike
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
+                <View className="flex-row gap-2">
+                  <View className="flex-1 rounded-lg bg-white/70 p-2 dark:bg-slate-900/40">
+                    <Text className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase">
+                      Last 7 Days
+                    </Text>
+                    <Text className="mt-0.5 text-[14px] font-black text-slate-800 dark:text-slate-100">
+                      {time?.sameCategoryLast7Days ?? 0}
                     </Text>
                   </View>
-                )}
-              </View>
-            </View>
 
-            <View className="flex-1">
-              <Text className="text-[11px] font-black uppercase tracking-[1.5px] text-slate-400 dark:text-slate-500 mb-2">
-                Seasonality
-              </Text>
-              <View className="rounded-xl bg-slate-50 p-3 dark:bg-slate-850 h-full">
-                <Text className="text-[11px] leading-[16px] text-slate-500 dark:text-slate-400 italic">
-                  {time?.seasonalHint}
+                  <View className="flex-1 rounded-lg bg-white/70 p-2 dark:bg-slate-900/40">
+                    <Text className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase">
+                      Last 30 Days
+                    </Text>
+                    <Text className="mt-0.5 text-[14px] font-black text-slate-800 dark:text-slate-100">
+                      {time?.sameCategoryLast30Days ?? 0}
+                    </Text>
+                  </View>
+
+                  <View className="flex-1 rounded-lg bg-white/70 p-2 dark:bg-slate-900/40">
+                    <Text className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase">
+                      Last 90 Days
+                    </Text>
+                    <Text className="mt-0.5 text-[14px] font-black text-slate-800 dark:text-slate-100">
+                      {time?.sameCategoryLast90Days ?? 0}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* Seasonality */}
+              <View className="rounded-xl bg-slate-50 p-3 dark:bg-slate-850 border border-slate-100 dark:border-slate-800/50">
+                <Text className="text-[10px] font-black uppercase tracking-[1.2px] text-slate-400 dark:text-slate-500 mb-1.5">
+                  Seasonality
+                </Text>
+
+                <Text
+                  className="text-[11px] leading-[16px] text-slate-500 dark:text-slate-400 italic"
+                  numberOfLines={3}
+                >
+                  {time?.seasonalHint || 'Not enough historical data for seasonal pattern.'}
                 </Text>
               </View>
             </View>

@@ -177,6 +177,18 @@ export default function TrendAnalyserPanel({
   const duplicateGroups =
     duplicateTrend?.totalGroups ?? summary?.duplicateGroups ?? 0;
 
+  const pendingDuplicateCandidateCount =
+    duplicateTrend?.pendingDuplicateCandidateCount ??
+    summary?.pendingDuplicateCandidateCount ??
+    0;
+
+  const duplicateExplanation =
+    pendingDuplicateCandidateCount <= 0
+      ? 'No pending issues available for duplicate review.'
+      : duplicateGroupIssueCount > 0
+        ? `Out of ${pendingDuplicateCandidateCount} pending ${pendingDuplicateCandidateCount === 1 ? 'issue' : 'issues'}, ${duplicateGroupIssueCount} ${duplicateGroupIssueCount === 1 ? 'is' : 'are'} part of duplicate groups.`
+        : `Out of ${pendingDuplicateCandidateCount} pending ${pendingDuplicateCandidateCount === 1 ? 'issue' : 'issues'}, no duplicate group was detected.`;
+
   const hotspotAreaCount = summary?.hotspotAreaCount ?? hotspotTrends.length;
   const hotspotIssueCount = summary?.hotspotIssueCount ?? hotspotTrends.reduce((s, h) => s + h.issueCount, 0);
 
@@ -214,11 +226,9 @@ export default function TrendAnalyserPanel({
                 {redundantDuplicateIssues} likely redundant {redundantDuplicateIssues === 1 ? 'complaint' : 'complaints'}
               </Text>
             )}
-            {duplicateGroups > 0 && (
-              <Text className="text-[8.5px] text-slate-400 dark:text-slate-500 mt-1" numberOfLines={2}>
-                Matches the pending duplicate review scope used by the banner.
-              </Text>
-            )}
+            <Text className="text-[8.5px] text-slate-400 dark:text-slate-500 mt-1" numberOfLines={2}>
+              {duplicateExplanation}
+            </Text>
           </View>
 
           {/* Card 2: Hotspots */}
@@ -428,6 +438,10 @@ export default function TrendAnalyserPanel({
                     <Text className="text-[12px] font-black text-slate-800 dark:text-slate-100">{duplicateRate}%</Text>
                   </View>
                   <View className="flex-row justify-between py-1.5 border-b border-slate-200/40 dark:border-slate-800/40">
+                    <Text className="text-[12px] font-extrabold text-slate-500 dark:text-slate-400">Pending issues checked</Text>
+                    <Text className="text-[12px] font-black text-slate-800 dark:text-slate-100">{pendingDuplicateCandidateCount}</Text>
+                  </View>
+                  <View className="flex-row justify-between py-1.5 border-b border-slate-200/40 dark:border-slate-800/40">
                     <Text className="text-[12px] font-extrabold text-slate-500 dark:text-slate-400">Pending issues inside duplicate groups</Text>
                     <Text className="text-[12px] font-black text-slate-800 dark:text-slate-100">{duplicateGroupIssueCount}</Text>
                   </View>
@@ -445,7 +459,7 @@ export default function TrendAnalyserPanel({
                   </View>
                 </View>
                 <Text className="mt-2 text-[10px] leading-[15px] text-slate-400 dark:text-slate-500">
-                  These duplicate metrics use the same pending-issue duplicate review scope as the Duplicate Detection Banner.
+                  {duplicateExplanation} The percentage is calculated using pending issues checked for duplicate review.
                 </Text>
               </View>
 

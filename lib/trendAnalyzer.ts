@@ -335,6 +335,8 @@ export function buildDuplicateTrend(issues: any[]) {
     return isPendingDuplicateReviewStatus(i.status);
   });
 
+  const pendingDuplicateCandidateCount = duplicateRelevantIssues.length;
+
   const duplicateGroups = buildDuplicateGroupsFromIssues(duplicateRelevantIssues);
   const totalGroups = duplicateGroups.length;
 
@@ -402,6 +404,7 @@ export function buildDuplicateTrend(issues: any[]) {
     duplicateGroupIssueCount,
     redundantDuplicateIssues,
     totalDuplicateIssues: duplicateGroupIssueCount,
+    pendingDuplicateCandidateCount,
     duplicateRate,
     redundancyRate,
     strongestGroupScore,
@@ -807,6 +810,7 @@ export function analyseIssueTrends(
       duplicateGroups: duplicateTrend.totalGroups,
       duplicateIssues: duplicateTrend.duplicateGroupIssueCount,
       redundantDuplicateIssues: duplicateTrend.redundantDuplicateIssues,
+      pendingDuplicateCandidateCount: duplicateTrend.pendingDuplicateCandidateCount,
       duplicateRate: duplicateTrend.duplicateRate,
       hotspotAreaCount: hotspotTrends.length,
       hotspotIssueCount: hotspotTrends.reduce((sum, h) => sum + h.issueCount, 0),

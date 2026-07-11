@@ -39,6 +39,26 @@ const BAR_COLORS = [
   '#F97316',
 ];
 
+function safeNumber(value: unknown, fallback = 0): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function safePercentage(value: unknown, total: unknown): number {
+  const safeValue = safeNumber(value);
+  const safeTotal = safeNumber(total);
+
+  if (safeTotal <= 0 || safeValue <= 0) {
+    return 0;
+  }
+
+  const percentage = Math.round((safeValue / safeTotal) * 100);
+
+  return Number.isFinite(percentage)
+    ? Math.max(0, Math.min(100, percentage))
+    : 0;
+}
+
 function SectionHeader({
   icon,
   title,
@@ -79,7 +99,7 @@ function KpiCard({
 }) {
   return (
     <View
-      className="flex-1 rounded-2xl border border-slate-100 bg-white p-4 dark:border-slate-700 dark:bg-slate-800"
+      className="flex-1 rounded-2xl border border-slate-100 bg-white p-4 dark:border-slate-700 dark:bg-slate-880"
       style={styles.kpiCard}>
       <View className="mb-3 flex-row items-center justify-between">
         <View style={[styles.kpiIcon, { backgroundColor: `${color}18` }]}>{icon}</View>
@@ -119,9 +139,13 @@ function DonutRing({
   color: string;
   size?: number;
 }) {
+  const safePercent = Number.isFinite(Number(percent))
+    ? Math.max(0, Math.min(100, Number(percent)))
+    : 0;
+
   const radius = (size - 8) / 2;
   const circum = 2 * Math.PI * radius;
-  const filled = (percent / 100) * circum;
+  const filled = (safePercent / 100) * circum;
   return (
     <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
       <View
@@ -142,14 +166,14 @@ function DonutRing({
           borderWidth: 6,
           borderColor: 'transparent',
           borderTopColor: color,
-          borderRightColor: percent > 25 ? color : 'transparent',
-          borderBottomColor: percent > 50 ? color : 'transparent',
-          borderLeftColor: percent > 75 ? color : 'transparent',
+          borderRightColor: safePercent > 25 ? color : 'transparent',
+          borderBottomColor: safePercent > 50 ? color : 'transparent',
+          borderLeftColor: safePercent > 75 ? color : 'transparent',
           position: 'absolute',
           transform: [{ rotate: '-90deg' }],
         }}
       />
-      <Text style={{ fontSize: 12, fontWeight: '800', color }}>{percent}%</Text>
+      <Text style={{ fontSize: 12, fontWeight: '800', color }}>{safePercent}%</Text>
     </View>
   );
 }
@@ -173,23 +197,67 @@ export default function AnalyticsTab({ ward = 'Varanasi Zone', user }: Analytics
     );
   }
 
-  const totalIssues = analytics.summary.totalIssues;
-  const closedIssues = analytics.summary.resolvedIssues;
-  const resolutionRate = totalIssues > 0 ? Math.round((closedIssues / totalIssues) * 100) : 0;
-  const escalationRate = totalIssues > 0 ? Math.round((analytics.summary.escalatedIssues / totalIssues) * 100) : 0;
-  const reworkRate = totalIssues > 0 ? Math.round((analytics.summary.reworkIssues / totalIssues) * 100) : 0;
+  const totalIssues = safeNumber(analytics?.summary?.totalIssues);
+  const closedIssues = safeNumber(analytics?.summary?.resolvedIssues);
+  const resolutionRate = safePercentage(closedIssues, totalIssues);
+  const escalationRate = safePercentage(analytics?.summary?.escalatedIssues, totalIssues);
+  const reworkRate = safePercentage(analytics?.summary?.reworkIssues, totalIssues);
 
-  const maxCount = Math.max(...analytics.charts.categoryDistribution.map((c: any) => c.count), 1);
+  const categoryDistribution = Array.isArray(analytics?.charts?.categoryDistribution)
+    ? analytics.charts.categoryDistribution
+    : [];
+
+  const maxCount = Math.max(
+    ...categoryDistribution.map((item: any) => safeNumber(item?.count)),
+    1
+  );
+
+  const rawStatusBreakdown = analytics?.charts?.statusBreakdown ?? {};
 
   const statusBreakdown = [
-    { label: 'Pending', value: analytics.charts.statusBreakdown.pending, color: '#F59E0B' },
-    { label: 'Verified', value: analytics.charts.statusBreakdown.verified, color: '#10B981' },
-    { label: 'Assigned', value: analytics.charts.statusBreakdown.assigned, color: '#3B82F6' },
-    { label: 'In Progress', value: analytics.charts.statusBreakdown.in_progress, color: '#8B5CF6' },
-    { label: 'Rework', value: analytics.charts.statusBreakdown.rework_required, color: '#EF4444' },
-    { label: 'Escalated', value: analytics.charts.statusBreakdown.escalated, color: '#DC2626' },
-    { label: 'Closed', value: analytics.charts.statusBreakdown.closed, color: '#10B981' },
-    { label: 'Reopened', value: analytics.charts.statusBreakdown.reopened, color: '#F97316' },
+    {
+      label: 'Pending',
+      value: safeNumber(rawStatusBreakdown.pending),
+      color: '#F59E0B',
+    },
+    {
+      label: 'Verified',
+      value: safeNumber(rawStatusBreakdown.verified),
+      color: '#10B981',
+    },
+    {
+      label: 'Assigned',
+      value: safeNumber(rawStatusBreakdown.assigned),
+      color: '#3B82F6',
+    },
+    {
+      label: 'In Progress',
+      value: safeNumber(rawStatusBreakdown.in_progress),
+      color: '#8B5CF6',
+    },
+    {
+      label: 'Rework',
+      value: safeNumber(rawStatusBreakdown.rework_required),
+      color: '#EF4444',
+    },
+    {
+      label: 'Escalated',
+      value: safeNumber(rawStatusBreakdown.escalated),
+      color: '#DC2626',
+    },
+    {
+      label: 'Closed',
+      value: safeNumber(
+        rawStatusBreakdown.closed ??
+        rawStatusBreakdown.resolved
+      ),
+      color: '#10B981',
+    },
+    {
+      label: 'Reopened',
+      value: safeNumber(rawStatusBreakdown.reopened),
+      color: '#F97316',
+    },
   ];
 
   return (
@@ -216,7 +284,7 @@ export default function AnalyticsTab({ ward = 'Varanasi Zone', user }: Analytics
           </View>
           <View className="items-end gap-2">
             <View style={styles.slaRingWrap}>
-              <DonutRing percent={analytics.summary.slaComplianceRate} color="#34D399" size={72} />
+              <DonutRing percent={safeNumber(analytics?.summary?.slaComplianceRate)} color="#34D399" size={72} />
               <Text className="mt-1 text-center text-[9px] font-bold text-white/70">SLA</Text>
             </View>
           </View>
@@ -226,8 +294,8 @@ export default function AnalyticsTab({ ward = 'Varanasi Zone', user }: Analytics
           {[
             { label: 'Total', value: totalIssues, color: '#7DD3FC' },
             { label: 'Closed', value: closedIssues, color: '#6EE7B7' },
-            { label: 'Escalated', value: analytics.summary.escalatedIssues, color: '#FCA5A5' },
-            { label: 'Rework', value: analytics.summary.reworkIssues, color: '#FDE68A' },
+            { label: 'Escalated', value: safeNumber(analytics?.summary?.escalatedIssues), color: '#FCA5A5' },
+            { label: 'Rework', value: safeNumber(analytics?.summary?.reworkIssues), color: '#FDE68A' },
           ].map((s, i) => (
             <View key={i} style={styles.headerStat}>
               <Text style={[styles.headerStatValue, { color: s.color }]}>{s.value}</Text>
@@ -269,7 +337,7 @@ export default function AnalyticsTab({ ward = 'Varanasi Zone', user }: Analytics
               className={`rounded-lg px-3 py-1.5 border ${
                 selectedRange === r
                   ? 'bg-blue-600 border-blue-600 dark:bg-blue-500'
-                  : 'bg-white border-slate-255 dark:bg-slate-800 dark:border-slate-700'
+                  : 'bg-white border-slate-200 dark:bg-slate-800 dark:border-slate-700'
               }`}>
               <Text
                 className={`text-[11px] font-bold uppercase tracking-wider ${
@@ -286,14 +354,14 @@ export default function AnalyticsTab({ ward = 'Varanasi Zone', user }: Analytics
             <View className="mb-3 flex-row gap-3">
               <KpiCard
                 label="Avg Resolution"
-                value={`${analytics.summary.avgResolutionTime}h`}
+                value={`${safeNumber(analytics?.summary?.avgResolutionTime)}h`}
                 sub="Target: 72h"
                 color="#F59E0B"
                 icon={<Clock color="#F59E0B" size={20} strokeWidth={2} />}
               />
               <KpiCard
                 label="SLA Compliance"
-                value={`${analytics.summary.slaComplianceRate}%`}
+                value={`${safeNumber(analytics?.summary?.slaComplianceRate)}%`}
                 sub="Target: 90%"
                 color="#8B5CF6"
                 icon={<Zap color="#8B5CF6" size={20} strokeWidth={2} />}
@@ -310,7 +378,7 @@ export default function AnalyticsTab({ ward = 'Varanasi Zone', user }: Analytics
               />
               <KpiCard
                 label="Citizen Satisfaction"
-                value={`${analytics.summary.citizenSatisfaction} / 5`}
+                value={`${safeNumber(analytics?.summary?.citizenSatisfaction)} / 5`}
                 sub="From reviews"
                 color="#10B981"
                 icon={<Star color="#10B981" size={20} fill="#10B981" strokeWidth={0} />}
@@ -325,43 +393,72 @@ export default function AnalyticsTab({ ward = 'Varanasi Zone', user }: Analytics
                 title="Status Breakdown"
                 isDark={isDark}
               />
-              {statusBreakdown.map((item: any, i: number) => {
-                const pct = Math.round((item.value / totalIssues) * 100);
-                return (
-                  <View key={i} className="mb-3">
-                    <View className="mb-1.5 flex-row items-center justify-between">
-                      <View className="flex-row items-center gap-2">
-                        <View style={[styles.dot, { backgroundColor: item.color }]} />
-                        <Text className="text-[13px] font-semibold text-slate-700 dark:text-slate-300">
-                          {item.label}
-                        </Text>
+              {totalIssues <= 0 ? (
+                <View className="items-center justify-center rounded-xl bg-slate-50 px-4 py-6 dark:bg-slate-700/40">
+                  <Activity
+                    color={isDark ? '#64748B' : '#94A3B8'}
+                    size={22}
+                    strokeWidth={2}
+                  />
+
+                  <Text className="mt-2 text-center text-[13px] font-bold text-slate-600 dark:text-slate-300">
+                    No Status Data for This Range
+                  </Text>
+
+                  <Text className="mt-1 text-center text-[11px] leading-[16px] text-slate-400 dark:text-slate-500">
+                    {selectedRange === 'all'
+                      ? 'No issues are currently available for status analysis.'
+                      : `No issues were recorded in the selected ${selectedRange.toUpperCase()} range. Try another range or select All.`}
+                  </Text>
+                </View>
+              ) : (
+                statusBreakdown.map((item: any) => {
+                  const pct = safePercentage(item.value, totalIssues);
+
+                  return (
+                    <View key={item.label} className="mb-3">
+                      <View className="mb-1.5 flex-row items-center justify-between">
+                        <View className="flex-row items-center gap-2">
+                          <View style={[styles.dot, { backgroundColor: item.color }]} />
+
+                          <Text className="text-[13px] font-semibold text-slate-700 dark:text-slate-300">
+                            {item.label}
+                          </Text>
+                        </View>
+
+                        <View className="flex-row items-center gap-2">
+                          <Text className="text-[12px] font-bold text-slate-500 dark:text-slate-400">
+                            {item.value}
+                          </Text>
+
+                          <Text
+                            style={[
+                              styles.pctBadge,
+                              {
+                                color: item.color,
+                                backgroundColor: `${item.color}18`,
+                              },
+                            ]}
+                          >
+                            {pct}%
+                          </Text>
+                        </View>
                       </View>
-                      <View className="flex-row items-center gap-2">
-                        <Text className="text-[12px] font-bold text-slate-500 dark:text-slate-400">
-                          {item.value}
-                        </Text>
-                        <Text
-                          style={[
-                            styles.pctBadge,
-                            { color: item.color, backgroundColor: `${item.color}18` },
-                          ]}>
-                          {pct}%
-                        </Text>
+
+                      <View className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
+                        <View
+                          style={{
+                            width: `${pct}%`,
+                            height: '100%',
+                            borderRadius: 8,
+                            backgroundColor: item.color,
+                          }}
+                        />
                       </View>
                     </View>
-                    <View className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
-                      <View
-                        style={{
-                          width: `${pct}%`,
-                          height: '100%',
-                          borderRadius: 8,
-                          backgroundColor: item.color,
-                        }}
-                      />
-                    </View>
-                  </View>
-                );
-              })}
+                  );
+                })
+              )}
             </View>
 
             <View
@@ -372,35 +469,42 @@ export default function AnalyticsTab({ ward = 'Varanasi Zone', user }: Analytics
                 title="Category Distribution"
                 isDark={isDark}
               />
-              {analytics.charts.categoryDistribution.map((item: any, i: number) => {
-                const pct = Math.round((item.count / maxCount) * 100);
-                return (
-                  <View key={i} className="mb-3 flex-row items-center gap-3">
-                    <Text
-                      className="text-[12px] font-semibold text-slate-500 dark:text-slate-400"
-                      style={{ width: 100 }}
-                      numberOfLines={1}>
-                      {item.category}
-                    </Text>
-                    <View className="h-7 flex-1 justify-center overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-700">
-                      <View
-                        style={{
-                          width: `${pct}%`,
-                          height: '100%',
-                          borderRadius: 12,
-                          backgroundColor: BAR_COLORS[i % BAR_COLORS.length],
-                          minWidth: 28,
-                        }}
-                      />
+              {categoryDistribution.length > 0 ? (
+                categoryDistribution.map((item: any, i: number) => {
+                  const count = safeNumber(item?.count);
+                  const pct = safePercentage(count, maxCount);
+                  return (
+                    <View key={item.category || i} className="mb-3 flex-row items-center gap-3">
+                      <Text
+                        className="text-[12px] font-semibold text-slate-500 dark:text-slate-400"
+                        style={{ width: 100 }}
+                        numberOfLines={1}>
+                        {item.category}
+                      </Text>
+                      <View className="h-7 flex-1 justify-center overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-700">
+                        <View
+                          style={{
+                            width: `${pct}%`,
+                            height: '100%',
+                            borderRadius: 12,
+                            backgroundColor: BAR_COLORS[i % BAR_COLORS.length],
+                            minWidth: count > 0 ? 28 : 0,
+                          }}
+                        />
+                      </View>
+                      <Text
+                        className="text-[13px] font-extrabold text-slate-700 dark:text-slate-200"
+                        style={{ width: 22, textAlign: 'right' }}>
+                        {count}
+                      </Text>
                     </View>
-                    <Text
-                      className="text-[13px] font-extrabold text-slate-700 dark:text-slate-200"
-                      style={{ width: 22, textAlign: 'right' }}>
-                      {item.count}
-                    </Text>
-                  </View>
-                );
-              })}
+                  );
+                })
+              ) : (
+                <Text className="text-[13px] font-semibold italic text-slate-500 dark:text-slate-400 text-center py-4 w-full">
+                  No categories recorded for this range
+                </Text>
+              )}
             </View>
 
             <View
@@ -413,34 +517,40 @@ export default function AnalyticsTab({ ward = 'Varanasi Zone', user }: Analytics
               />
               <View className="flex-row gap-3">
                 {[
-                  { label: 'Rework Rate', value: analytics.charts.qualityMetrics.reworkRate, color: '#EF4444', bg: '#FEE2E2' },
-                  { label: 'Citizen Satisfaction', value: analytics.charts.qualityMetrics.citizenSatisfaction, color: '#10B981', bg: '#D1FAE5' },
+                  { label: 'Rework Rate', value: safeNumber(analytics?.charts?.qualityMetrics?.reworkRate), color: '#EF4444', bg: '#FEE2E2' },
+                  { label: 'Citizen Satisfaction', value: safeNumber(analytics?.charts?.qualityMetrics?.citizenSatisfaction), color: '#10B981', bg: '#D1FAE5' },
                   {
                     label: 'First-time Fix',
-                    value: analytics.charts.qualityMetrics.firstTimeFixRate,
+                    value: safeNumber(analytics?.charts?.qualityMetrics?.firstTimeFixRate),
                     color: '#3B82F6',
                     bg: '#DBEAFE',
                   },
-                ].map((m: any, i: number) => (
-                  <View
-                    key={i}
-                    className="flex-1 items-center rounded-2xl p-3"
-                    style={{ backgroundColor: m.bg }}>
-                    <Text style={{ fontSize: 22, fontWeight: '900', color: m.color }}>
-                      {m.value}%
-                    </Text>
-                    <Text
-                      style={{
-                        fontSize: 10,
-                        fontWeight: '700',
-                        color: m.color,
-                        textAlign: 'center',
-                        marginTop: 2,
-                      }}>
-                      {m.label}
-                    </Text>
-                  </View>
-                ))}
+                ].map((m: any, i: number) => {
+                  const safeVal = safeNumber(m.value);
+                  const isCitizenSatisfaction = m.label === 'Citizen Satisfaction';
+                  const displayValue = isCitizenSatisfaction ? `${safeVal}` : `${safeVal}%`;
+
+                  return (
+                    <View
+                      key={i}
+                      className="flex-1 items-center rounded-2xl p-3"
+                      style={{ backgroundColor: m.bg }}>
+                      <Text style={{ fontSize: 22, fontWeight: '900', color: m.color }}>
+                        {displayValue}
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 10,
+                          fontWeight: '700',
+                          color: m.color,
+                          textAlign: 'center',
+                          marginTop: 2,
+                        }}>
+                        {m.label}
+                      </Text>
+                    </View>
+                  );
+                })}
               </View>
             </View>
 
@@ -452,7 +562,7 @@ export default function AnalyticsTab({ ward = 'Varanasi Zone', user }: Analytics
                 title="Performance Insights"
                 isDark={isDark}
               />
-              {analytics.insights.length > 0 ? (
+              {analytics.insights && analytics.insights.length > 0 ? (
                 analytics.insights.map((item: any, i: number) => (
                   <View key={i} className="mb-3 flex-row gap-3 last:mb-0">
                     <View
@@ -502,7 +612,7 @@ export default function AnalyticsTab({ ward = 'Varanasi Zone', user }: Analytics
                 title="Top Performers"
                 isDark={isDark}
               />
-              {analytics.officers.topPerformers.length > 0 ? (
+              {analytics.officers && analytics.officers.topPerformers && analytics.officers.topPerformers.length > 0 ? (
                 analytics.officers.topPerformers.map((officer: any, i: number) => (
                   <View
                     key={i}
@@ -557,7 +667,7 @@ export default function AnalyticsTab({ ward = 'Varanasi Zone', user }: Analytics
                 title="Officer Workload"
                 isDark={isDark}
               />
-              {analytics.officers.workload.length > 0 ? (
+              {analytics.officers && analytics.officers.workload && analytics.officers.workload.length > 0 ? (
                 analytics.officers.workload.map((officer: any, i: number) => (
                   <View key={i} className="mb-3">
                     <View className="mb-1.5 flex-row items-center justify-between">
@@ -623,7 +733,7 @@ export default function AnalyticsTab({ ward = 'Varanasi Zone', user }: Analytics
                 isDark={isDark}
               />
               <View className="flex-row flex-wrap gap-3">
-                {analytics.officers.leaderboard.length > 0 ? (
+                {analytics.officers && analytics.officers.leaderboard && analytics.officers.leaderboard.length > 0 ? (
                   analytics.officers.leaderboard.map((officer: any, i: number) => (
                     <View
                       key={i}
@@ -636,7 +746,7 @@ export default function AnalyticsTab({ ward = 'Varanasi Zone', user }: Analytics
                             borderColor:
                               officer.efficiencyScore >= 90
                                 ? '#10B981'
-                                : officer.efficiencyScore >= 75
+                                  : officer.efficiencyScore >= 75
                                   ? '#F59E0B'
                                   : '#EF4444',
                           },

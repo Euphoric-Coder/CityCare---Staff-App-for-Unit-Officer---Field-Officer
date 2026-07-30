@@ -128,25 +128,25 @@ export default function SplashScreen({ onFinish }: SplashScreenProps) {
   }, []);
 
   const gradientColors: [string, string, string] = isDark
-    ? ['#022c22', '#064e3b', '#022c22']
-    : ['#f0fdf4', '#dcfce7', '#f0fdf4'];
+    ? ['#020617', '#022c22', '#064e3b']
+    : ['#f8fafc', '#ecfdf5', '#cffafe'];
 
-  const ringColor = isDark ? 'rgba(16,185,129,' : 'rgba(5,150,105,';
+  const ringColor = isDark ? 'rgba(34,211,238,' : 'rgba(13,148,136,';
   const iconTint = isDark ? '#6ee7b7' : '#065f46';
-  const iconBgStart = isDark ? '#064e3b' : '#bbf7d0';
-  const iconBgEnd = isDark ? '#022c22' : '#86efac';
-  const iconBorder = isDark ? 'rgba(52,211,153,0.55)' : 'rgba(5,150,105,0.45)';
-  const logoShadowColor = isDark ? '#10b981' : '#059669';
-  const dotColor = isDark ? '#10b981' : '#059669';
+  const iconBgStart = isDark ? '#065f46' : '#d1fae5';
+  const iconBgEnd = isDark ? '#0b4f54' : '#a7f3d0';
+  const iconBorder = isDark ? 'rgba(34,211,238,0.45)' : 'rgba(5,150,105,0.3)';
+  const logoShadowColor = isDark ? '#22d3ee' : '#059669';
+  const dotColor = isDark ? '#22d3ee' : '#14b8a6';
   const badgeBg: [string, string] = isDark
-    ? ['rgba(16,185,129,0.18)', 'rgba(16,185,129,0.06)']
-    : ['rgba(5,150,105,0.14)', 'rgba(5,150,105,0.04)'];
-  const badgeBorderColor = isDark ? 'rgba(52,211,153,0.35)' : 'rgba(5,150,105,0.30)';
+    ? ['rgba(15,23,42,0.75)', 'rgba(30,41,59,0.45)']
+    : ['rgba(255,255,255,0.85)', 'rgba(241,245,249,0.5)'];
+  const badgeBorderColor = isDark ? 'rgba(34,211,238,0.25)' : 'rgba(13,148,136,0.2)';
 
   return (
     <Animated.View
       className="flex-1 items-center justify-center"
-      style={{ opacity: screenOpacity, backgroundColor: isDark ? '#022c22' : '#f0fdf4' }}>
+      style={{ opacity: screenOpacity, backgroundColor: isDark ? '#020617' : '#f8fafc' }}>
       <LinearGradient
         colors={gradientColors}
         locations={[0, 0.5, 1]}
@@ -164,7 +164,7 @@ export default function SplashScreen({ onFinish }: SplashScreenProps) {
               height: width * 0.9,
               top: -width * 0.25,
               left: width * 0.05,
-              backgroundColor: isDark ? 'rgba(16,185,129,0.08)' : 'rgba(5,150,105,0.07)',
+              backgroundColor: isDark ? 'rgba(16,185,129,0.08)' : 'rgba(16,185,129,0.08)',
             },
           ]}
         />
@@ -176,7 +176,7 @@ export default function SplashScreen({ onFinish }: SplashScreenProps) {
               height: width * 0.75,
               bottom: -width * 0.2,
               right: -width * 0.1,
-              backgroundColor: isDark ? 'rgba(6,95,70,0.12)' : 'rgba(187,247,208,0.6)',
+              backgroundColor: isDark ? 'rgba(6,182,212,0.12)' : 'rgba(207,250,254,0.6)',
             },
           ]}
         />
@@ -190,7 +190,7 @@ export default function SplashScreen({ onFinish }: SplashScreenProps) {
               {
                 width: RING3,
                 height: RING3,
-                borderColor: `${ringColor}0.10)`,
+                borderColor: `${ringColor}0.06)`,
                 opacity: ring3Opacity,
                 transform: [{ scale: ring3Scale }],
               },
@@ -202,8 +202,8 @@ export default function SplashScreen({ onFinish }: SplashScreenProps) {
               {
                 width: RING2,
                 height: RING2,
-                borderColor: `${ringColor}0.22)`,
-                backgroundColor: `${ringColor}0.03)`,
+                borderColor: `${ringColor}0.15)`,
+                backgroundColor: `${ringColor}0.02)`,
                 opacity: ring2Opacity,
                 transform: [{ scale: ring2Scale }],
               },
@@ -215,8 +215,9 @@ export default function SplashScreen({ onFinish }: SplashScreenProps) {
               {
                 width: RING1,
                 height: RING1,
-                borderColor: `${ringColor}0.42)`,
-                backgroundColor: `${ringColor}0.06)`,
+                borderColor: `${ringColor}0.35)`,
+                borderWidth: 1.5,
+                backgroundColor: `${ringColor}0.04)`,
                 opacity: ring1Opacity,
                 transform: [{ scale: ring1Scale }],
               },
@@ -257,13 +258,13 @@ export default function SplashScreen({ onFinish }: SplashScreenProps) {
 
         <View className="items-center gap-2">
           <Animated.Text
-            className={`font-extrabold tracking-tight ${isDark ? 'text-emerald-50' : 'text-emerald-950'}`}
+            className={`font-extrabold tracking-tight ${isDark ? 'text-slate-50' : 'text-emerald-950'}`}
             style={[
               styles.appName,
               { opacity: titleOpacity, transform: [{ translateY: titleY }] },
             ]}>
             City
-            <Text className={isDark ? 'text-emerald-400' : 'text-emerald-600'}>Care</Text>
+            <Text className={isDark ? 'text-cyan-400' : 'text-emerald-600'}>Care</Text>
           </Animated.Text>
 
           <Animated.View
@@ -272,15 +273,15 @@ export default function SplashScreen({ onFinish }: SplashScreenProps) {
             <View className={`h-px w-8 ${isDark ? 'bg-emerald-500/50' : 'bg-emerald-600/40'}`} />
             <Text
               className={`text-xs font-bold tracking-widest ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
-              SMART CIVIC MANAGEMENT
+              SMART CIVIC ISSUE MANAGEMENT
             </Text>
             <View className={`h-px w-8 ${isDark ? 'bg-emerald-500/50' : 'bg-emerald-600/40'}`} />
           </Animated.View>
 
           <Animated.Text
-            className={`mt-1 text-sm font-normal tracking-wide ${isDark ? 'text-emerald-300/70' : 'text-emerald-800/60'}`}
+            className={`mt-1 text-sm font-normal tracking-wide ${isDark ? 'text-emerald-300/70' : 'text-emerald-800/60'} text-center px-6`}
             style={{ opacity: taglineOpacity }}>
-            Empowering cities. Serving citizens.
+            Report issues. Track progress. Build better cities.
           </Animated.Text>
         </View>
 
@@ -303,7 +304,7 @@ export default function SplashScreen({ onFinish }: SplashScreenProps) {
           <View style={[styles.badgeDot, { backgroundColor: dotColor, shadowColor: dotColor }]} />
           <Text
             className={`text-xs font-semibold tracking-wide ${isDark ? 'text-emerald-100/85' : 'text-emerald-900/80'}`}>
-            Varanasi Municipal Corporation
+            Smart Civic Issue Platform
           </Text>
         </Animated.View>
       </View>
@@ -316,8 +317,8 @@ export default function SplashScreen({ onFinish }: SplashScreenProps) {
 
       <View className="absolute bottom-7 items-center">
         <Text
-          className={`text-xs font-medium tracking-widest ${isDark ? 'text-emerald-700/70' : 'text-emerald-700/50'}`}>
-          v1.0.0 • Secure Platform
+          className={`text-[10px] font-bold tracking-widest uppercase ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+          v1.0.0 • Secure civic platform
         </Text>
       </View>
     </Animated.View>
@@ -340,9 +341,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     overflow: 'hidden',
     borderWidth: 1.5,
-    elevation: 20,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    elevation: 25,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.45,
     shadowRadius: 20,
   },
   logoImage: {
@@ -376,8 +378,10 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   loadingDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    marginHorizontal: 2,
   },
 });
+

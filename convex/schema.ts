@@ -196,14 +196,14 @@ export default defineSchema({
     .index('by_citizen_badge_code', ['citizenId', 'badgeCode']),
 
   cityAdmins: defineTable({
-    userId: v.id("users"),
+    userId: v.id('users'),
     fullName: v.string(),
     email: v.string(),
     phone: v.string(),
     state: v.string(),
     city: v.string(),
-    managedUnitOfficers: v.array(v.id("unitOfficers")),
-    managedFieldOfficers: v.array(v.id("fieldOfficers")),
+    managedUnitOfficers: v.array(v.id('unitOfficers')),
+    managedFieldOfficers: v.array(v.id('fieldOfficers')),
     mustChangePassword: v.boolean(),
     totalIssuesInCity: v.number(),
     issuesResolved: v.number(),
@@ -211,14 +211,14 @@ export default defineSchema({
     avgResolutionTime: v.number(),
     slaComplianceRate: v.number(),
     createdAt: v.number(),
-    createdBy: v.id("users"),
-    profileImage: v.optional(v.id("_storage")),
+    createdBy: v.id('users'),
+    profileImage: v.optional(v.id('_storage')),
     notes: v.optional(v.string()),
   })
-    .index("by_user", ["userId"])
-    .index("by_email", ["email"])
-    .index("by_city", ["city"])
-    .index("by_state_city", ["state", "city"]),
+    .index('by_user', ['userId'])
+    .index('by_email', ['email'])
+    .index('by_city', ['city'])
+    .index('by_state_city', ['state', 'city']),
 
   unitOfficers: defineTable({
     userId: v.id('users'),
@@ -293,7 +293,8 @@ export default defineSchema({
   })
     .index('by_user', ['userId'])
     .index('by_department', ['department'])
-    .index('by_unit_officer', ['reportingUnitOfficerId']),
+    .index('by_unit_officer', ['reportingUnitOfficerId'])
+    .index('by_city', ['city']),
 
   issues: defineTable({
     // Core
@@ -701,4 +702,20 @@ export default defineSchema({
     newValue: v.optional(v.string()),
     notes: v.optional(v.string()),
   }).index('by_issue', ['issueId']),
+
+  cityAdminAuditLogs: defineTable({
+    action: v.string(),
+    performedByUserId: v.id('users'),
+    performerRole: v.literal('city_admin'),
+    city: v.string(),
+    affectedEntityType: v.string(),
+    affectedEntityId: v.id('issues'),
+    issueCode: v.string(),
+    oldValue: v.string(),
+    newValue: v.string(),
+    reason: v.string(),
+    timestamp: v.number(),
+  })
+    .index('by_city', ['city'])
+    .index('by_issue', ['affectedEntityId']),
 });

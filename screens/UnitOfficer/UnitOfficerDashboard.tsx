@@ -545,7 +545,7 @@ function IssueCard({ issue, onPress }: { issue: MappedIssue; onPress: () => void
         };
       default:
         return {
-          hex: '#3B82F6',
+          hex: '#64748B',
           bg: isDark ? 'rgba(59, 130, 246, 0.12)' : '#EFF6FF',
           border: isDark ? 'rgba(59, 130, 246, 0.4)' : 'rgba(59, 130, 246, 0.3)',
           glow: 'rgba(59, 130, 246, 0.6)',
@@ -2175,16 +2175,16 @@ export default function UnitOfficerDashboard() {
               onGroupResolved={(groupId) => console.log(groupId)}
               onReject={async (issueIds, groupId) => {
                 if (!user?.id || !user?.name) {
-                  throw new Error("Missing Unit Officer details.");
+                  throw new Error('Missing Unit Officer details.');
                 }
 
                 await duplicateRejectIssues({
-                  issueIds: issueIds as Id<"issues">[],
+                  issueIds: issueIds as Id<'issues'>[],
                   UOName: user.name,
-                  rejectedBy: user.id as Id<"users">,
-                  reason: "Duplicate issue detected",
+                  rejectedBy: user.id as Id<'users'>,
+                  reason: 'Duplicate issue detected',
                   comment:
-                    "This issue has been rejected because it appears to be a duplicate of another active issue reported by the same citizen.",
+                    'This issue has been rejected because it appears to be a duplicate of another active issue reported by the same citizen.',
                 });
               }}
             />

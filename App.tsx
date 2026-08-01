@@ -26,7 +26,7 @@ import MessagesTab from 'components/OfficerMessaging/MessagesTab';
 import FieldDashboardScreen from 'screens/FieldOfficer/FieldDashboardScreen';
 import FieldIssueDetailScreen from 'screens/FieldOfficer/FieldIssueDetailScreen';
 import FieldProfileTab from 'screens/FieldOfficer/FieldProfileTab';
-import { getToken, getUserData, User, removeToken } from 'lib/auth';
+import { getToken, getUserData, User, removeToken, saveUserData } from 'lib/auth';
 import './global.css';
 import ProfileTab from 'screens/UnitOfficer/ProfileTab';
 import ChangePasswordScreen from 'screens/ChangePasswordScreen';
@@ -246,7 +246,6 @@ type AppProps = {
 function App({ user, setUser }: AppProps) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [mustChangePassword, setMustChangePassword] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
   const [appReady, setAppReady] = useState(false);
 
@@ -259,8 +258,6 @@ function App({ user, setUser }: AppProps) {
         if (token && userData) {
           setUser(userData);
           setIsAuthenticated(true);
-
-          setMustChangePassword(true);
         }
       } catch (error) {
         console.error('Error checking auth status:', error);
@@ -284,7 +281,6 @@ function App({ user, setUser }: AppProps) {
   const handleSignIn = (userData: User) => {
     setUser(userData);
     setIsAuthenticated(true);
-    setMustChangePassword(true); // force password change UI
   };
 
   const handleSignOut = async () => {
@@ -292,7 +288,6 @@ function App({ user, setUser }: AppProps) {
       await removeToken(); // delete token + user data from secure storage
       setUser(null);
       setIsAuthenticated(false);
-      setMustChangePassword(false);
     } catch (error) {
       console.error('Logout error:', error);
     }
@@ -302,25 +297,38 @@ function App({ user, setUser }: AppProps) {
     return <Splash onFinish={() => setShowSplash(false)} />;
   }
 
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F0FDFA' }}>
+        <ActivityIndicator size="large" color="#0EA5A4" />
+      </View>
+    );
+  }
+
+  const isOfficer = user && (user.role === 'unit_officer' || user.role === 'field_officer');
+  const needsPasswordChange = isAuthenticated && isOfficer && (user.mustChangePassword !== false);
+
   return (
     <SafeAreaProvider>
       {isAuthenticated && user ? (
-        // mustChangePassword ? (
-        //   <ChangePasswordScreen
-        //     onComplete={() => {
-        //       setMustChangePassword(false);
-        //     }}
-        //   />
-        // ) : (
-        <NavigationContainer>
-          {user.role === 'field_officer' ? (
-            <FieldOfficerTabNavigator user={user} onSignOut={handleSignOut} />
-          ) : (
-            <UnitOfficerTabNavigator user={user} onSignOut={handleSignOut} />
-          )}
-        </NavigationContainer>
+        needsPasswordChange ? (
+          <ChangePasswordScreen
+            onComplete={() => {
+              const updatedUser = { ...user, mustChangePassword: false };
+              setUser(updatedUser);
+              saveUserData(updatedUser);
+            }}
+          />
+        ) : (
+          <NavigationContainer>
+            {user.role === 'field_officer' ? (
+              <FieldOfficerTabNavigator user={user} onSignOut={handleSignOut} />
+            ) : (
+              <UnitOfficerTabNavigator user={user} onSignOut={handleSignOut} />
+            )}
+          </NavigationContainer>
+        )
       ) : (
-        // )
         <SignInScreen onSignIn={handleSignIn} />
       )}
     </SafeAreaProvider>

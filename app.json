@@ -12,15 +12,16 @@
     "plugins": [
       "expo-font",
       "expo-secure-store",
-      "expo-web-browser"
+      "expo-web-browser",
+      "@react-native-community/datetimepicker"
     ],
     "orientation": "portrait",
     "icon": "./assets/logo.png",
     "userInterfaceStyle": "automatic",
     "splash": {
-    "backgroundColor": "#022c22",
-    "image": "./assets/logo.png",
-    "resizeMode": "contain"
+      "backgroundColor": "#022c22",
+      "image": "./assets/logo.png",
+      "resizeMode": "contain"
     },
     "assetBundlePatterns": [
       "**/*"
@@ -34,7 +35,7 @@
       }
     },
     "android": {
-      "softwareKeyboardLayoutMode": "adjustResize",
+      "softwareKeyboardLayoutMode": "resize",
       "permissions": [
         "CAMERA",
         "READ_EXTERNAL_STORAGE",
@@ -46,6 +47,12 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/logo.png",
         "backgroundColor": "#ffffff"
+      },
+      "package": "com.euphoriccoder.CityCareMobile"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "6763e32c-57b3-4cfe-b620-db59af24dcb5"
       }
     }
   }

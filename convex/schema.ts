@@ -250,6 +250,9 @@ export default defineSchema({
 
     activeIssueIds: v.array(v.id('issues')),
     resolvedIssueIds: v.array(v.id('issues')),
+
+    mustChangePassword: v.optional(v.boolean()),
+    passwordChangedAt: v.optional(v.number()),
   })
     .index('by_user', ['userId'])
     .index('by_department', ['department'])
@@ -290,6 +293,9 @@ export default defineSchema({
     efficiencyScore: v.number(),
 
     lastLogin: v.optional(v.string()),
+
+    mustChangePassword: v.optional(v.boolean()),
+    passwordChangedAt: v.optional(v.number()),
   })
     .index('by_user', ['userId'])
     .index('by_department', ['department'])

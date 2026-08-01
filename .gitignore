@@ -11,7 +11,11 @@ npm-debug.*
 web-build/
 
 
+*.apk
 
+.easignore
+
+.env
 
 ios
 android

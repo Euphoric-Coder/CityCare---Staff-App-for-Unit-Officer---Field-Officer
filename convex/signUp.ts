@@ -116,6 +116,8 @@ export const signUp = mutation({
         assignedFieldOfficers: [],
         activeIssueIds: [],
         resolvedIssueIds: [],
+
+        mustChangePassword: true,
       });
     }
 
@@ -155,6 +157,8 @@ export const signUp = mutation({
         efficiencyScore: 0,
 
         lastLogin: undefined,
+
+        mustChangePassword: true,
       });
     }
 

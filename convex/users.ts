@@ -55,3 +55,21 @@ export const seedCityAdminIfNeeded = mutation({
     return { success: true, seeded: false };
   },
 });
+
+export const getOfficerProfile = query({
+  args: { userId: v.id('users'), role: v.string() },
+  handler: async (ctx, args) => {
+    if (args.role === 'unit_officer') {
+      return await ctx.db
+        .query('unitOfficers')
+        .withIndex('by_user', (q) => q.eq('userId', args.userId))
+        .unique();
+    } else if (args.role === 'field_officer') {
+      return await ctx.db
+        .query('fieldOfficers')
+        .withIndex('by_user', (q) => q.eq('userId', args.userId))
+        .unique();
+    }
+    return null;
+  },
+});

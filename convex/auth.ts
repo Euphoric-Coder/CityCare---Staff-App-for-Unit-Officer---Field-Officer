@@ -45,6 +45,15 @@ export const verifyUser = action({
       };
     }
 
+    let mustChangePassword = false;
+    if (user.role === 'unit_officer' || user.role === 'field_officer') {
+      const officer = await ctx.runQuery(api.users.getOfficerProfile, {
+        userId: user._id,
+        role: user.role,
+      });
+      mustChangePassword = officer ? (officer.mustChangePassword ?? true) : true;
+    }
+
     return {
       success: true,
       token: "token-" + user._id,
@@ -53,6 +62,7 @@ export const verifyUser = action({
         name: user.fullName,
         email: user.email,
         role: user.role,
+        mustChangePassword,
       },
     };
   },

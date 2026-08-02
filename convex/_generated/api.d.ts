@@ -20,6 +20,7 @@ import type * as gamification from "../gamification.js";
 import type * as gamificationAutomation from "../gamificationAutomation.js";
 import type * as issueAnalytics from "../issueAnalytics.js";
 import type * as issueDiscussions from "../issueDiscussions.js";
+import type * as issueReview from "../issueReview.js";
 import type * as issueUpdates from "../issueUpdates.js";
 import type * as issues from "../issues.js";
 import type * as issuesMedia from "../issuesMedia.js";
@@ -53,6 +54,7 @@ declare const fullApi: ApiFromModules<{
   gamificationAutomation: typeof gamificationAutomation;
   issueAnalytics: typeof issueAnalytics;
   issueDiscussions: typeof issueDiscussions;
+  issueReview: typeof issueReview;
   issueUpdates: typeof issueUpdates;
   issues: typeof issues;
   issuesMedia: typeof issuesMedia;

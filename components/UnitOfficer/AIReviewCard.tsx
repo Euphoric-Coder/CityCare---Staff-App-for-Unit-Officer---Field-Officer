@@ -41,7 +41,8 @@ import {
   Copy,
   X,
 } from 'lucide-react-native';
-import { reviewIssueWithGemini } from 'lib/issueReview';
+import { useAction } from 'convex/react';
+import { api } from '../../convex/_generated/api';
 
 interface AIReviewCardProps {
   issue: any;
@@ -68,6 +69,7 @@ const isIOS = Platform.OS === 'ios';
 
 export default function AIReviewCard({ issue, unitOfficerDepartment, duplicateFlags }: AIReviewCardProps) {
   const isDark = useColorScheme() === 'dark';
+  const reviewIssueWithGemini = useAction(api.issueReview.reviewIssueWithGemini);
 
   const [loading, setLoading] = useState(false);
   const [loadingType, setLoadingType] = useState<'scan' | 'suggest' | null>(null);

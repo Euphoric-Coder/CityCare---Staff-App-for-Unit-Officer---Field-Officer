@@ -36,11 +36,13 @@ const { width, height } = Dimensions.get('window');
 
 interface SignInScreenProps {
   onSignIn: (user: User) => void;
+  navigation?: any;
+  route?: any;
 }
 
 type UserRole = 'Unit Officer' | 'Field Officer' | null;
 
-export default function SignInScreen({ onSignIn }: SignInScreenProps) {
+export default function SignInScreen({ onSignIn, navigation, route }: SignInScreenProps) {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 
@@ -51,6 +53,17 @@ export default function SignInScreen({ onSignIn }: SignInScreenProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [focusedField, setFocusedField] = useState<string | null>(null);
+
+  const successMessage = route?.params?.successMessage ?? '';
+
+  useEffect(() => {
+    if (route?.params?.email) {
+      setEmail(route.params.email);
+    }
+    if (route?.params?.role) {
+      setSelectedRole(route.params.role);
+    }
+  }, [route?.params]);
 
   // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -132,7 +145,7 @@ export default function SignInScreen({ onSignIn }: SignInScreenProps) {
 
     try {
       const { verifyUser } = await import('../lib/convexClient');
-      const { saveToken, saveUserData } = await import('../lib/auth');
+      const { saveToken, saveUserData, normalizeAuthenticatedUser } = await import('../lib/auth');
 
       const response = await verifyUser({
         email,
@@ -145,14 +158,25 @@ export default function SignInScreen({ onSignIn }: SignInScreenProps) {
         return;
       }
 
-      await saveToken(response.token);
-      await saveUserData(response.user);
+      const authenticatedUser = normalizeAuthenticatedUser(response);
 
-      onSignIn(response.user);
+      await saveToken(response.token);
+      await saveUserData(authenticatedUser);
+
+      onSignIn(authenticatedUser);
     } catch (err) {
       setError('Unexpected error occurred');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = () => {
+    if (navigation) {
+      navigation.navigate('ForgotPassword', {
+        email: email.trim(),
+        role: selectedRole ?? undefined,
+      });
     }
   };
 
@@ -284,6 +308,27 @@ export default function SignInScreen({ onSignIn }: SignInScreenProps) {
                   shadowColor: isDark ? '#000' : '#064e3b',
                 },
               ]}>
+              {/* Success Message Banner */}
+              {successMessage ? (
+                <Animated.View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                    borderWidth: 1,
+                    borderColor: 'rgba(16, 185, 129, 0.35)',
+                    padding: 16,
+                    borderRadius: 18,
+                    marginBottom: 24,
+                    gap: 12,
+                  }}>
+                  <CheckCircle2 color="#10b981" size={18} strokeWidth={2.5} />
+                  <Text style={{ color: '#10b981', fontSize: 14, fontWeight: '700', flex: 1 }}>
+                    {successMessage}
+                  </Text>
+                </Animated.View>
+              ) : null}
+
               {/* Error Message */}
               {error ? (
                 <Animated.View style={styles.errorContainer}>
@@ -414,6 +459,27 @@ export default function SignInScreen({ onSignIn }: SignInScreenProps) {
                   </TouchableOpacity>
                 </View>
               </View>
+
+              {/* Forgot Password Link */}
+              <TouchableOpacity
+                disabled={loading}
+                onPress={handleForgotPassword}
+                style={{
+                  alignSelf: 'flex-end',
+                  marginTop: -10,
+                  marginBottom: 20,
+                  paddingVertical: 4,
+                  paddingHorizontal: 6,
+                }}>
+                <Text
+                  style={{
+                    fontSize: 13,
+                    fontWeight: '700',
+                    color: isDark ? '#6ee7b7' : '#047857',
+                  }}>
+                  Forgot Password?
+                </Text>
+              </TouchableOpacity>
 
               {/* Sign In Button */}
               <TouchableOpacity

@@ -3,12 +3,13 @@ import * as SplashScreen from 'expo-splash-screen';
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
 import Splash from './components/SplashScreen';
-import React, { useState, useEffect } from 'react';
-import { View, ActivityIndicator, useColorScheme } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import RootErrorBoundary from './components/RootErrorBoundary';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, TouchableOpacity, ActivityIndicator, useColorScheme } from 'react-native';
+import { NavigationContainer, useNavigation } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { createNativeStackNavigator, NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Home,
   ListTodo,
@@ -19,6 +20,10 @@ import {
 } from 'lucide-react-native';
 
 import SignInScreen from 'components/SignInScreen';
+import ForgotPasswordScreen from 'screens/ForgotPasswordScreen';
+import VerifyPasswordResetOtpScreen from 'screens/VerifyPasswordResetOtpScreen';
+import ResetForgottenPasswordScreen from 'screens/ResetForgottenPasswordScreen';
+import { getPasswordRecoveryState, clearPasswordRecoveryState } from 'lib/passwordRecoveryStorage';
 import UnitOfficerDashboard from 'screens/UnitOfficer/UnitOfficerDashboard';
 import IssueDetailScreen from 'screens/UnitOfficer/IssueDetailScreen';
 import AnalyticsTab from 'screens/UnitOfficer/AnalyticsTab';
@@ -26,16 +31,29 @@ import MessagesTab from 'components/OfficerMessaging/MessagesTab';
 import FieldDashboardScreen from 'screens/FieldOfficer/FieldDashboardScreen';
 import FieldIssueDetailScreen from 'screens/FieldOfficer/FieldIssueDetailScreen';
 import FieldProfileTab from 'screens/FieldOfficer/FieldProfileTab';
-import { getToken, getUserData, User, removeToken, saveUserData } from 'lib/auth';
+import { getToken, getUserData, User, clearAuthData, saveUserData } from 'lib/auth';
 import './global.css';
 import ProfileTab from 'screens/UnitOfficer/ProfileTab';
 import ChangePasswordScreen from 'screens/ChangePasswordScreen';
 import { ConvexProvider, ConvexReactClient, useQuery } from 'convex/react';
 import { api } from './convex/_generated/api';
-import { UserContext, useUser } from 'context/UserContext';
+import { UserContext } from 'context/UserContext';
 import PublicModerationScreen from 'screens/PublicModerationScreen';
 
-type RootStackParamList = {
+export type RootStackParamList = {
+  Authentication: undefined;
+  ForcedPasswordChange: undefined;
+  OfficerApplication: undefined;
+};
+
+export type AuthStackParamList = {
+  SignIn: { successMessage?: string; email?: string; role?: 'Unit Officer' | 'Field Officer' } | undefined;
+  ForgotPassword: { email?: string; role?: 'Unit Officer' | 'Field Officer'; errorMessage?: string } | undefined;
+  VerifyResetOtp: { requestId: string; maskedDeliveryEmail: string; expiresAt: number; resendAllowedAt: number; officerRole: 'unit_officer' | 'field_officer' };
+  ResetForgottenPassword: { resetSessionToken?: string; resetSessionExpiresAt?: number } | undefined;
+};
+
+type OfficerDashboardStackParamList = {
   DashboardHome: undefined;
   PublicModeration: undefined;
   FieldDashboardHome: undefined;
@@ -43,10 +61,113 @@ type RootStackParamList = {
   IssueDetail: { issueId: string };
 };
 
+const RootStack = createNativeStackNavigator<RootStackParamList>();
+const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const Tab = createBottomTabNavigator();
-const Stack = createNativeStackNavigator<RootStackParamList>();
+const Stack = createNativeStackNavigator<OfficerDashboardStackParamList>();
 
 const convex = new ConvexReactClient(process.env.EXPO_PUBLIC_CONVEX_URL!);
+
+function PasswordRecoveryRestorer() {
+  const navigation = useNavigation<NativeStackNavigationProp<AuthStackParamList>>();
+  const restorationStartedRef = useRef(false);
+
+  useEffect(() => {
+    if (restorationStartedRef.current) {
+      return;
+    }
+    restorationStartedRef.current = true;
+    let mounted = true;
+
+    const restoreRecovery = async () => {
+      try {
+        const state = await getPasswordRecoveryState();
+
+        if (!mounted || !state) {
+          return;
+        }
+
+        if (state.stage === 'otp_pending') {
+          const status = await convex.query(
+            api.passwordResetPublic.checkPasswordResetRequestStatus,
+            { requestId: state.requestId as any }
+          );
+
+          if (status && status.status === 'pending' && status.expiresAt > Date.now()) {
+            navigation.reset({
+              index: 0,
+              routes: [
+                {
+                  name: 'VerifyResetOtp',
+                  params: {
+                    requestId: state.requestId,
+                    maskedDeliveryEmail: state.maskedDeliveryEmail,
+                    expiresAt: status.expiresAt,
+                    resendAllowedAt: status.resendAllowedAt,
+                    officerRole: state.officerRole,
+                  },
+                },
+              ],
+            });
+            return;
+          }
+        }
+
+        if (state.stage === 'otp_verified') {
+          const status = await convex.query(
+            api.passwordResetPublic.checkPasswordResetSessionStatus,
+            { resetSessionToken: state.resetSessionToken }
+          );
+
+          if (status && status.valid && status.status === 'valid' && status.expiresAt > Date.now()) {
+            navigation.reset({
+              index: 0,
+              routes: [
+                {
+                  name: 'ResetForgottenPassword',
+                  params: {
+                    resetSessionToken: state.resetSessionToken,
+                    resetSessionExpiresAt: status.expiresAt,
+                  },
+                },
+              ],
+            });
+            return;
+          }
+        }
+
+        await clearPasswordRecoveryState();
+      } catch (error) {
+        console.error('Password recovery restoration failed', error);
+        await clearPasswordRecoveryState();
+      }
+    };
+
+    void restoreRecovery();
+
+    return () => {
+      mounted = false;
+    };
+  }, [navigation]);
+
+  return null;
+}
+
+function AuthNavigator({ onSignIn }: { onSignIn: (user: User) => void }) {
+  return (
+    <View style={{ flex: 1 }}>
+      <AuthStack.Navigator initialRouteName="SignIn" screenOptions={{ headerShown: false }}>
+        <AuthStack.Screen name="SignIn">
+          {(props) => <SignInScreen {...props} onSignIn={onSignIn} />}
+        </AuthStack.Screen>
+        <AuthStack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+        <AuthStack.Screen name="VerifyResetOtp" component={VerifyPasswordResetOtpScreen} />
+        <AuthStack.Screen name="ResetForgottenPassword" component={ResetForgottenPasswordScreen} />
+      </AuthStack.Navigator>
+      <PasswordRecoveryRestorer />
+    </View>
+  );
+}
 
 // Unit Officer Stacks
 function DashboardStack({ user }: { user: User }) {
@@ -79,7 +200,7 @@ function FieldDashboardStack() {
 
 interface TabNavigatorProps {
   user: User;
-  onSignOut: () => void;
+  onSignOut: () => Promise<void>;
 }
 
 function UnitOfficerTabNavigator({ user, onSignOut }: TabNavigatorProps) {
@@ -205,7 +326,6 @@ function FieldOfficerTabNavigator({ user, onSignOut }: TabNavigatorProps) {
           tabBarIcon: ({ color, size }) => <ListTodo size={size} color={color} />,
         }}
       />
-      {/* TODO - add messages tabs for field officers as well once implemented */}
       <Tab.Screen
         name="Messages"
         component={MessagesTab}
@@ -238,59 +358,127 @@ function FieldOfficerTabNavigator({ user, onSignOut }: TabNavigatorProps) {
   );
 }
 
+function OfficerApplication({ user, onSignOut }: { user: User; onSignOut: () => Promise<void> }) {
+  if (user.role === 'unit_officer') {
+    return <UnitOfficerTabNavigator user={user} onSignOut={onSignOut} />;
+  }
+
+  if (user.role === 'field_officer') {
+    return <FieldOfficerTabNavigator user={user} onSignOut={onSignOut} />;
+  }
+
+  return (
+    <SafeAreaView style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F0FDFA', padding: 24 }}>
+      <Text style={{ fontSize: 18, fontWeight: '700', color: '#991B1B', textAlign: 'center' }}>
+        Invalid Officer Role
+      </Text>
+      <TouchableOpacity
+        onPress={() => void onSignOut()}
+        style={{ marginTop: 16, paddingHorizontal: 20, paddingVertical: 12, backgroundColor: '#0D9488', borderRadius: 10 }}>
+        <Text style={{ color: '#FFFFFF', fontWeight: '600' }}>Return to Sign In</Text>
+      </TouchableOpacity>
+    </SafeAreaView>
+  );
+}
+
 type AppProps = {
   user: User | null;
   setUser: React.Dispatch<React.SetStateAction<User | null>>;
 };
 
 function App({ user, setUser }: AppProps) {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showSplash, setShowSplash] = useState(true);
   const [appReady, setAppReady] = useState(false);
 
   useEffect(() => {
-    const prepare = async () => {
-      try {
-        const token = await getToken();
-        const userData = await getUserData();
+    let mounted = true;
 
-        if (token && userData) {
-          setUser(userData);
-          setIsAuthenticated(true);
+    const restoreAuthentication = async () => {
+      try {
+        setLoading(true);
+
+        const [token, savedUser] = await Promise.all([getToken(), getUserData()]);
+
+        if (!mounted) {
+          return;
+        }
+
+        if (token && savedUser) {
+          setUser(savedUser);
+        } else {
+          await clearAuthData();
+          if (mounted) {
+            setUser(null);
+          }
         }
       } catch (error) {
-        console.error('Error checking auth status:', error);
+        console.error('Authentication restoration failed', error);
+        await clearAuthData();
+        if (mounted) {
+          setUser(null);
+        }
       } finally {
-        setLoading(false);
+        if (mounted) {
+          setLoading(false);
+        }
       }
-
-      await new Promise((resolve) => setTimeout(resolve, 200));
-      setAppReady(true);
     };
 
-    prepare();
+    void restoreAuthentication();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   useEffect(() => {
-    if (appReady) {
-      SplashScreen.hideAsync();
-    }
-  }, [appReady]);
+    const prepareApp = async () => {
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      setAppReady(true);
+    };
+    prepareApp();
+  }, []);
 
-  const handleSignIn = (userData: User) => {
-    setUser(userData);
-    setIsAuthenticated(true);
+  useEffect(() => {
+    if (appReady && !loading) {
+      SplashScreen.hideAsync().catch(() => {});
+    }
+  }, [appReady, loading]);
+
+  const handleSignIn = (signedInUser: User): void => {
+    console.info('ROOT_SIGN_IN_RECEIVED', {
+      id: signedInUser.id,
+      email: signedInUser.email,
+      role: signedInUser.role,
+      mustChangePassword: signedInUser.mustChangePassword,
+    });
+
+    setUser(signedInUser);
   };
 
-  const handleSignOut = async () => {
+  const handleSignOut = async (): Promise<void> => {
     try {
-      await removeToken(); // delete token + user data from secure storage
-      setUser(null);
-      setIsAuthenticated(false);
+      await clearAuthData();
     } catch (error) {
-      console.error('Logout error:', error);
+      console.error('Unable to clear stored authentication', error);
+    } finally {
+      setUser(null);
     }
+  };
+
+  const handleForcedPasswordChangeComplete = async (): Promise<void> => {
+    if (!user) {
+      return;
+    }
+
+    const updatedUser: User = {
+      ...user,
+      mustChangePassword: false,
+    };
+
+    await saveUserData(updatedUser);
+    setUser(updatedUser);
   };
 
   if (showSplash) {
@@ -299,38 +487,54 @@ function App({ user, setUser }: AppProps) {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F0FDFA' }}>
-        <ActivityIndicator size="large" color="#0EA5A4" />
-      </View>
+      <SafeAreaProvider>
+        <View
+          style={{
+            flex: 1,
+            justifyContent: 'center',
+            alignItems: 'center',
+            backgroundColor: '#F0FDFA',
+          }}>
+          <ActivityIndicator size="large" color="#0EA5A4" />
+        </View>
+      </SafeAreaProvider>
     );
   }
 
-  const isOfficer = user && (user.role === 'unit_officer' || user.role === 'field_officer');
-  const needsPasswordChange = isAuthenticated && isOfficer && (user.mustChangePassword !== false);
-
   return (
     <SafeAreaProvider>
-      {isAuthenticated && user ? (
-        needsPasswordChange ? (
-          <ChangePasswordScreen
-            onComplete={() => {
-              const updatedUser = { ...user, mustChangePassword: false };
-              setUser(updatedUser);
-              saveUserData(updatedUser);
-            }}
-          />
-        ) : (
-          <NavigationContainer>
-            {user.role === 'field_officer' ? (
-              <FieldOfficerTabNavigator user={user} onSignOut={handleSignOut} />
-            ) : (
-              <UnitOfficerTabNavigator user={user} onSignOut={handleSignOut} />
-            )}
-          </NavigationContainer>
-        )
-      ) : (
-        <SignInScreen onSignIn={handleSignIn} />
-      )}
+      <NavigationContainer>
+        <RootStack.Navigator screenOptions={{ headerShown: false }}>
+          {!user ? (
+            <RootStack.Screen name="Authentication">
+              {() => <AuthNavigator onSignIn={handleSignIn} />}
+            </RootStack.Screen>
+          ) : user.mustChangePassword === true ? (
+            <RootStack.Screen name="ForcedPasswordChange">
+              {() => {
+                console.info('PASSING_USER_TO_MANDATORY_SCREEN', {
+                  id: user.id,
+                  email: user.email,
+                  role: user.role,
+                  mustChangePassword: user.mustChangePassword,
+                });
+
+                return (
+                  <ChangePasswordScreen
+                    user={user}
+                    onComplete={handleForcedPasswordChangeComplete}
+                    onSignOut={handleSignOut}
+                  />
+                );
+              }}
+            </RootStack.Screen>
+          ) : (
+            <RootStack.Screen name="OfficerApplication">
+              {() => <OfficerApplication user={user} onSignOut={handleSignOut} />}
+            </RootStack.Screen>
+          )}
+        </RootStack.Navigator>
+      </NavigationContainer>
     </SafeAreaProvider>
   );
 }
@@ -339,10 +543,12 @@ export default function AppWrapper() {
   const [user, setUser] = useState<User | null>(null);
 
   return (
-    <ConvexProvider client={convex}>
-      <UserContext.Provider value={user}>
-        <App user={user} setUser={setUser} />
-      </UserContext.Provider>
-    </ConvexProvider>
+    <RootErrorBoundary>
+      <ConvexProvider client={convex}>
+        <UserContext.Provider value={user}>
+          <App user={user} setUser={setUser} />
+        </UserContext.Provider>
+      </ConvexProvider>
+    </RootErrorBoundary>
   );
 }

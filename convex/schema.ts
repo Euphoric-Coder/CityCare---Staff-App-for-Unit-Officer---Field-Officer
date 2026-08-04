@@ -253,6 +253,8 @@ export default defineSchema({
 
     mustChangePassword: v.optional(v.boolean()),
     passwordChangedAt: v.optional(v.number()),
+    nextPasswordChangeAllowedAt: v.optional(v.number()),
+    passwordChangeCooldownDays: v.optional(v.number()),
   })
     .index('by_user', ['userId'])
     .index('by_department', ['department'])
@@ -296,6 +298,8 @@ export default defineSchema({
 
     mustChangePassword: v.optional(v.boolean()),
     passwordChangedAt: v.optional(v.number()),
+    nextPasswordChangeAllowedAt: v.optional(v.number()),
+    passwordChangeCooldownDays: v.optional(v.number()),
   })
     .index('by_user', ['userId'])
     .index('by_department', ['department'])
@@ -310,6 +314,7 @@ export default defineSchema({
     description: v.string(),
 
     category: v.string(),
+    department: v.string(),
 
     subcategory: v.array(v.string()),
 
@@ -518,7 +523,8 @@ export default defineSchema({
       v.literal('citizen'),
       v.literal('unit_officer'),
       v.literal('field_officer'),
-      v.literal('admin')
+      v.literal('admin'),
+      v.literal('city_admin')
     ),
 
     // Attachments (photos/videos/documents)
@@ -724,4 +730,52 @@ export default defineSchema({
   })
     .index('by_city', ['city'])
     .index('by_issue', ['affectedEntityId']),
+
+  passwordResetRequests: defineTable({
+    userId: v.id('users'),
+    officerRole: v.union(v.literal('unit_officer'), v.literal('field_officer')),
+    emailNormalized: v.string(),
+    maskedDeliveryEmail: v.string(),
+    otpHash: v.string(),
+    expiresAt: v.number(),
+    resendAllowedAt: v.number(),
+    attemptsRemaining: v.number(),
+    status: v.union(
+      v.literal('pending'),
+      v.literal('verified'),
+      v.literal('completed'),
+      v.literal('expired'),
+      v.literal('locked'),
+      v.literal('cancelled')
+    ),
+    deliveryStatus: v.union(v.literal('pending'), v.literal('sent'), v.literal('failed')),
+    emailSentAt: v.optional(v.number()),
+    providerMessageId: v.optional(v.string()),
+    deliveryFailureCategory: v.optional(v.string()),
+    verifiedAt: v.optional(v.number()),
+    completedAt: v.optional(v.number()),
+    invalidatedAt: v.optional(v.number()),
+    supersededByRequestId: v.optional(v.id('passwordResetRequests')),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index('by_user', ['userId'])
+    .index('by_email', ['emailNormalized'])
+    .index('by_status', ['status'])
+    .index('by_user_status', ['userId', 'status'])
+    .index('by_email_created', ['emailNormalized', 'createdAt']),
+
+  passwordResetSessions: defineTable({
+    userId: v.id('users'),
+    requestId: v.id('passwordResetRequests'),
+    tokenHash: v.string(),
+    expiresAt: v.number(),
+    usedAt: v.optional(v.number()),
+    revokedAt: v.optional(v.number()),
+    createdAt: v.number(),
+  })
+    .index('by_user', ['userId'])
+    .index('by_request', ['requestId'])
+    .index('by_token_hash', ['tokenHash']),
 });
+

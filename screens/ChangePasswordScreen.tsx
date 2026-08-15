@@ -38,7 +38,11 @@ interface ChangePasswordScreenProps {
   onSignOut: () => Promise<void> | void;
 }
 
-export default function ChangePasswordScreen({ user, onComplete, onSignOut }: ChangePasswordScreenProps) {
+export default function ChangePasswordScreen({
+  user,
+  onComplete,
+  onSignOut,
+}: ChangePasswordScreenProps) {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 
@@ -176,10 +180,7 @@ export default function ChangePasswordScreen({ user, onComplete, onSignOut }: Ch
         { cancelable: false }
       );
     } catch (error: unknown) {
-      const rawMessage =
-        error instanceof Error
-          ? error.message
-          : 'Unable to update your password';
+      const rawMessage = error instanceof Error ? error.message : 'Unable to update your password';
 
       const cleanMessage = cleanConvexError(rawMessage);
 
@@ -233,7 +234,13 @@ export default function ChangePasswordScreen({ user, onComplete, onSignOut }: Ch
           Unable to validate the mandatory password-change account.
         </Text>
         {__DEV__ && (
-          <Text style={{ marginTop: 8, fontSize: 13, color: isDark ? '#94A3B8' : '#475569', textAlign: 'center' }}>
+          <Text
+            style={{
+              marginTop: 8,
+              fontSize: 13,
+              color: isDark ? '#94A3B8' : '#475569',
+              textAlign: 'center',
+            }}>
             {`ID: ${user?.id ? 'available' : 'missing'} | Role: ${user?.role ?? 'missing'} | Email: ${user?.email ? 'available' : 'missing'}`}
           </Text>
         )}
@@ -261,33 +268,74 @@ export default function ChangePasswordScreen({ user, onComplete, onSignOut }: Ch
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor: isDark ? '#020617' : '#f8fafc' }}>
       <LinearGradient colors={bgColors} style={{ flex: 1 }}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
-          <ScrollView className="flex-1" contentContainerClassName="flex-grow" showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          className="flex-1">
+          <ScrollView
+            className="flex-1"
+            contentContainerClassName="flex-grow"
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled">
             <Animated.View className="flex-1 pb-10" style={{ opacity: fadeAnim }}>
-              
               {/* Concentric rings header */}
-              <View className="items-center justify-center pt-14 pb-6">
-                <View style={{ width: 130, height: 130 }} className="items-center justify-center mb-4">
-                  <View style={{ position: 'absolute', width: 130, height: 130, borderRadius: 999, borderWidth: 1, borderColor: isDark ? 'rgba(34,211,238,0.06)' : 'rgba(13,148,136,0.06)' }} />
-                  <View style={{ position: 'absolute', width: 106, height: 106, borderRadius: 999, borderWidth: 1, borderColor: isDark ? 'rgba(34,211,238,0.12)' : 'rgba(13,148,136,0.12)' }} />
-                  <View style={{ position: 'absolute', width: 82, height: 82, borderRadius: 999, borderWidth: 1, borderColor: isDark ? 'rgba(34,211,238,0.2)' : 'rgba(13,148,136,0.2)' }} />
-                  <View style={{ width: 58, height: 58, borderRadius: 999, backgroundColor: isDark ? '#0f766e' : '#0d9488' }} className="items-center justify-center shadow-lg shadow-teal-500/30">
+              <View className="items-center justify-center pb-6 pt-14">
+                <View
+                  style={{ width: 130, height: 130 }}
+                  className="mb-4 items-center justify-center">
+                  <View
+                    style={{
+                      position: 'absolute',
+                      width: 130,
+                      height: 130,
+                      borderRadius: 999,
+                      borderWidth: 1,
+                      borderColor: isDark ? 'rgba(34,211,238,0.06)' : 'rgba(13,148,136,0.06)',
+                    }}
+                  />
+                  <View
+                    style={{
+                      position: 'absolute',
+                      width: 106,
+                      height: 106,
+                      borderRadius: 999,
+                      borderWidth: 1,
+                      borderColor: isDark ? 'rgba(34,211,238,0.12)' : 'rgba(13,148,136,0.12)',
+                    }}
+                  />
+                  <View
+                    style={{
+                      position: 'absolute',
+                      width: 82,
+                      height: 82,
+                      borderRadius: 999,
+                      borderWidth: 1,
+                      borderColor: isDark ? 'rgba(34,211,238,0.2)' : 'rgba(13,148,136,0.2)',
+                    }}
+                  />
+                  <View
+                    style={{
+                      width: 58,
+                      height: 58,
+                      borderRadius: 999,
+                      backgroundColor: isDark ? '#0f766e' : '#0d9488',
+                    }}
+                    className="items-center justify-center shadow-lg shadow-teal-500/30">
                     <Shield size={30} color="#FFFFFF" strokeWidth={2.2} />
                   </View>
                 </View>
 
-                <Text className="text-2xl font-black tracking-tight text-center text-slate-900 dark:text-white px-4">
+                <Text className="px-4 text-center text-2xl font-black tracking-tight text-slate-900 dark:text-white">
                   Mandatory Password Change
                 </Text>
-                <Text className="text-sm font-medium text-center text-slate-500 dark:text-slate-400 mt-1 px-8">
+                <Text className="mt-1 px-8 text-center text-sm font-medium text-slate-500 dark:text-slate-400">
                   Security policy requires changing your temporary password on first sign in.
                 </Text>
               </View>
 
               {/* Form Card */}
-              <View className="mx-5 p-6 rounded-3xl bg-white/80 dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800 shadow-xl shadow-slate-900/5 backdrop-blur-xl">
+              <View className="mx-5 rounded-3xl border border-slate-200/80 bg-white/80 p-6 shadow-xl shadow-slate-900/5 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-900/80">
                 {serverError ? (
-                  <View className="mb-5 p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 flex-row items-center space-x-3">
+                  <View className="mb-5 flex-row items-center space-x-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 dark:border-rose-900/50 dark:bg-rose-950/40">
                     <AlertTriangle size={20} color="#E11D48" />
                     <Text className="flex-1 text-sm font-medium text-rose-700 dark:text-rose-300">
                       {serverError}
@@ -297,69 +345,139 @@ export default function ChangePasswordScreen({ user, onComplete, onSignOut }: Ch
 
                 {/* Current Password Field */}
                 <View className="mb-5">
-                  <Text className="text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-2">
+                  <Text className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400">
                     Current Password
                   </Text>
-                  <View style={{ borderWidth: 1.5, borderColor: errors.currentPassword ? '#EF4444' : isCurrentFocused ? (isDark ? '#22D3EE' : '#0D9488') : isDark ? '#1E293B' : '#E2E8F0' }} className="flex-row items-center rounded-2xl bg-slate-50 dark:bg-slate-950 px-4 py-3.5">
+                  <View
+                    style={{
+                      borderWidth: 1.5,
+                      borderColor: errors.currentPassword
+                        ? '#EF4444'
+                        : isCurrentFocused
+                          ? isDark
+                            ? '#22D3EE'
+                            : '#0D9488'
+                          : isDark
+                            ? '#1E293B'
+                            : '#E2E8F0',
+                    }}
+                    className="flex-row items-center rounded-2xl bg-slate-50 px-4 py-3.5 dark:bg-slate-950">
                     <Lock size={20} color={isDark ? '#94A3B8' : '#64748B'} />
                     <TextInput
                       style={{ flex: 1, paddingVertical: 0 }}
-                      className="ml-3 text-base text-slate-900 dark:text-white font-medium"
+                      className="ml-3 text-base font-medium text-slate-900 dark:text-white"
                       placeholder="Enter current password"
                       placeholderTextColor={isDark ? '#475569' : '#94A3B8'}
                       secureTextEntry={!showCurrentPassword}
                       value={currentPassword}
-                      onChangeText={(text) => { setCurrentPassword(text); setErrors((prev) => ({ ...prev, currentPassword: '' })); }}
+                      onChangeText={(text) => {
+                        setCurrentPassword(text);
+                        setErrors((prev) => ({ ...prev, currentPassword: '' }));
+                      }}
                       onFocus={() => setIsCurrentFocused(true)}
                       onBlur={() => setIsCurrentFocused(false)}
                     />
-                    <TouchableOpacity onPress={() => setShowCurrentPassword(!showCurrentPassword)} className="p-1">
-                      {showCurrentPassword ? <EyeOff size={20} color={isDark ? '#94A3B8' : '#64748B'} /> : <Eye size={20} color={isDark ? '#94A3B8' : '#64748B'} />}
+                    <TouchableOpacity
+                      onPress={() => setShowCurrentPassword(!showCurrentPassword)}
+                      className="p-1">
+                      {showCurrentPassword ? (
+                        <EyeOff size={20} color={isDark ? '#94A3B8' : '#64748B'} />
+                      ) : (
+                        <Eye size={20} color={isDark ? '#94A3B8' : '#64748B'} />
+                      )}
                     </TouchableOpacity>
                   </View>
-                  {errors.currentPassword ? <Text className="text-xs font-medium text-rose-500 mt-1.5 ml-1">{errors.currentPassword}</Text> : null}
+                  {errors.currentPassword ? (
+                    <Text className="ml-1 mt-1.5 text-xs font-medium text-rose-500">
+                      {errors.currentPassword}
+                    </Text>
+                  ) : null}
                 </View>
 
                 {/* New Password Field */}
                 <View className="mb-5">
-                  <Text className="text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-2">
+                  <Text className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400">
                     New Password
                   </Text>
-                  <View style={{ borderWidth: 1.5, borderColor: errors.newPassword ? '#EF4444' : isNewFocused ? (isDark ? '#22D3EE' : '#0D9488') : isDark ? '#1E293B' : '#E2E8F0' }} className="flex-row items-center rounded-2xl bg-slate-50 dark:bg-slate-950 px-4 py-3.5">
+                  <View
+                    style={{
+                      borderWidth: 1.5,
+                      borderColor: errors.newPassword
+                        ? '#EF4444'
+                        : isNewFocused
+                          ? isDark
+                            ? '#22D3EE'
+                            : '#0D9488'
+                          : isDark
+                            ? '#1E293B'
+                            : '#E2E8F0',
+                    }}
+                    className="flex-row items-center rounded-2xl bg-slate-50 px-4 py-3.5 dark:bg-slate-950">
                     <Lock size={20} color={isDark ? '#94A3B8' : '#64748B'} />
                     <TextInput
                       style={{ flex: 1, paddingVertical: 0 }}
-                      className="ml-3 text-base text-slate-900 dark:text-white font-medium"
+                      className="ml-3 text-base font-medium text-slate-900 dark:text-white"
                       placeholder="Enter new password"
                       placeholderTextColor={isDark ? '#475569' : '#94A3B8'}
                       secureTextEntry={!showNewPassword}
                       value={newPassword}
-                      onChangeText={(text) => { setNewPassword(text); setErrors((prev) => ({ ...prev, newPassword: '' })); }}
+                      onChangeText={(text) => {
+                        setNewPassword(text);
+                        setErrors((prev) => ({ ...prev, newPassword: '' }));
+                      }}
                       onFocus={() => setIsNewFocused(true)}
                       onBlur={() => setIsNewFocused(false)}
                     />
-                    <TouchableOpacity onPress={() => setShowNewPassword(!showNewPassword)} className="p-1">
-                      {showNewPassword ? <EyeOff size={20} color={isDark ? '#94A3B8' : '#64748B'} /> : <Eye size={20} color={isDark ? '#94A3B8' : '#64748B'} />}
+                    <TouchableOpacity
+                      onPress={() => setShowNewPassword(!showNewPassword)}
+                      className="p-1">
+                      {showNewPassword ? (
+                        <EyeOff size={20} color={isDark ? '#94A3B8' : '#64748B'} />
+                      ) : (
+                        <Eye size={20} color={isDark ? '#94A3B8' : '#64748B'} />
+                      )}
                     </TouchableOpacity>
                   </View>
-                  {errors.newPassword ? <Text className="text-xs font-medium text-rose-500 mt-1.5 ml-1">{errors.newPassword}</Text> : null}
+                  {errors.newPassword ? (
+                    <Text className="ml-1 mt-1.5 text-xs font-medium text-rose-500">
+                      {errors.newPassword}
+                    </Text>
+                  ) : null}
 
                   {/* Strength Checklist */}
-                  <View className="mt-3 p-3.5 rounded-2xl bg-slate-100/70 dark:bg-slate-950/60 border border-slate-200/50 dark:border-slate-800/80">
-                    <Text className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
+                  <View className="mt-3 rounded-2xl border border-slate-200/50 bg-slate-100/70 p-3.5 dark:border-slate-800/80 dark:bg-slate-950/60">
+                    <Text className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                       Password Policy Checklist
                     </Text>
                     <View className="space-y-1.5">
                       {[
-                        { label: 'At least 8 characters long', valid: passwordStrength.hasMinLength },
-                        { label: 'Contains an uppercase letter (A-Z)', valid: passwordStrength.hasUpperCase },
-                        { label: 'Contains a lowercase letter (a-z)', valid: passwordStrength.hasLowerCase },
+                        {
+                          label: 'At least 8 characters long',
+                          valid: passwordStrength.hasMinLength,
+                        },
+                        {
+                          label: 'Contains an uppercase letter (A-Z)',
+                          valid: passwordStrength.hasUpperCase,
+                        },
+                        {
+                          label: 'Contains a lowercase letter (a-z)',
+                          valid: passwordStrength.hasLowerCase,
+                        },
                         { label: 'Contains a number (0-9)', valid: passwordStrength.hasNumber },
-                        { label: 'Contains a special character (!@#$%^&*)', valid: passwordStrength.hasSpecialChar },
+                        {
+                          label: 'Contains a special character (!@#$%^&*)',
+                          valid: passwordStrength.hasSpecialChar,
+                        },
                       ].map((item, idx) => (
-                        <View key={idx} className="flex-row items-center space-x-2 my-0.5">
-                          {item.valid ? <CheckCircle size={14} color="#10B981" /> : <XCircle size={14} color={isDark ? '#475569' : '#94A3B8'} />}
-                          <Text style={{ fontSize: 12 }} className={`font-medium ml-1.5 ${item.valid ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'}`}>
+                        <View key={idx} className="my-0.5 flex-row items-center space-x-2">
+                          {item.valid ? (
+                            <CheckCircle size={14} color="#10B981" />
+                          ) : (
+                            <XCircle size={14} color={isDark ? '#475569' : '#94A3B8'} />
+                          )}
+                          <Text
+                            style={{ fontSize: 12 }}
+                            className={`ml-1.5 font-medium ${item.valid ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'}`}>
                             {item.label}
                           </Text>
                         </View>
@@ -370,38 +488,64 @@ export default function ChangePasswordScreen({ user, onComplete, onSignOut }: Ch
 
                 {/* Confirm Password Field */}
                 <View className="mb-6">
-                  <Text className="text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-2">
+                  <Text className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400">
                     Confirm New Password
                   </Text>
-                  <View style={{ borderWidth: 1.5, borderColor: errors.confirmPassword ? '#EF4444' : isConfirmFocused ? (isDark ? '#22D3EE' : '#0D9488') : isDark ? '#1E293B' : '#E2E8F0' }} className="flex-row items-center rounded-2xl bg-slate-50 dark:bg-slate-950 px-4 py-3.5">
+                  <View
+                    style={{
+                      borderWidth: 1.5,
+                      borderColor: errors.confirmPassword
+                        ? '#EF4444'
+                        : isConfirmFocused
+                          ? isDark
+                            ? '#22D3EE'
+                            : '#0D9488'
+                          : isDark
+                            ? '#1E293B'
+                            : '#E2E8F0',
+                    }}
+                    className="flex-row items-center rounded-2xl bg-slate-50 px-4 py-3.5 dark:bg-slate-950">
                     <Lock size={20} color={isDark ? '#94A3B8' : '#64748B'} />
                     <TextInput
                       style={{ flex: 1, paddingVertical: 0 }}
-                      className="ml-3 text-base text-slate-900 dark:text-white font-medium"
+                      className="ml-3 text-base font-medium text-slate-900 dark:text-white"
                       placeholder="Re-enter new password"
                       placeholderTextColor={isDark ? '#475569' : '#94A3B8'}
                       secureTextEntry={!showConfirmPassword}
                       value={confirmPassword}
-                      onChangeText={(text) => { setConfirmPassword(text); setErrors((prev) => ({ ...prev, confirmPassword: '' })); }}
+                      onChangeText={(text) => {
+                        setConfirmPassword(text);
+                        setErrors((prev) => ({ ...prev, confirmPassword: '' }));
+                      }}
                       onFocus={() => setIsConfirmFocused(true)}
                       onBlur={() => setIsConfirmFocused(false)}
                     />
-                    <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} className="p-1">
-                      {showConfirmPassword ? <EyeOff size={20} color={isDark ? '#94A3B8' : '#64748B'} /> : <Eye size={20} color={isDark ? '#94A3B8' : '#64748B'} />}
+                    <TouchableOpacity
+                      onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="p-1">
+                      {showConfirmPassword ? (
+                        <EyeOff size={20} color={isDark ? '#94A3B8' : '#64748B'} />
+                      ) : (
+                        <Eye size={20} color={isDark ? '#94A3B8' : '#64748B'} />
+                      )}
                     </TouchableOpacity>
                   </View>
-                  {errors.confirmPassword ? <Text className="text-xs font-medium text-rose-500 mt-1.5 ml-1">{errors.confirmPassword}</Text> : null}
+                  {errors.confirmPassword ? (
+                    <Text className="ml-1 mt-1.5 text-xs font-medium text-rose-500">
+                      {errors.confirmPassword}
+                    </Text>
+                  ) : null}
                 </View>
 
                 {/* Action Buttons */}
                 <TouchableOpacity
                   onPress={handleUpdatePassword}
                   disabled={submitting}
-                  className="w-full py-4 rounded-2xl bg-teal-600 dark:bg-teal-500 items-center justify-center shadow-lg shadow-teal-600/30 active:opacity-90">
+                  className="w-full items-center justify-center rounded-2xl bg-teal-600 py-4 shadow-lg shadow-teal-600/30 active:opacity-90 dark:bg-teal-500">
                   {submitting ? (
                     <ActivityIndicator size="small" color="#FFFFFF" />
                   ) : (
-                    <Text className="text-base font-bold text-white tracking-wide">
+                    <Text className="text-base font-bold tracking-wide text-white">
                       Update Password & Continue
                     </Text>
                   )}
@@ -409,12 +553,11 @@ export default function ChangePasswordScreen({ user, onComplete, onSignOut }: Ch
 
                 <TouchableOpacity
                   onPress={() => void onSignOut()}
-                  className="w-full py-3 mt-3 items-center justify-center">
+                  className="mt-3 w-full items-center justify-center py-3">
                   <Text className="text-sm font-semibold text-slate-500 dark:text-slate-400">
                     Sign Out
                   </Text>
                 </TouchableOpacity>
-
               </View>
             </Animated.View>
           </ScrollView>

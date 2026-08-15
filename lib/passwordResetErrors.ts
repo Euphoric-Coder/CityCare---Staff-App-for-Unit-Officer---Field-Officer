@@ -20,11 +20,7 @@ export const extractConvexErrorCode = (error: unknown): string | null => {
   if (error && typeof error === 'object' && 'data' in error) {
     const data = (error as { data?: unknown }).data;
 
-    if (
-      data &&
-      typeof data === 'object' &&
-      'code' in data
-    ) {
+    if (data && typeof data === 'object' && 'code' in data) {
       const code = (data as { code?: unknown }).code;
 
       if (typeof code === 'string') {

@@ -25,6 +25,9 @@ import {
   AlertCircle,
   ArrowLeft,
   ShieldCheck,
+  CheckCircle2,
+  Info,
+  Sparkles,
 } from 'lucide-react-native';
 import { useAction } from 'convex/react';
 import { api } from '../convex/_generated/api';
@@ -77,6 +80,37 @@ export default function ForgotPasswordScreen({ navigation, route }: Props) {
   // Background Orbs
   const orb1Anim = useRef(new Animated.Value(0)).current;
   const orb2Anim = useRef(new Animated.Value(0)).current;
+
+  // Role card animation values
+  const unitScale = useRef(new Animated.Value(1)).current;
+  const fieldScale = useRef(new Animated.Value(1)).current;
+
+  const animateRoleSelect = (role: 'Unit Officer' | 'Field Officer') => {
+    setSelectedRole(role);
+    const targetAnim = role === 'Unit Officer' ? unitScale : fieldScale;
+    const otherAnim = role === 'Unit Officer' ? fieldScale : unitScale;
+
+    Animated.parallel([
+      Animated.sequence([
+        Animated.timing(targetAnim, {
+          toValue: 0.95,
+          duration: 90,
+          useNativeDriver: true,
+        }),
+        Animated.spring(targetAnim, {
+          toValue: 1,
+          friction: 4,
+          tension: 40,
+          useNativeDriver: true,
+        }),
+      ]),
+      Animated.timing(otherAnim, {
+        toValue: 1,
+        duration: 120,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
 
   useEffect(() => {
     Animated.parallel([
@@ -151,6 +185,19 @@ export default function ForgotPasswordScreen({ navigation, route }: Props) {
       });
 
       if (!result.success) {
+        if (result.code === 'PASSWORD_CHANGE_COOLDOWN_ACTIVE') {
+          const allowedDate = (result as any).nextPasswordChangeAllowedAt
+            ? new Date((result as any).nextPasswordChangeAllowedAt).toLocaleString()
+            : '';
+
+          setError(
+            allowedDate
+              ? `You cannot reset your password yet. Try again after ${allowedDate}.`
+              : 'You cannot reset your password yet.'
+          );
+          return;
+        }
+
         if (result.code === 'OTP_REQUEST_NOT_FOUND') {
           setError('No matching officer account was found. Check the email and role.');
           return;
@@ -238,25 +285,217 @@ export default function ForgotPasswordScreen({ navigation, route }: Props) {
 
               {/* Role Selector */}
               <View style={styles.sectionContainer}>
-                <Text style={[styles.sectionLabel, { color: textColorSecondary }]}>Officer Role</Text>
+                <View style={styles.sectionHeaderRow}>
+                  <Text style={[styles.sectionLabel, { color: textColorSecondary }]}>Officer Role</Text>
+                  <View style={[styles.requiredBadge, { backgroundColor: isDark ? 'rgba(52,211,153,0.12)' : 'rgba(5,150,105,0.08)' }]}>
+                    <Sparkles size={10} color={isDark ? '#34d399' : '#059669'} />
+                    <Text style={[styles.requiredBadgeText, { color: isDark ? '#34d399' : '#059669' }]}>Required</Text>
+                  </View>
+                </View>
+
                 <View style={styles.roleCardsContainer}>
-                  <TouchableOpacity onPress={() => setSelectedRole('Unit Officer')} activeOpacity={0.8} style={{ flex: 1 }}>
-                    <View style={[styles.roleBox, { borderColor: selectedRole === 'Unit Officer' ? (isDark ? '#34d399' : '#059669') : (isDark ? 'rgba(52,211,153,0.15)' : 'rgba(5,150,105,0.15)'), backgroundColor: selectedRole === 'Unit Officer' ? (isDark ? '#064e3b' : '#ecfdf5') : (isDark ? 'rgba(4,47,36,0.6)' : 'rgba(255,255,255,0.7)') }]}>
-                      <Briefcase color={selectedRole === 'Unit Officer' ? '#fff' : iconColor} size={22} />
-                      <Text style={[styles.roleBoxLabel, { color: selectedRole === 'Unit Officer' ? (isDark ? '#6ee7b7' : '#064e3b') : textColorSecondary }]}>Unit Officer</Text>
-                    </View>
+                  {/* Unit Officer Card */}
+                  <TouchableOpacity
+                    onPress={() => animateRoleSelect('Unit Officer')}
+                    activeOpacity={0.9}
+                    style={{ flex: 1 }}
+                  >
+                    <Animated.View style={{ transform: [{ scale: unitScale }] }}>
+                      <LinearGradient
+                        colors={
+                          selectedRole === 'Unit Officer'
+                            ? (isDark ? ['#064e3b', '#022c22'] : ['#ecfdf5', '#d1fae5'])
+                            : (isDark ? ['rgba(6,78,59,0.25)', 'rgba(4,47,36,0.15)'] : ['#ffffff', '#f8fafc'])
+                        }
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={[
+                          styles.roleCard,
+                          {
+                            borderColor: selectedRole === 'Unit Officer'
+                              ? (isDark ? '#34d399' : '#10b981')
+                              : (isDark ? 'rgba(52,211,153,0.15)' : 'rgba(5,150,105,0.15)'),
+                            shadowColor: selectedRole === 'Unit Officer' ? (isDark ? '#34d399' : '#10b981') : '#000',
+                            shadowOpacity: selectedRole === 'Unit Officer' ? (isDark ? 0.35 : 0.15) : 0.03,
+                            shadowRadius: selectedRole === 'Unit Officer' ? 10 : 4,
+                            shadowOffset: { width: 0, height: 4 },
+                            elevation: selectedRole === 'Unit Officer' ? 6 : 1,
+                          },
+                        ]}
+                      >
+                        {/* Top Indicator / Badge */}
+                        <View style={styles.roleCardHeader}>
+                          <LinearGradient
+                            colors={
+                              selectedRole === 'Unit Officer'
+                                ? ['#10b981', '#059669']
+                                : (isDark ? ['rgba(52,211,153,0.15)', 'rgba(52,211,153,0.08)'] : ['rgba(5,150,105,0.1)', 'rgba(5,150,105,0.05)'])
+                            }
+                            style={styles.roleIconBadge}
+                          >
+                            <Briefcase color={selectedRole === 'Unit Officer' ? '#ffffff' : iconColor} size={20} strokeWidth={2.2} />
+                          </LinearGradient>
+
+                          <View
+                            style={[
+                              styles.checkCircleContainer,
+                              {
+                                backgroundColor: selectedRole === 'Unit Officer'
+                                  ? (isDark ? '#34d399' : '#059669')
+                                  : 'transparent',
+                                borderColor: selectedRole === 'Unit Officer'
+                                  ? (isDark ? '#34d399' : '#059669')
+                                  : (isDark ? 'rgba(52,211,153,0.25)' : 'rgba(5,150,105,0.2)'),
+                              },
+                            ]}
+                          >
+                            {selectedRole === 'Unit Officer' && (
+                              <CheckCircle2 color="#ffffff" size={13} strokeWidth={3} />
+                            )}
+                          </View>
+                        </View>
+
+                        {/* Card Content */}
+                        <View style={styles.roleCardContent}>
+                          <Text
+                            style={[
+                              styles.roleTitleText,
+                              {
+                                color: selectedRole === 'Unit Officer'
+                                  ? (isDark ? '#ffffff' : '#064e3b')
+                                  : textColorPrimary,
+                              },
+                            ]}
+                          >
+                            Unit Officer
+                          </Text>
+                          <Text
+                            style={[
+                              styles.roleSubtitleText,
+                              {
+                                color: selectedRole === 'Unit Officer'
+                                  ? (isDark ? '#6ee7b7' : '#047857')
+                                  : textColorSecondary,
+                              },
+                            ]}
+                          >
+                            Admin & Desk
+                          </Text>
+                        </View>
+
+                        {/* Active Bottom Accent Bar */}
+                        {selectedRole === 'Unit Officer' && (
+                          <View style={[styles.activeAccentBar, { backgroundColor: isDark ? '#34d399' : '#059669' }]} />
+                        )}
+                      </LinearGradient>
+                    </Animated.View>
                   </TouchableOpacity>
 
-                  <TouchableOpacity onPress={() => setSelectedRole('Field Officer')} activeOpacity={0.8} style={{ flex: 1 }}>
-                    <View style={[styles.roleBox, { borderColor: selectedRole === 'Field Officer' ? (isDark ? '#34d399' : '#059669') : (isDark ? 'rgba(52,211,153,0.15)' : 'rgba(5,150,105,0.15)'), backgroundColor: selectedRole === 'Field Officer' ? (isDark ? '#064e3b' : '#ecfdf5') : (isDark ? 'rgba(4,47,36,0.6)' : 'rgba(255,255,255,0.7)') }]}>
-                      <HardHat color={selectedRole === 'Field Officer' ? '#fff' : iconColor} size={22} />
-                      <Text style={[styles.roleBoxLabel, { color: selectedRole === 'Field Officer' ? (isDark ? '#6ee7b7' : '#064e3b') : textColorSecondary }]}>Field Officer</Text>
-                    </View>
+                  {/* Field Officer Card */}
+                  <TouchableOpacity
+                    onPress={() => animateRoleSelect('Field Officer')}
+                    activeOpacity={0.9}
+                    style={{ flex: 1 }}
+                  >
+                    <Animated.View style={{ transform: [{ scale: fieldScale }] }}>
+                      <LinearGradient
+                        colors={
+                          selectedRole === 'Field Officer'
+                            ? (isDark ? ['#064e3b', '#022c22'] : ['#ecfdf5', '#d1fae5'])
+                            : (isDark ? ['rgba(6,78,59,0.25)', 'rgba(4,47,36,0.15)'] : ['#ffffff', '#f8fafc'])
+                        }
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={[
+                          styles.roleCard,
+                          {
+                            borderColor: selectedRole === 'Field Officer'
+                              ? (isDark ? '#34d399' : '#10b981')
+                              : (isDark ? 'rgba(52,211,153,0.15)' : 'rgba(5,150,105,0.15)'),
+                            shadowColor: selectedRole === 'Field Officer' ? (isDark ? '#34d399' : '#10b981') : '#000',
+                            shadowOpacity: selectedRole === 'Field Officer' ? (isDark ? 0.35 : 0.15) : 0.03,
+                            shadowRadius: selectedRole === 'Field Officer' ? 10 : 4,
+                            shadowOffset: { width: 0, height: 4 },
+                            elevation: selectedRole === 'Field Officer' ? 6 : 1,
+                          },
+                        ]}
+                      >
+                        {/* Top Indicator / Badge */}
+                        <View style={styles.roleCardHeader}>
+                          <LinearGradient
+                            colors={
+                              selectedRole === 'Field Officer'
+                                ? ['#10b981', '#059669']
+                                : (isDark ? ['rgba(52,211,153,0.15)', 'rgba(52,211,153,0.08)'] : ['rgba(5,150,105,0.1)', 'rgba(5,150,105,0.05)'])
+                            }
+                            style={styles.roleIconBadge}
+                          >
+                            <HardHat color={selectedRole === 'Field Officer' ? '#ffffff' : iconColor} size={20} strokeWidth={2.2} />
+                          </LinearGradient>
+
+                          <View
+                            style={[
+                              styles.checkCircleContainer,
+                              {
+                                backgroundColor: selectedRole === 'Field Officer'
+                                  ? (isDark ? '#34d399' : '#059669')
+                                  : 'transparent',
+                                borderColor: selectedRole === 'Field Officer'
+                                  ? (isDark ? '#34d399' : '#059669')
+                                  : (isDark ? 'rgba(52,211,153,0.25)' : 'rgba(5,150,105,0.2)'),
+                              },
+                            ]}
+                          >
+                            {selectedRole === 'Field Officer' && (
+                              <CheckCircle2 color="#ffffff" size={13} strokeWidth={3} />
+                            )}
+                          </View>
+                        </View>
+
+                        {/* Card Content */}
+                        <View style={styles.roleCardContent}>
+                          <Text
+                            style={[
+                              styles.roleTitleText,
+                              {
+                                color: selectedRole === 'Field Officer'
+                                  ? (isDark ? '#ffffff' : '#064e3b')
+                                  : textColorPrimary,
+                              },
+                            ]}
+                          >
+                            Field Officer
+                          </Text>
+                          <Text
+                            style={[
+                              styles.roleSubtitleText,
+                              {
+                                color: selectedRole === 'Field Officer'
+                                  ? (isDark ? '#6ee7b7' : '#047857')
+                                  : textColorSecondary,
+                              },
+                            ]}
+                          >
+                            On-Site & Dispatch
+                          </Text>
+                        </View>
+
+                        {/* Active Bottom Accent Bar */}
+                        {selectedRole === 'Field Officer' && (
+                          <View style={[styles.activeAccentBar, { backgroundColor: isDark ? '#34d399' : '#059669' }]} />
+                        )}
+                      </LinearGradient>
+                    </Animated.View>
                   </TouchableOpacity>
                 </View>
-                <Text style={{ fontSize: 11, fontWeight: '500', color: textColorSecondary, marginTop: 6 }}>
-                  Select the same officer role assigned to your registered account.
-                </Text>
+
+                {/* Helper / Info Text */}
+                <View style={styles.roleHelperContainer}>
+                  <Info size={13} color={textColorSecondary} style={{ marginTop: 1 }} />
+                  <Text style={[styles.roleHelperText, { color: textColorSecondary }]}>
+                    Select the officer role assigned to your registered account.
+                  </Text>
+                </View>
               </View>
 
               {/* Email Address */}
@@ -313,10 +552,21 @@ const styles = StyleSheet.create({
   errorContainer: { flexDirection: 'row', alignItems: 'flex-start', padding: 14, borderRadius: 16, marginBottom: 20, borderWidth: 1, gap: 10 },
   errorText: { fontSize: 13, fontWeight: '600', flex: 1, lineHeight: 18 },
   sectionContainer: { marginBottom: 22 },
-  sectionLabel: { fontSize: 12, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 10 },
+  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
+  sectionLabel: { fontSize: 12, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1.2 },
+  requiredBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 },
+  requiredBadgeText: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
   roleCardsContainer: { flexDirection: 'row', gap: 12 },
-  roleBox: { borderRadius: 18, borderWidth: 1.5, paddingVertical: 14, alignItems: 'center', justifyContent: 'center', gap: 6 },
-  roleBoxLabel: { fontSize: 13, fontWeight: '800' },
+  roleCard: { borderRadius: 22, borderWidth: 1.5, padding: 14, minHeight: 120, justifyContent: 'space-between', overflow: 'hidden', position: 'relative' },
+  roleCardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  roleIconBadge: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  checkCircleContainer: { width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
+  roleCardContent: { gap: 2 },
+  roleTitleText: { fontSize: 14, fontWeight: '800', letterSpacing: -0.2 },
+  roleSubtitleText: { fontSize: 11, fontWeight: '600' },
+  activeAccentBar: { position: 'absolute', bottom: 0, left: 16, right: 16, height: 3, borderTopLeftRadius: 3, borderTopRightRadius: 3 },
+  roleHelperContainer: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10 },
+  roleHelperText: { fontSize: 11.5, fontWeight: '500', flex: 1, lineHeight: 15 },
   inputContainer: { flexDirection: 'row', alignItems: 'center', borderWidth: 1.5, borderRadius: 20, height: 58 },
   input: { flex: 1, fontSize: 15, fontWeight: '600' },
   signInButtonContainer: { marginTop: 10 },

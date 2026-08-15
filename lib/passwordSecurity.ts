@@ -9,15 +9,15 @@ export const PASSWORD_RESET_POLICY = {
 } as const;
 
 /**
-  * Normalizes email address to lowercase and trimmed string.
-  */
+ * Normalizes email address to lowercase and trimmed string.
+ */
 export function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
 /**
-  * Masks email address for privacy (e.g. o***r@citycare.dev).
-  */
+ * Masks email address for privacy (e.g. o***r@citycare.dev).
+ */
 export function maskEmail(email: string): string {
   const normalized = normalizeEmail(email);
   const parts = normalized.split('@');
@@ -36,8 +36,8 @@ export function maskEmail(email: string): string {
 }
 
 /**
-  * Validates password strength requirements.
-  */
+ * Validates password strength requirements.
+ */
 export function validatePasswordStrength(password: string) {
   const hasMinLength = password.length >= 8;
   const hasUpperCase = /[A-Z]/.test(password);

@@ -314,7 +314,7 @@ export default defineSchema({
     description: v.string(),
 
     category: v.string(),
-    department: v.string(),
+    department: v.optional(v.string()),
 
     subcategory: v.array(v.string()),
 
@@ -534,6 +534,7 @@ export default defineSchema({
     scope: v.union(
       v.literal('officer_and_citizen'), // visible to citizen and officers
       v.literal('citizen'), // citizens only
+      v.literal('officer'),
       v.literal('admin_only') // admin only
     ),
 
@@ -698,16 +699,7 @@ export default defineSchema({
 
   escalationResolutionActions: defineTable({
     issueId: v.id('issues'),
-    actionType: v.union(
-      v.literal('extend_sla'),
-      v.literal('reassign_officer'),
-      v.literal('approve_escalation'),
-      v.literal('reject_escalation'),
-      v.literal('change_category'),
-      v.literal('close_escalation'),
-      v.literal('review_escalation'),
-      v.literal('escalate')
-    ),
+    actionType: v.string(),
     performedBy: v.id('users'),
     performedAt: v.number(),
     oldValue: v.optional(v.string()),
@@ -778,4 +770,3 @@ export default defineSchema({
     .index('by_request', ['requestId'])
     .index('by_token_hash', ['tokenHash']),
 });
-

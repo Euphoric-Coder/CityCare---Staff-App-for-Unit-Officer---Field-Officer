@@ -35,19 +35,13 @@ export const changeOfficerPassword = action({
     }
 
     // 2. Retrieve required user and officer information
-    const data = await ctx.runQuery(
-      internal.officerAuthInternal.getOfficerPasswordChangeData,
-      {
-        userId: args.userId,
-      }
-    );
+    const data = await ctx.runQuery(internal.officerAuthInternal.getOfficerPasswordChangeData, {
+      userId: args.userId,
+    });
 
     // 3. Validate the current password with bcrypt.compare()
     // Compare the actual raw password string (untrimmed) for cryptographic matching
-    const currentPasswordMatches = await bcrypt.compare(
-      args.currentPassword,
-      data.passwordHash
-    );
+    const currentPasswordMatches = await bcrypt.compare(args.currentPassword, data.passwordHash);
 
     if (!currentPasswordMatches) {
       throw new ConvexError('The current password is incorrect');
@@ -82,16 +76,13 @@ export const changeOfficerPassword = action({
     const newPasswordHash = await bcrypt.hash(args.newPassword, 10);
 
     // 7. Send resulting hash, role, and IDs to internal mutation
-    await ctx.runMutation(
-      internal.officerAuthInternal.saveOfficerPasswordChange,
-      {
-        userId: data.userId,
-        role: data.role as 'unit_officer' | 'field_officer',
-        newPasswordHash,
-        changedAt: Date.now(),
-        expectedCurrentPasswordHash: data.passwordHash,
-      }
-    );
+    await ctx.runMutation(internal.officerAuthInternal.saveOfficerPasswordChange, {
+      userId: data.userId,
+      role: data.role as 'unit_officer' | 'field_officer',
+      newPasswordHash,
+      changedAt: Date.now(),
+      expectedCurrentPasswordHash: data.passwordHash,
+    });
 
     return {
       success: true as const,

@@ -536,6 +536,17 @@ export const requestPasswordResetOtp = action({
       };
     }
 
+    if (
+      officerData.officer.nextPasswordChangeAllowedAt &&
+      officerData.officer.nextPasswordChangeAllowedAt > Date.now()
+    ) {
+      return {
+        success: false as const,
+        code: 'PASSWORD_CHANGE_COOLDOWN_ACTIVE' as const,
+        nextPasswordChangeAllowedAt: officerData.officer.nextPasswordChangeAllowedAt,
+      };
+    }
+
     const otp = randomInt(100000, 1000000).toString();
     const otpHash = hashOtp(otp);
     const maskedDeliveryEmail = maskEmail(normalizedEmail);

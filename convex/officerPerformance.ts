@@ -1,6 +1,5 @@
 import { v } from "convex/values";
 import { query } from "./_generated/server";
-import { Id } from "./_generated/dataModel";
 
 const rangeValidation = v.optional(
   v.union(

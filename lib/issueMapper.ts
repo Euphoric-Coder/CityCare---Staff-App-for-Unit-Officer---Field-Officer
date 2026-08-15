@@ -82,7 +82,7 @@ export function mapIssueUpdates(updates: any[]) {
   }));
 }
 
-export const mapToMobilePublicIssues = (issues: any[]): PublicIssue[] => {
+export const mapToMobilePublicIssues = (issues: any[]) => {
   return issues.map((issue, index) => {
     const isResolved = issue.status === 'resolved';
     const isRejected = issue.status === 'rejected';

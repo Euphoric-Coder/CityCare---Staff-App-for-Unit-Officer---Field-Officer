@@ -503,11 +503,11 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
     api.issueAnalytics.getCurrentIssueTrendAnalysis,
     user?.id && issue?._id
       ? {
-          userId: user.id as Id<"users">,
-          issueId: issue._id as Id<"issues">,
+          userId: user.id as Id<'users'>,
+          issueId: issue._id as Id<'issues'>,
           days: 90,
         }
-      : "skip"
+      : 'skip'
   );
 
   const generateUploadUrl = useMutation(api.issuesMedia.generateUploadUrl);
@@ -535,7 +535,7 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
   const extendSLADeadline = useMutation(api.unitOfficers.extendSLADeadline);
 
   // Escalates issue to Admin
-  const escalateIssueMut = useMutation(api.escalation.escalateIssue);
+  const escalateIssueMut = useMutation(api.escalation.escalateIssueMobile);
 
   // Reopen mutation
   const reopenIssueMutation = useMutation(api.unitOfficers.reopenIssue);

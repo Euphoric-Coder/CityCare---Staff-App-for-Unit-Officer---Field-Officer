@@ -30,6 +30,7 @@ import type * as officerAssign from "../officerAssign.js";
 import type * as officerAuth from "../officerAuth.js";
 import type * as officerAuthInternal from "../officerAuthInternal.js";
 import type * as officerPerformance from "../officerPerformance.js";
+import type * as officerPerformanceMaintenance from "../officerPerformanceMaintenance.js";
 import type * as passwordResetInternal from "../passwordResetInternal.js";
 import type * as passwordResetNode from "../passwordResetNode.js";
 import type * as passwordResetPublic from "../passwordResetPublic.js";
@@ -67,6 +68,7 @@ declare const fullApi: ApiFromModules<{
   officerAuth: typeof officerAuth;
   officerAuthInternal: typeof officerAuthInternal;
   officerPerformance: typeof officerPerformance;
+  officerPerformanceMaintenance: typeof officerPerformanceMaintenance;
   passwordResetInternal: typeof passwordResetInternal;
   passwordResetNode: typeof passwordResetNode;
   passwordResetPublic: typeof passwordResetPublic;

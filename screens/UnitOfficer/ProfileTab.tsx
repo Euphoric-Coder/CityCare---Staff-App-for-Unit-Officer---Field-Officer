@@ -142,6 +142,11 @@ export default function ProfileTab({
   const generateUploadUrl = useMutation(api.issuesMedia.generateUploadUrl);
   const updateProfilePicture = useMutation(api.unitOfficers.updateUnitOfficerProfilePicture);
 
+  const rawIssues = useQuery(
+    api.unitOfficers.getUnitOfficerIssues,
+    user?.id ? { userId: user.id as Id<'users'> } : 'skip'
+  );
+
   const unitOfficer = useQuery(
     api.unitOfficers.getUnitOfficerByUserId,
     // @ts-ignore
@@ -173,12 +178,26 @@ export default function ProfileTab({
   const district = performance?.officer?.district || unitOfficer?.district || 'Varanasi District';
   const state = performance?.officer?.state || unitOfficer?.state || 'Uttar Pradesh';
 
-  const rating = performance?.personal?.rating ?? 0;
-  const efficiency = performance?.personal?.efficiencyScore ?? 0;
+  const rating = performance?.personal?.rating ?? unitOfficer?.rating ?? 0;
+  const efficiency = performance?.personal?.efficiencyScore ?? unitOfficer?.efficiencyScore ?? 0;
 
-  const totalVerified = performance?.personal?.totalVerified ?? 0;
-  const totalRejected = performance?.personal?.totalRejected ?? 0;
-  const totalIssues = performance?.personal?.totalReviewed ?? 0;
+  const totalVerified = performance?.personal?.totalVerified ?? unitOfficer?.totalVerifiedIssues ?? 0;
+  const totalRejected = performance?.personal?.totalRejected ?? unitOfficer?.totalRejectedIssues ?? 0;
+  const activeCount = performance?.personal?.activeIssues ?? unitOfficer?.activeIssueIds?.length ?? 0;
+  const resolvedCount = performance?.personal?.resolvedIssues ?? unitOfficer?.resolvedIssueIds?.length ?? 0;
+
+  const totalFromOfficer =
+    (unitOfficer?.activeIssueIds?.length ?? 0) + (unitOfficer?.resolvedIssueIds?.length ?? 0);
+  const totalFromRaw = rawIssues?.length ?? 0;
+  const totalFromPersonal = activeCount + resolvedCount;
+
+  const totalIssues = Math.max(
+    totalFromOfficer,
+    totalFromRaw,
+    totalFromPersonal,
+    performance?.personal?.totalReviewed ?? 0,
+    totalVerified + totalRejected
+  );
 
   const roleBadge = getRoleBadgeStyle(role, isDark);
 
@@ -309,37 +328,37 @@ export default function ProfileTab({
           {/* Avatar Area */}
           <View className="items-center px-5 pb-8 pt-10">
             <View style={styles.avatarRing}>
-              <TouchableOpacity 
-                activeOpacity={0.8} 
+              <TouchableOpacity
+                activeOpacity={0.8}
                 onPress={() => setShowImagePicker(true)}
                 disabled={isUploading}
-                style={{ flex: 1, width: '100%', height: '100%' }}
-              >
+                style={{ flex: 1, width: '100%', height: '100%' }}>
                 <LinearGradient
                   colors={['#22D3EE', '#06B6D4', '#0891B2']}
                   style={[styles.avatarGradient, { overflow: 'hidden' }]}>
                   {isUploading ? (
                     <ActivityIndicator color="#FFFFFF" />
                   ) : unitOfficer?.profilePictureUrl ? (
-                    <Image 
-                      source={{ uri: unitOfficer.profilePictureUrl }} 
-                      style={{ width: '100%', height: '100%' }} 
-                      resizeMode="cover" 
+                    <Image
+                      source={{ uri: unitOfficer.profilePictureUrl }}
+                      style={{ width: '100%', height: '100%' }}
+                      resizeMode="cover"
                     />
                   ) : (
                     <Text style={styles.avatarText}>{getInitials(userName)}</Text>
                   )}
-                  
+
                   {/* Camera Icon Overlay */}
                   {!isUploading && (
-                    <View style={{
-                      position: 'absolute',
-                      bottom: 0,
-                      width: '100%',
-                      backgroundColor: 'rgba(0,0,0,0.4)',
-                      paddingVertical: 4,
-                      alignItems: 'center'
-                    }}>
+                    <View
+                      style={{
+                        position: 'absolute',
+                        bottom: 0,
+                        width: '100%',
+                        backgroundColor: 'rgba(0,0,0,0.4)',
+                        paddingVertical: 4,
+                        alignItems: 'center',
+                      }}>
                       <Camera size={12} color="#FFF" />
                     </View>
                   )}
@@ -370,7 +389,9 @@ export default function ProfileTab({
                 borderColor: roleBadge.border,
               }}>
               <BadgeCheck color={roleBadge.text} size={14} strokeWidth={2.5} />
-              <Text className="text-[11px] font-black uppercase tracking-wider" style={{ color: roleBadge.text }}>
+              <Text
+                className="text-[11px] font-black uppercase tracking-wider"
+                style={{ color: roleBadge.text }}>
                 {role.replace('_', ' ')}
               </Text>
             </View>
@@ -385,7 +406,7 @@ export default function ProfileTab({
                 },
                 {
                   label: 'Rating',
-                  value: rating,
+                  value: rating ? Number(rating).toFixed(1) : '0.0',
                   icon: <Star size={12} color="#fff" fill="#fff" />,
                 },
                 {
@@ -535,7 +556,13 @@ export default function ProfileTab({
                 iconBg={isDark ? '#164E6340' : '#CFFAFE'}
               />
               <InfoRow
-                icon={<Star color={isDark ? '#FCD34D' : '#F59E0B'} size={18} fill={isDark ? '#FCD34D' : '#F59E0B'} />}
+                icon={
+                  <Star
+                    color={isDark ? '#FCD34D' : '#F59E0B'}
+                    size={18}
+                    fill={isDark ? '#FCD34D' : '#F59E0B'}
+                  />
+                }
                 label="Team Citizen Rating"
                 value={`${performance?.team?.teamCitizenRating ?? 0} / 5`}
                 iconBg={isDark ? '#451A0340' : '#FEF3C7'}
@@ -572,7 +599,13 @@ export default function ProfileTab({
                 iconBg={isDark ? '#450A0A40' : '#FEF2F2'}
               />
               <InfoRow
-                icon={<Star color={isDark ? '#FCD34D' : '#F59E0B'} size={18} fill={isDark ? '#FCD34D' : '#F59E0B'} />}
+                icon={
+                  <Star
+                    color={isDark ? '#FCD34D' : '#F59E0B'}
+                    size={18}
+                    fill={isDark ? '#FCD34D' : '#F59E0B'}
+                  />
+                }
                 label="Citizen Satisfaction"
                 value={`${performance?.charts?.qualityMetrics?.citizenSatisfaction ?? 0}% Score`}
                 last

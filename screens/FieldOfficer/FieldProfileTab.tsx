@@ -5,7 +5,6 @@ import {
   TouchableOpacity,
   ScrollView,
   StyleSheet,
-  SafeAreaView,
   Switch,
   Alert,
   useColorScheme,
@@ -14,6 +13,7 @@ import {
   Image,
   Modal,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
   User,
@@ -47,7 +47,10 @@ import { api } from 'convex/_generated/api';
 import { Id } from 'convex/_generated/dataModel';
 import * as ImagePicker from 'expo-image-picker';
 
+import { User as AuthUser } from 'lib/auth';
+
 interface FieldProfileTabProps {
+  user?: AuthUser;
   profile: OfficerProfile;
   onLogout: () => void;
 }
@@ -175,7 +178,12 @@ const DEPARTMENT_LABELS: Record<string, string> = {
   other: "Other",
 };
 
-export default function FieldProfileTab({ profile, onLogout }: FieldProfileTabProps) {
+function isValidConvexId(id?: string): boolean {
+  if (!id || typeof id !== 'string') return false;
+  return id.length >= 10 && /^[a-zA-Z0-9_-]+$/.test(id);
+}
+
+export default function FieldProfileTab({ user, profile, onLogout }: FieldProfileTabProps) {
   const [loggingOut, setLoggingOut] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [showImagePicker, setShowImagePicker] = useState(false);
@@ -183,43 +191,68 @@ export default function FieldProfileTab({ profile, onLogout }: FieldProfileTabPr
   const isDark = colorScheme === 'dark';
   const insets = useSafeAreaInsets();
   
-  const fieldOfficer = useQuery(api.fieldOfficers.getFieldOfficerByUserId, { 
-    userId: profile.userId as Id<'users'> 
-  });
-  
-  const performance = useQuery(api.officerPerformance.getFieldOfficerPerformanceByUserId, {
-    userId: profile.userId as Id<'users'>,
-    range: '30d'
-  });
-  
+  const rawUserId = profile?.userId || user?.id;
+  const validUserId = isValidConvexId(rawUserId) ? (rawUserId as Id<'users'>) : null;
+
+  const fieldOfficer = useQuery(
+    api.fieldOfficers.getFieldOfficerByUserId,
+    validUserId ? { userId: validUserId } : 'skip'
+  );
+
+  const performance = useQuery(
+    api.officerPerformance.getFieldOfficerPerformanceByUserId,
+    validUserId ? { userId: validUserId, range: '30d' } : 'skip'
+  );
+
   const generateUploadUrl = useMutation(api.issuesMedia.generateUploadUrl);
   const updateProfilePicture = useMutation(api.fieldOfficers.updateFieldOfficerProfilePicture);
 
-  if (!fieldOfficer || !performance) {
+  const isQuerying = Boolean(validUserId);
+  const isLoading = isQuerying && (fieldOfficer === undefined || performance === undefined);
+
+  if (isLoading) {
     return (
-      <SafeAreaView className="flex-1 justify-center items-center bg-slate-50 dark:bg-slate-950">
+      <SafeAreaView style={{ flex: 1 }} className="flex-1 justify-center items-center bg-slate-50 dark:bg-slate-950">
         <ActivityIndicator size="large" color="#0EA5A4" />
+        <Text className="mt-3 text-sm font-semibold text-slate-400">Loading Profile...</Text>
       </SafeAreaView>
     );
   }
 
-  const officerName = performance.officer?.fullName || fieldOfficer?.fullName || profile.name;
-  const officerEmail = performance.officer?.email || fieldOfficer?.email || profile.email;
-  const officerPhone = performance.officer?.phone || fieldOfficer?.phone || profile.phone;
-  const rawDepartment = performance.officer?.department || fieldOfficer?.department || '';
+  const summary = performance?.summary ?? {
+    rating: profile?.rating ?? 5.0,
+    efficiencyScore: 100,
+    activeIssues: 0,
+    maxCapacity: 10,
+    totalResolved: profile?.total_resolved ?? 0,
+    avgResolutionTime: 0,
+    slaComplianceRate: 100,
+    firstTimeFixRate: 100,
+    reworkCount: 0,
+    reopenCount: 0,
+    escalatedCount: 0,
+  };
+
+  const citizenSatisfaction = performance?.charts?.qualityMetrics?.citizenSatisfaction ?? 100;
+
+  const officerName = performance?.officer?.fullName || fieldOfficer?.fullName || profile?.name || 'Field Officer';
+  const officerEmail = performance?.officer?.email || fieldOfficer?.email || profile?.email || 'N/A';
+  const officerPhone = performance?.officer?.phone || fieldOfficer?.phone || profile?.phone || 'N/A';
+  const rawDepartment = performance?.officer?.department || fieldOfficer?.department || '';
   const departmentLabel = rawDepartment ? (DEPARTMENT_LABELS[rawDepartment] || rawDepartment) : 'N/A';
-  const city = performance.officer?.city || fieldOfficer?.city || 'N/A';
-  const district = performance.officer?.district || fieldOfficer?.district || 'N/A';
-  const state = performance.officer?.state || fieldOfficer?.state || 'N/A';
-  const specialisations = performance.officer?.specialisations || fieldOfficer?.specialisations || [];
-  
-  const rating = performance.summary.rating;
-  const efficiencyScore = performance.summary.efficiencyScore;
-  const activeIssues = performance.summary.activeIssues;
-  const maxCapacity = performance.summary.maxCapacity;
-  const totalResolved = performance.summary.totalResolved;
-  const avgResolutionHrs = performance.summary.avgResolutionTime;
-  const onTimeRate = performance.summary.slaComplianceRate;
+  const city = performance?.officer?.city || fieldOfficer?.city || 'N/A';
+  const district = performance?.officer?.district || fieldOfficer?.district || 'N/A';
+  const state = performance?.officer?.state || fieldOfficer?.state || 'N/A';
+  const specialisations = performance?.officer?.specialisations || fieldOfficer?.specialisations || [];
+
+  const rating = summary.rating;
+  const efficiencyScore = summary.efficiencyScore;
+  const activeIssues = summary.activeIssues;
+  const maxCapacity = summary.maxCapacity;
+  const totalResolved = summary.totalResolved;
+  const avgResolutionHrs = summary.avgResolutionTime;
+  const onTimeRate = summary.slaComplianceRate;
+  const firstTimeFixRate = summary.firstTimeFixRate;
   const lastLogin = fieldOfficer?.lastLogin;
 
   const performanceBadges = [];
@@ -380,8 +413,7 @@ export default function FieldProfileTab({ profile, onLogout }: FieldProfileTabPr
     }
   };
   return (
-    // @ts-ignore
-    <SafeAreaView className="flex-1 bg-slate-50 dark:bg-slate-950">
+    <SafeAreaView style={{ flex: 1 }} className="flex-1 bg-slate-50 dark:bg-slate-950">
       <StatusBar translucent backgroundColor="transparent" style="light" />
       <ScrollView
         className="flex-1"
@@ -632,12 +664,12 @@ export default function FieldProfileTab({ profile, onLogout }: FieldProfileTabPr
                 <Text className="text-[12px] font-semibold text-slate-500 dark:text-slate-400">
                   Quality Score (First-Time Fix)
                 </Text>
-                <Text className="text-[12px] font-extrabold text-amber-500">{performance.summary.firstTimeFixRate}%</Text>
+                <Text className="text-[12px] font-extrabold text-amber-500">{firstTimeFixRate}%</Text>
               </View>
               <View className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
                 <View
                   className="h-full rounded-full"
-                  style={[styles.progressBar, { width: `${performance.summary.firstTimeFixRate}%`, backgroundColor: '#F59E0B' }]}
+                  style={[styles.progressBar, { width: `${firstTimeFixRate}%`, backgroundColor: '#F59E0B' }]}
                 />
               </View>
             </View>
@@ -646,12 +678,12 @@ export default function FieldProfileTab({ profile, onLogout }: FieldProfileTabPr
                 <Text className="text-[12px] font-semibold text-slate-500 dark:text-slate-400">
                   Citizen Satisfaction
                 </Text>
-                <Text className="text-[12px] font-extrabold text-emerald-600">{Math.round(performance.charts.qualityMetrics.citizenSatisfaction)}%</Text>
+                <Text className="text-[12px] font-extrabold text-emerald-600">{Math.round(citizenSatisfaction)}%</Text>
               </View>
               <View className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
                 <View
                   className="h-full rounded-full"
-                  style={[styles.progressBar, { width: `${Math.round(performance.charts.qualityMetrics.citizenSatisfaction)}%`, backgroundColor: '#10B981' }]}
+                  style={[styles.progressBar, { width: `${Math.round(citizenSatisfaction)}%`, backgroundColor: '#10B981' }]}
                 />
               </View>
             </View>
@@ -813,19 +845,19 @@ export default function FieldProfileTab({ profile, onLogout }: FieldProfileTabPr
           <View className="gap-3.5">
             <View className="flex-row items-center justify-between border-b border-slate-100 pb-3 dark:border-slate-850">
               <Text className="text-[13px] font-semibold text-slate-500 dark:text-slate-400">First-Time Fix Rate</Text>
-              <Text className="text-[14px] font-extrabold text-slate-800 dark:text-slate-200">{performance.summary.firstTimeFixRate}%</Text>
+              <Text className="text-[14px] font-extrabold text-slate-800 dark:text-slate-200">{summary.firstTimeFixRate}%</Text>
             </View>
             <View className="flex-row items-center justify-between border-b border-slate-100 pb-3 dark:border-slate-850">
               <Text className="text-[13px] font-semibold text-slate-500 dark:text-slate-400">Rework Count</Text>
-              <Text className="text-[14px] font-extrabold text-slate-800 dark:text-slate-200">{performance.summary.reworkCount}</Text>
+              <Text className="text-[14px] font-extrabold text-slate-800 dark:text-slate-200">{summary.reworkCount}</Text>
             </View>
             <View className="flex-row items-center justify-between border-b border-slate-100 pb-3 dark:border-slate-850">
               <Text className="text-[13px] font-semibold text-slate-500 dark:text-slate-400">Reopen Count</Text>
-              <Text className="text-[14px] font-extrabold text-slate-800 dark:text-slate-200">{performance.summary.reopenCount}</Text>
+              <Text className="text-[14px] font-extrabold text-slate-800 dark:text-slate-200">{summary.reopenCount}</Text>
             </View>
             <View className="flex-row items-center justify-between">
               <Text className="text-[13px] font-semibold text-slate-500 dark:text-slate-400">Escalated Count</Text>
-              <Text className="text-[14px] font-extrabold text-slate-800 dark:text-slate-200">{performance.summary.escalatedCount}</Text>
+              <Text className="text-[14px] font-extrabold text-slate-800 dark:text-slate-200">{summary.escalatedCount}</Text>
             </View>
           </View>
         </View>

@@ -81,7 +81,6 @@ import {
   SLAMeta,
   MappedIssue,
 } from 'lib/types';
-import { mockDashboardStats as mockStats, mockDuplicateGroups } from 'lib/mockData';
 import { useNavigation } from '@react-navigation/native';
 import DuplicateDetectionBanner from 'components/UnitOfficer/DuplicateDetectionBanner';
 import { DuplicateGroup } from 'lib/types';
@@ -1882,7 +1881,7 @@ export default function UnitOfficerDashboard() {
       return status === 'pending';
     });
 
-    return buildDuplicateGroupsFromIssues(activeIssues);
+    return buildDuplicateGroupsFromIssues(activeIssues as any);
   }, [rawIssues]);
 
   const isLoading = rawIssues === undefined;
@@ -1937,28 +1936,77 @@ export default function UnitOfficerDashboard() {
     await deleteNotification({ id: id as Id<'notifications'> });
   }
 
+  const realStats = useMemo(() => {
+    if (!issues) {
+      return {
+        total: 0,
+        pending: 0,
+        assigned: 0,
+        closed: 0,
+      };
+    }
+
+    let pendingCount = 0;
+    let assignedCount = 0;
+    let closedCount = 0;
+
+    for (const issue of issues) {
+      const st = (issue?.status || '').toLowerCase().trim();
+      if (['pending', 'submitted_for_review', 'pending_uo_verification'].includes(st)) {
+        pendingCount++;
+      } else if (
+        [
+          'assigned',
+          'in_progress',
+          'verified',
+          'rework_required',
+          'rework_requested',
+          'reopened',
+        ].includes(st)
+      ) {
+        assignedCount++;
+      } else if (['resolved', 'closed'].includes(st)) {
+        closedCount++;
+      }
+    }
+
+    const totalFromOfficer =
+      (unitOfficer?.activeIssueIds?.length ?? 0) + (unitOfficer?.resolvedIssueIds?.length ?? 0);
+    const totalIssues = Math.max(issues.length, totalFromOfficer);
+    const finalClosed = unitOfficer?.resolvedIssueIds?.length
+      ? Math.max(unitOfficer.resolvedIssueIds.length, closedCount)
+      : closedCount;
+
+    return {
+      total: totalIssues,
+      pending: pendingCount,
+      assigned: assignedCount,
+      closed: finalClosed,
+    };
+  }, [issues, unitOfficer]);
+
   const stats = [
     {
       label: 'Total',
-      value: mockStats.totalIssues,
+      value: realStats.total,
       icon: <FileText color="#FFFFFF" size={22} strokeWidth={2.5} />,
       iconBg: '#3B82F6', // Vivid Blue
     },
     {
       label: 'Pending',
-      value: mockStats.pendingVerification,
+      value: realStats.pending,
       icon: <Clock color="#FFFFFF" size={22} strokeWidth={2.5} />,
       iconBg: '#F59E0B', // Vivid Amber
     },
     {
       label: 'Assigned',
-      value: mockStats.assigned,
+      value: realStats.assigned,
       icon: <AlertCircle color="#FFFFFF" size={22} strokeWidth={2.5} />,
       iconBg: '#F43F5E', // Vivid Rose
     },
     {
       label: 'Closed',
-      value: mockStats.closed,
+      value: realStats.closed,
       icon: <CheckCircle color="#FFFFFF" size={22} strokeWidth={2.5} />,
       iconBg: '#10B981', // Vivid Emerald
     },
@@ -2104,10 +2152,6 @@ export default function UnitOfficerDashboard() {
                         </Text>
                       </View>
                     )}
-                    <View className="flex-row items-center gap-1.5 rounded-full border border-cyan-400/30 bg-cyan-500/80 px-3 py-1.5 shadow-lg shadow-cyan-900/30">
-                      <TrendingUp color="#FFFFFF" size={11} strokeWidth={3} />
-                      <Text className="text-[10px] font-black uppercase text-white">78% SLA</Text>
-                    </View>
                   </View>
                 </View>
               </Animated.View>

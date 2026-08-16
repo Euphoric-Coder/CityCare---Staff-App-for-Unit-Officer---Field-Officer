@@ -30,6 +30,12 @@ export default function FieldDashboardScreen() {
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [showNotifications, setShowNotifications] = useState(false);
 
+  const fieldOfficer = useQuery(
+    api.fieldOfficers.getFieldOfficerByUserId,
+    // @ts-ignore
+    user?.id ? { userId: user.id } : 'skip'
+  );
+
   const rawIssues = useQuery(
     api.fieldOfficers.getFieldOfficerIssues,
     // @ts-ignore
@@ -72,21 +78,52 @@ export default function FieldDashboardScreen() {
     assigned: fieldOfficerIssues.filter((i) => i?.status === 'assigned').length,
     in_progress: fieldOfficerIssues.filter((i) => i?.status === 'in_progress').length,
     pending_uo_verification: fieldOfficerIssues.filter(
-      (i) => i?.status === 'pending_uo_verification'
+      (i) => i?.status === 'pending_uo_verification' || i?.status === 'submitted_for_review'
     ).length,
-    rework_required: fieldOfficerIssues.filter((i) => i?.status === 'rework_required').length,
+    rework_required: fieldOfficerIssues.filter(
+      (i) => i?.status === 'rework_required' || i?.status === 'rework_requested'
+    ).length,
   };
 
-  const unreadNotifCount = notifications?.filter((n) => !n.read).length;
+  const realStats = useMemo(() => {
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const todayMs = startOfToday.getTime();
 
-  const mockStats = {
-    assigned: counts.assigned,
-    in_progress: counts.in_progress,
-    pending_upload: counts.pending_uo_verification,
-    rework_required: counts.rework_required,
-    resolved_today: 8,
-    sla_alerts: unreadNotifCount,
-  };
+    const assignedCount = fieldOfficerIssues.filter((i) => i?.status === 'assigned').length;
+    const inProgressCount = fieldOfficerIssues.filter((i) => i?.status === 'in_progress').length;
+    const pendingUploadCount = fieldOfficerIssues.filter((i) =>
+      ['submitted_for_review', 'pending_uo_verification'].includes(i?.status)
+    ).length;
+    const reworkCount = fieldOfficerIssues.filter((i) =>
+      ['rework_required', 'rework_requested'].includes(i?.status)
+    ).length;
+
+    const resolvedToday = fieldOfficerIssues.filter((i) => {
+      const isResolved = i?.status === 'resolved' || i?.status === 'closed';
+      if (!isResolved) return false;
+      const resTime = i?.resolvedAt ?? i?.closedAt ?? i?.createdAt;
+      return typeof resTime === 'number' ? resTime >= todayMs : false;
+    }).length;
+
+    const unreadNotifs = notifications?.filter((n) => !n.read).length ?? 0;
+    const slaBreaches = fieldOfficerIssues.filter(
+      (i) =>
+        i?.slaDeadline &&
+        i.slaDeadline < Date.now() &&
+        !['resolved', 'closed'].includes(i?.status)
+    ).length;
+
+    return {
+      assigned: assignedCount,
+      in_progress: inProgressCount,
+      pending_upload: pendingUploadCount,
+      rework_required: reworkCount,
+      resolved_today: resolvedToday,
+      sla_breaches: slaBreaches,
+      unread_notifs: unreadNotifs,
+    };
+  }, [fieldOfficerIssues, notifications]);
 
   const handleRefresh = () => {
     setRefreshing(true);
@@ -129,9 +166,13 @@ export default function FieldDashboardScreen() {
           />
         }>
         <FieldOfficerDashboard
-          officerName={user?.name || 'Field Officer'}
-          ward={'Ward 12 – South Zone'}
-          stats={mockStats}
+          officerName={fieldOfficer?.fullName || user?.name || 'Field Officer'}
+          ward={
+            fieldOfficer?.city && fieldOfficer?.department
+              ? `${fieldOfficer.city} • ${fieldOfficer.department}`
+              : fieldOfficer?.city || 'Field Zone'
+          }
+          stats={realStats}
           onNotificationPress={() => setShowNotifications(true)}
         />
 

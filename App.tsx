@@ -341,6 +341,7 @@ function FieldOfficerTabNavigator({ user, onSignOut }: TabNavigatorProps) {
         }}>
         {() => (
           <FieldProfileTab
+            user={user}
             profile={{
               name: user.name,
               userId: user.id,

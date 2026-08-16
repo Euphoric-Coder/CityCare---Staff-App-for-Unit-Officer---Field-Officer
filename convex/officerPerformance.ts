@@ -663,7 +663,7 @@ export const getFieldOfficerPerformanceByUserId = query({
       .first();
 
     if (!fieldOfficer) {
-      throw new Error("Field Officer not found");
+      return null;
     }
 
     const allIssues = await ctx.db
@@ -723,7 +723,7 @@ export const getUnitOfficerProfilePerformance = query({
       .first();
 
     if (!unitOfficer) {
-      throw new Error("Unit Officer not found");
+      return null;
     }
 
     // Fetch all issues assigned to this unit officer
@@ -812,7 +812,7 @@ export const getUnitOfficerTeamAnalytics = query({
       .first();
 
     if (!unitOfficer) {
-      throw new Error("Unit Officer not found");
+      return null;
     }
 
     const teamFieldOfficers = await ctx.db

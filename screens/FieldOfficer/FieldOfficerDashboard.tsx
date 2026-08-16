@@ -20,7 +20,8 @@ interface DashboardStats {
   pending_upload: number;
   rework_required: number;
   resolved_today: number;
-  sla_alerts: number;
+  sla_breaches: number;
+  unread_notifs?: number;
 }
 
 interface FieldOfficerDashboardProps {
@@ -73,8 +74,8 @@ const STAT_CONFIG = (stats: DashboardStats) => [
   },
   {
     key: 'alerts',
-    label: 'SLA Alerts',
-    value: stats.sla_alerts,
+    label: 'SLA Breaches',
+    value: stats.sla_breaches,
     icon: Flame,
     colors: ['#FB923C', '#EA580C'], // orange
     aura: 'rgba(251, 146, 60, 0.15)',
@@ -92,7 +93,7 @@ export default function FieldOfficerDashboard({
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    if (stats.sla_alerts > 0) {
+    if (stats.sla_breaches > 0) {
       Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, { toValue: 1.05, duration: 1000, useNativeDriver: true }),
@@ -100,7 +101,7 @@ export default function FieldOfficerDashboard({
         ])
       ).start();
     }
-  }, [stats.sla_alerts]);
+  }, [stats.sla_breaches]);
 
   const initials = officerName
     .split(' ')
@@ -121,7 +122,6 @@ export default function FieldOfficerDashboard({
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={styles.container}>
-      
       {/* Background Decorative Element */}
       <View style={styles.headerBlur} />
 
@@ -133,9 +133,7 @@ export default function FieldOfficerDashboard({
               colors={isDark ? ['#334155', '#1E293B'] : ['#FFFFFF', '#E2E8F0']}
               style={styles.avatarBorder}>
               <View style={styles.avatarInner}>
-                <LinearGradient
-                  colors={['#2DD4BF', '#0D9488']}
-                  style={styles.avatarGrad}>
+                <LinearGradient colors={['#2DD4BF', '#0D9488']} style={styles.avatarGrad}>
                   <Text style={styles.avatarText}>{initials}</Text>
                 </LinearGradient>
               </View>
@@ -148,11 +146,13 @@ export default function FieldOfficerDashboard({
               {officerName}
             </Text>
             <View className="mt-1 flex-row items-center gap-1.5">
-              <View 
+              <View
                 style={{ backgroundColor: isDark ? '#1E293B' : '#FFFFFF' }}
-                className="rounded-full px-2.5 py-1 border border-white/10 flex-row items-center gap-1.5 shadow-sm">
+                className="flex-row items-center gap-1.5 rounded-full border border-white/10 px-2.5 py-1 shadow-sm">
                 <MapPin color="#2DD4BF" size={11} strokeWidth={3} />
-                <Text style={[styles.wardText, { color: isDark ? '#94A3B8' : '#64748B' }]}>{ward}</Text>
+                <Text style={[styles.wardText, { color: isDark ? '#94A3B8' : '#64748B' }]}>
+                  {ward}
+                </Text>
               </View>
             </View>
           </View>
@@ -162,21 +162,19 @@ export default function FieldOfficerDashboard({
           <TouchableOpacity
             onPress={onNotificationPress}
             activeOpacity={0.7}
-            style={[
-              styles.notifButton,
-              { backgroundColor: isDark ? '#1E293B' : '#FFFFFF' }
-            ]}>
+            style={[styles.notifButton, { backgroundColor: isDark ? '#1E293B' : '#FFFFFF' }]}>
             <Bell color={isDark ? '#F1F5F9' : '#0F172A'} size={22} strokeWidth={2.5} />
-            {stats.sla_alerts > 0 && (
-               <View style={[styles.notifBadge, { borderColor: isDark ? '#1E293B' : '#FFFFFF' }]}>
-                 <Text style={styles.notifBadgeText}>{stats.sla_alerts}</Text>
-               </View>
+            {(stats.unread_notifs ?? 0) > 0 && (
+              <View style={[styles.notifBadge, { borderColor: isDark ? '#1E293B' : '#FFFFFF' }]}>
+                <Text style={styles.notifBadgeText}>{stats.unread_notifs}</Text>
+              </View>
             )}
           </TouchableOpacity>
-          <View 
+          <View
             style={{ backgroundColor: isDark ? '#1E293B' : '#FFFFFF' }}
-            className="rounded-full px-2.5 py-1 border border-white/10 shadow-sm">
-            <Text className={`text-[9px] font-black tracking-widest ${isDark ? 'text-teal-400' : 'text-teal-600'}`}>
+            className="rounded-full border border-white/10 px-2.5 py-1 shadow-sm">
+            <Text
+              className={`text-[9px] font-black tracking-widest ${isDark ? 'text-teal-400' : 'text-teal-600'}`}>
               FIELD OFFICER
             </Text>
           </View>
@@ -187,7 +185,7 @@ export default function FieldOfficerDashboard({
       <View style={styles.statsTray}>
         <View className="mb-3 flex-row items-center justify-between px-1">
           <Text style={styles.sectionHeader}>TASK OVERVIEW</Text>
-          <View className="flex-row items-center gap-1 rounded-full bg-white/10 px-2 py-0.5 border border-white/10">
+          <View className="flex-row items-center gap-1 rounded-full border border-white/10 bg-white/10 px-2 py-0.5">
             <TrendingUp color="#5EEAD4" size={10} strokeWidth={3} />
             <Text className="text-[9px] font-black text-white/80">LIVE</Text>
           </View>
@@ -199,31 +197,32 @@ export default function FieldOfficerDashboard({
             const isAlert = card.pulse && card.value > 0;
 
             return (
-              <Animated.View 
-                key={card.key} 
+              <Animated.View
+                key={card.key}
                 style={[
                   styles.statCardContainer,
-                  isAlert && { transform: [{ scale: pulseAnim }] }
+                  isAlert && { transform: [{ scale: pulseAnim }] },
                 ]}>
-                <View style={[
-                  styles.statCard, 
-                  { 
-                    borderColor: card.colors[0] + '88',
-                    backgroundColor: isDark ? '#1E293B' : '#FFFFFF', // Solid colors for prominence
-                  }
-                ]}>
+                <View
+                  style={[
+                    styles.statCard,
+                    {
+                      borderColor: card.colors[0] + '88',
+                      backgroundColor: isDark ? '#1E293B' : '#FFFFFF', // Solid colors for prominence
+                    },
+                  ]}>
                   {/* Internal Aura - more subtle for solid cards */}
                   <View style={[styles.cardAura, { backgroundColor: card.aura, opacity: 0.5 }]} />
-                  
+
                   <View style={[styles.iconContainer, { backgroundColor: card.colors[0] + '15' }]}>
                     <Icon color={card.colors[0]} size={16} strokeWidth={3} />
                   </View>
-                  
+
                   <Text style={[styles.statValue, { color: isDark ? '#FFFFFF' : '#0F172A' }]}>
                     {card.value}
                   </Text>
                   <Text style={styles.statLabel}>{card.label}</Text>
-                  
+
                   {/* Bottom Accent Line */}
                   <LinearGradient
                     colors={card.colors}

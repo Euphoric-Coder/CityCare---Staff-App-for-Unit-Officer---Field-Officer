@@ -523,7 +523,7 @@ export const reviewIssueWithGemini = action({
     try {
       const response = await ai.models.generateContent({
         // Keep this configurable because available model identifiers can change.
-        model: process.env.GEMINI_REVIEW_MODEL || 'gemini-2.5-flash',
+        model: process.env.GEMINI_REVIEW_MODEL || 'gemini-3.6-flash',
         contents,
         config: {
           temperature: 0.2,

@@ -1,6 +1,7 @@
 import { v } from 'convex/values';
 import { mutation, query } from './_generated/server';
 import { Id } from './_generated/dataModel';
+import { awardCitizenPoints, checkAndAwardCitizenBadges } from 'lib/gamificationAwards';
 
 export const getUnitOfficerByUserId = query({
   args: { userId: v.id('users') },
@@ -338,6 +339,40 @@ export const verifyIssue = mutation({
         read: false,
         createdAt: Date.now(),
       });
+
+      // Verified Issue Gamification Reward
+      const citizen = await ctx.db
+        .query('citizens')
+        .withIndex('by_user', (q) => q.eq('userId', args.reporterId))
+        .first();
+
+      if (citizen) {
+        const existingVerifiedReward = await ctx.db
+          .query('citizenPointTransactions')
+          .withIndex('by_issue', (q) => q.eq('relatedIssueId', args.issueId))
+          .filter((q) => q.eq(q.field('type'), 'issue_verified'))
+          .first();
+
+        if (!existingVerifiedReward) {
+          await awardCitizenPoints(ctx, {
+            citizenId: citizen._id,
+            userId: citizen.userId,
+            type: 'issue_verified',
+            points: 20,
+            reason: 'Issue verified by Unit Officer',
+            relatedIssueId: args.issueId,
+            metadata: {
+              source: 'issue_verification',
+            },
+          });
+
+          await checkAndAwardCitizenBadges(ctx, {
+            citizenId: citizen._id,
+            userId: citizen.userId,
+            relatedIssueId: args.issueId,
+          });
+        }
+      }
     }
   },
 });
@@ -508,6 +543,44 @@ export const rejectIssue = mutation({
         read: false,
         createdAt: now,
       });
+    }
+
+    // Rejected Issue Gamification 15 Points Penalty
+    const citizen = await ctx.db
+      .query('citizens')
+      .withIndex('by_user', (q) => q.eq('userId', args.reporterId))
+      .first();
+
+    if (citizen) {
+      const existingRejectedPenalty = await ctx.db
+        .query('citizenPointTransactions')
+        .withIndex('by_issue', (q) => q.eq('relatedIssueId', args.issueId))
+        .filter((q) => q.eq(q.field('type'), 'issue_rejected'))
+        .first();
+
+      if (!existingRejectedPenalty) {
+        await awardCitizenPoints(ctx, {
+          citizenId: citizen._id,
+          userId: citizen.userId,
+          type: 'issue_rejected',
+          points: -15,
+          reason: 'Issue rejected by Unit Officer',
+          relatedIssueId: args.issueId,
+          metadata: {
+            source: args.isSlaRejection
+              ? 'sla_rejection'
+              : args.status === 'reopened'
+                ? 'reopened_issue_rejection'
+                : 'issue_rejection',
+          },
+        });
+
+        await checkAndAwardCitizenBadges(ctx, {
+          citizenId: citizen._id,
+          userId: citizen.userId,
+          relatedIssueId: args.issueId,
+        });
+      }
     }
 
     return { success: true };
@@ -705,6 +778,45 @@ export const assignIssueToFieldOfficer = mutation({
       createdAt: now,
     });
 
+    // Assigned Issue Gamification Reward
+    const citizen = await ctx.db
+      .query('citizens')
+      .withIndex('by_user', (q) => q.eq('userId', issue.reportedBy))
+      .first();
+
+    if (citizen) {
+      const existingAssignedReward = await ctx.db
+        .query('citizenPointTransactions')
+        .withIndex('by_issue', (q) => q.eq('relatedIssueId', args.issueId))
+        .filter((q) => q.eq(q.field('type'), 'issue_assigned'))
+        .first();
+
+      if (!existingAssignedReward) {
+        await awardCitizenPoints(ctx, {
+          citizenId: citizen._id,
+          userId: citizen.userId,
+          type: 'issue_assigned',
+          points: 5,
+          reason: 'Issue assigned to Field Officer',
+          relatedIssueId: args.issueId,
+          metadata: {
+            source: args.isSlaReassign
+              ? 'sla_field_officer_reassignment'
+              : args.isReassign
+                ? 'field_officer_reassignment'
+                : 'field_officer_assignment',
+            officerId: fieldOfficer.userId,
+          },
+        });
+
+        await checkAndAwardCitizenBadges(ctx, {
+          citizenId: citizen._id,
+          userId: citizen.userId,
+          relatedIssueId: args.issueId,
+        });
+      }
+    }
+
     return {
       success: true,
       assignedFieldOfficerUserId: fieldOfficer.userId,
@@ -782,6 +894,43 @@ export const approveIssueResolution = mutation({
       read: false,
       createdAt: now,
     });
+
+    // Resolved Issue Gamification Reward
+    if (issue.reportedBy) {
+      const citizen = await ctx.db
+        .query('citizens')
+        .withIndex('by_user', (q) => q.eq('userId', issue.reportedBy))
+        .first();
+
+      if (citizen) {
+        const existingResolvedReward = await ctx.db
+          .query('citizenPointTransactions')
+          .withIndex('by_issue', (q) => q.eq('relatedIssueId', args.issueId))
+          .filter((q) => q.eq(q.field('type'), 'issue_resolved'))
+          .first();
+
+        if (!existingResolvedReward) {
+          await awardCitizenPoints(ctx, {
+            citizenId: citizen._id,
+            userId: citizen.userId,
+            type: 'issue_resolved',
+            points: 40,
+            reason: 'Issue resolved after Unit Officer approval',
+            relatedIssueId: args.issueId,
+            metadata: {
+              source: 'issue_resolution_approval',
+              officerId: args.updatedBy,
+            },
+          });
+
+          await checkAndAwardCitizenBadges(ctx, {
+            citizenId: citizen._id,
+            userId: citizen.userId,
+            relatedIssueId: args.issueId,
+          });
+        }
+      }
+    }
 
     return { success: true };
   },
@@ -1194,3 +1343,118 @@ export const reopenIssue = mutation({
   },
 });
 
+export const closeIssue = mutation({
+  args: {
+    issueId: v.id('issues'),
+    userId: v.id('users'),
+    closeReason: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const issue = await ctx.db.get(args.issueId);
+    if (!issue) throw new Error('Issue not found');
+
+    const unitOfficer = await ctx.db
+      .query('unitOfficers')
+      .withIndex('by_user', (q) => q.eq('userId', args.userId))
+      .unique();
+
+    const UOName = unitOfficer?.fullName || 'Unit Officer';
+    const now = Date.now();
+
+    await ctx.db.patch(args.issueId, {
+      status: 'closed',
+      closedAt: now,
+      closedBy: args.userId,
+    });
+
+    // Add Issue Timeline Update
+    await ctx.db.insert('issueUpdates', {
+      issueId: args.issueId,
+      status: 'closed',
+      comment: args.closeReason
+        ? `Issue officially closed by Unit Officer ${UOName}.\nReason: ${args.closeReason}`
+        : `Issue officially closed by Unit Officer ${UOName}.`,
+      updatedBy: args.userId,
+      role: 'unit_officer',
+      attachments: [],
+      scope: 'officer_and_citizen',
+      createdAt: now,
+    });
+
+    // Notification for Citizen
+    if (issue.reportedBy) {
+      await ctx.db.insert('notifications', {
+        userId: issue.reportedBy,
+        issueId: args.issueId,
+        title: `Issue Closed - "${issue.title} (${issue.issueCode})"`,
+        message: `Your issue "${issue.title}" (${issue.issueCode}) has been officially closed by Unit Officer ${UOName}.`,
+        type: 'status_change',
+        read: false,
+        createdAt: now,
+      });
+    }
+
+    // Notification for Field Officer
+    if (issue.assignedFieldOfficer) {
+      await ctx.db.insert('notifications', {
+        userId: issue.assignedFieldOfficer,
+        issueId: args.issueId,
+        title: `Issue Closed - "${issue.title} (${issue.issueCode})"`,
+        message: `Issue "${issue.title}" (${issue.issueCode}) has been officially closed by Unit Officer ${UOName}.`,
+        type: 'status_change',
+        read: false,
+        createdAt: now,
+      });
+    }
+
+    // Notification for Unit Officer
+    await ctx.db.insert('notifications', {
+      userId: args.userId,
+      issueId: args.issueId,
+      title: `Issue Closed - "${issue.title} (${issue.issueCode})"`,
+      message: `You successfully closed the issue "${issue.title}" (${issue.issueCode}).`,
+      type: 'status_change',
+      read: false,
+      createdAt: now,
+    });
+
+    // Award Citizen Points for Closed Issue
+    if (issue.reportedBy) {
+      const citizen = await ctx.db
+        .query('citizens')
+        .withIndex('by_user', (q) => q.eq('userId', issue.reportedBy))
+        .first();
+
+      if (citizen) {
+        const existingClosedReward = await ctx.db
+          .query('citizenPointTransactions')
+          .withIndex('by_issue', (q) => q.eq('relatedIssueId', args.issueId))
+          .filter((q) => q.eq(q.field('type'), 'issue_closed'))
+          .first();
+
+        if (!existingClosedReward) {
+          await awardCitizenPoints(ctx, {
+            citizenId: citizen._id,
+            userId: citizen.userId,
+            type: 'issue_closed',
+            points: 10,
+            reason: 'Issue officially closed by Unit Officer',
+            relatedIssueId: args.issueId,
+            metadata: {
+              source: 'issue_closed',
+              officerId: args.userId,
+            },
+          });
+
+          await checkAndAwardCitizenBadges(ctx, {
+            citizenId: citizen._id,
+            userId: citizen.userId,
+            relatedIssueId: args.issueId,
+          });
+        }
+      }
+    }
+
+    return { success: true };
+  },
+});

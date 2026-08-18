@@ -1,5 +1,13 @@
 import { v } from 'convex/values';
 import { mutation, query } from './_generated/server';
+import { awardCitizenPoints, checkAndAwardCitizenBadges } from '../lib/gamificationAwards';
+
+const getCitizenByUserId = async (ctx: any, userId: any) => {
+  return await ctx.db
+    .query('citizens')
+    .withIndex('by_user', (q: any) => q.eq('userId', userId))
+    .first();
+};
 
 export const getIssueDiscussions = query({
   args: {
@@ -94,7 +102,7 @@ export const addIssueDiscussion = mutation({
       throw new Error('Public issue not found');
     }
 
-    return await ctx.db.insert('issueDiscussionForum', {
+    const discussionId = await ctx.db.insert('issueDiscussionForum', {
       issueId: args.issueId,
       citizenId: args.citizenId,
       comments: args.comments.trim(),
@@ -108,6 +116,32 @@ export const addIssueDiscussion = mutation({
 
       replyCount: 0,
     });
+
+    // Gamification: Comment Added Reward
+    const citizen = await getCitizenByUserId(ctx, args.citizenId);
+
+    if (citizen) {
+      await awardCitizenPoints(ctx, {
+        citizenId: citizen._id,
+        userId: citizen.userId,
+        type: 'comment_added',
+        points: 2,
+        reason: 'Comment added on public issue discussion',
+        relatedIssueId: publicIssue.issueId,
+        relatedCommentId: discussionId,
+        metadata: {
+          source: 'public_issue_discussion_comment',
+        },
+      });
+
+      await checkAndAwardCitizenBadges(ctx, {
+        citizenId: citizen._id,
+        userId: citizen.userId,
+        relatedIssueId: publicIssue.issueId,
+      });
+    }
+
+    return discussionId;
   },
 });
 
@@ -122,6 +156,8 @@ export const addIssueReply = mutation({
 
   handler: async (ctx, args) => {
     const discussion = await ctx.db.get(args.discussionId);
+
+    const publicIssue = await ctx.db.get(args.issueId);
 
     if (!discussion) {
       throw new Error('Discussion not found');
@@ -147,6 +183,31 @@ export const addIssueReply = mutation({
       replyCount: discussion.replyCount + 1,
     });
 
+    // Gamification: Reply Added Reward
+    const citizen = await getCitizenByUserId(ctx, args.userId);
+
+    if (citizen) {
+      await awardCitizenPoints(ctx, {
+        citizenId: citizen._id,
+        userId: citizen.userId,
+        type: 'comment_added',
+        points: 2,
+        reason: 'Reply added on public issue discussion',
+        relatedIssueId: publicIssue?.issueId,
+        relatedReplyId: replyId,
+        relatedCommentId: args.discussionId,
+        metadata: {
+          source: 'public_issue_discussion_reply',
+        },
+      });
+
+      await checkAndAwardCitizenBadges(ctx, {
+        citizenId: citizen._id,
+        userId: citizen.userId,
+        relatedIssueId: publicIssue?.issueId,
+      });
+    }
+
     return replyId;
   },
 });
@@ -163,6 +224,8 @@ export const likeDiscussion = mutation({
     if (!discussion) {
       throw new Error('Discussion not found');
     }
+
+    const publicIssue = await ctx.db.get(discussion.issueId);
 
     const likedBy = discussion.likedBy || [];
     const isLiked = likedBy.includes(args.userId);
@@ -182,6 +245,36 @@ export const likeDiscussion = mutation({
       likedBy: newLikedBy,
       likeCount: newLikeCount,
     });
+
+    // Gamification: Comment Liked Reward / Unlike Reversal
+    if (discussion.citizenId !== args.userId) {
+      const commentOwnerCitizen = await getCitizenByUserId(ctx, discussion.citizenId);
+
+      if (commentOwnerCitizen) {
+        await awardCitizenPoints(ctx, {
+          citizenId: commentOwnerCitizen._id,
+          userId: commentOwnerCitizen.userId,
+          type: 'comment_liked',
+          points: isLiked ? -1 : 1,
+          reason: isLiked
+            ? 'Public discussion comment like removed'
+            : 'Public discussion comment liked by another citizen',
+          relatedIssueId: publicIssue?.issueId,
+          relatedCommentId: args.discussionId,
+          metadata: {
+            source: isLiked
+              ? 'public_issue_discussion_comment_unliked'
+              : 'public_issue_discussion_comment_liked',
+          },
+        });
+
+        await checkAndAwardCitizenBadges(ctx, {
+          citizenId: commentOwnerCitizen._id,
+          userId: commentOwnerCitizen.userId,
+          relatedIssueId: publicIssue?.issueId,
+        });
+      }
+    }
 
     return { likeCount: newLikeCount, likedBy: newLikedBy };
   },

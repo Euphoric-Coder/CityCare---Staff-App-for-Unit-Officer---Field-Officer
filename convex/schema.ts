@@ -488,6 +488,7 @@ export default defineSchema({
 
     resolvedAt: v.union(v.number(), v.null()),
     closedAt: v.union(v.number(), v.null()),
+    closedBy: v.optional(v.union(v.id('users'), v.null())),
 
     citizenRating: v.union(v.number(), v.null()),
     citizenFeedback: v.union(v.string(), v.null()),

@@ -33,6 +33,7 @@ import {
   UserCheck,
   Send,
   RotateCcw,
+  Lock,
   RefreshCw,
   Star,
   Briefcase,
@@ -540,6 +541,10 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
   // Reopen mutation
   const reopenIssueMutation = useMutation(api.unitOfficers.reopenIssue);
 
+  // Close mutation
+  const closeIssueMutation = useMutation(api.unitOfficers.closeIssue);
+  const [isClosing, setIsClosing] = useState(false);
+
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [assignModalMode, setAssignModalMode] = useState<'assign' | 'reassign'>('assign');
   const [pendingReassignMeta, setPendingReassignMeta] = useState<{
@@ -920,6 +925,35 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
     }
   };
 
+  const handleCloseAction = () => {
+    Alert.alert(
+      'Close Issue',
+      'Are you sure you want to officially close this issue? Once closed, all relevant stakeholders will be notified.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Confirm Close',
+          style: 'destructive',
+          onPress: async () => {
+            setIsClosing(true);
+            try {
+              await closeIssueMutation({
+                issueId: issue?._id as Id<'issues'>,
+                userId: user?.id as Id<'users'>,
+              });
+              Alert.alert('Success', 'Issue has been officially closed.');
+            } catch (err: any) {
+              console.error(err);
+              Alert.alert('Error', err?.message || 'Failed to close issue.');
+            } finally {
+              setIsClosing(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const handleSLAReassign = (
     issueId: Id<'issues'>,
     fieldOfficerId: Id<'fieldOfficers'>,
@@ -1117,7 +1151,10 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
 
   const handleUOApprove = (updatedIssue: Issue) => {
     console.log('handleUOApprove', updatedIssue);
-    Alert.alert('Issue Closed', 'Resolution approved and issue has been closed successfully.');
+    Alert.alert(
+      'Issue Resolved',
+      'Resolution approved and issue has been marked as resolved successfully.'
+    );
   };
 
   const handleUORework = (note: string, updatedIssue: Issue) => {
@@ -4062,34 +4099,88 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
             );
           })()}
 
-          {/* RESOLVED */}
+          {/* RESOLVED OR CLOSED STATUS ACTIONS */}
           {/* @ts-ignore */}
-          {mappedIssue.status === 'resolved' && (
+          {(mappedIssue.status === 'resolved' || mappedIssue.status === 'closed') && (
             <SectionCard>
               <View className="p-5">
-                <View className="mb-4 flex-row items-center gap-3">
-                  <View className="h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 dark:bg-emerald-900/30">
-                    <CheckCircle color="#10B981" size={22} strokeWidth={2.5} />
+                {mappedIssue.status === 'resolved' ? (
+                  <View className="mb-4 flex-row items-center gap-3">
+                    <View className="h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 dark:bg-emerald-900/30">
+                      <CheckCircle color="#10B981" size={22} strokeWidth={2.5} />
+                    </View>
+                    <View className="flex-1">
+                      <View className="flex-row items-center gap-2 flex-wrap">
+                        <Text className="text-[16px] font-extrabold text-emerald-700 dark:text-emerald-400">
+                          Issue Resolved
+                        </Text>
+                        {(mappedIssue.reopenCount ?? 0) > 0 && (
+                          <View className="rounded-full bg-amber-100 px-2.5 py-0.5 dark:bg-amber-900/30">
+                            <Text className="text-[11px] font-bold text-amber-700 dark:text-amber-400">
+                              Reopened ({mappedIssue.reopenCount})
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text className="text-[13px] text-slate-500 dark:text-slate-400">
+                        This issue has been marked as resolved
+                      </Text>
+                    </View>
                   </View>
-                  <View className="flex-1">
-                    <Text className="mb-0.5 text-[16px] font-extrabold text-emerald-700 dark:text-emerald-400">
-                      Issue Resolved
-                    </Text>
-                    <Text className="text-[13px] text-slate-500 dark:text-slate-400">
-                      This issue has been successfully resolved
-                    </Text>
+                ) : (
+                  <View className="mb-4 flex-row items-center gap-3">
+                    <View className="h-12 w-12 items-center justify-center rounded-2xl bg-slate-200 dark:bg-slate-800">
+                      <ShieldCheck color="#64748B" size={22} strokeWidth={2.5} />
+                    </View>
+                    <View className="flex-1">
+                      <View className="flex-row items-center gap-2 flex-wrap">
+                        <Text className="text-[16px] font-extrabold text-slate-800 dark:text-slate-200">
+                          Issue Closed
+                        </Text>
+                        {(mappedIssue.reopenCount ?? 0) > 0 && (
+                          <View className="rounded-full bg-amber-100 px-2.5 py-0.5 dark:bg-amber-900/30">
+                            <Text className="text-[11px] font-bold text-amber-700 dark:text-amber-400">
+                              Reopened ({mappedIssue.reopenCount})
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text className="text-[13px] text-slate-500 dark:text-slate-400">
+                        This issue has been officially closed
+                      </Text>
+                    </View>
                   </View>
-                </View>
+                )}
+
                 {!showReopenForm ? (
-                  <TouchableOpacity
-                    onPress={() => setShowReopenForm(true)}
-                    activeOpacity={0.85}
-                    className="flex-row items-center justify-center gap-2 rounded-2xl border-2 border-amber-400 bg-amber-50 py-3.5 dark:border-amber-500 dark:bg-amber-900/20">
-                    <RotateCcw color="#D97706" size={17} strokeWidth={2.5} />
-                    <Text className="text-[14px] font-bold text-amber-600 dark:text-amber-400">
-                      Reopen if Needed
-                    </Text>
-                  </TouchableOpacity>
+                  <View className="flex-column gap-3">
+                    {mappedIssue.status === 'resolved' && (
+                      <TouchableOpacity
+                        onPress={handleCloseAction}
+                        disabled={isClosing}
+                        activeOpacity={0.85}
+                        className="flex-1 flex-row items-center justify-center gap-2 rounded-2xl bg-slate-800 py-3.5 dark:bg-slate-700">
+                        {isClosing ? (
+                          <ActivityIndicator size="small" color="#FFFFFF" />
+                        ) : (
+                          <Lock color="#FFFFFF" size={17} strokeWidth={2.5} />
+                        )}
+                        <Text className="text-[14px] font-bold text-white">
+                          {isClosing ? 'Closing...' : 'Close Issue'}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+
+                    <TouchableOpacity
+                      onPress={() => setShowReopenForm(true)}
+                      activeOpacity={0.85}
+                      className="flex-1 flex-row items-center justify-center gap-2 rounded-2xl border-2 border-amber-400 bg-amber-50 py-3.5 dark:border-amber-500 dark:bg-amber-900/20">
+                      <RotateCcw color="#D97706" size={17} strokeWidth={2.5} />
+                      <Text className="text-[14px] font-bold text-amber-600 dark:text-amber-400">
+                        Reopen if Needed
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
                 ) : (
                   <View className="mt-4 border-t border-slate-100 pt-4 dark:border-slate-800">
                     <Text className="mb-3 text-[14px] font-extrabold text-slate-800 dark:text-slate-200">

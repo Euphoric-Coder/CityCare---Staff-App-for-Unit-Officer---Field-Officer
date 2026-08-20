@@ -396,6 +396,40 @@ export const withdrawIssue = mutation({
       createdAt: Date.now(),
     });
 
+    // Withdrawn Issue Gamification Penalty
+    const citizen = await ctx.db
+      .query('citizens')
+      .withIndex('by_user', (q) => q.eq('userId', args.userId))
+      .first();
+
+    if (citizen) {
+      const existingWithdrawPenalty = await ctx.db
+        .query('citizenPointTransactions')
+        .withIndex('by_issue', (q) => q.eq('relatedIssueId', args.issueId))
+        .filter((q) => q.eq(q.field('type'), 'issue_withdrawn'))
+        .first();
+
+      if (!existingWithdrawPenalty) {
+        await awardCitizenPoints(ctx, {
+          citizenId: citizen._id,
+          userId: citizen.userId,
+          type: 'issue_withdrawn',
+          points: -5,
+          reason: 'Issue withdrawn by citizen',
+          relatedIssueId: args.issueId,
+          metadata: {
+            source: 'issue_withdrawal',
+          },
+        });
+
+        await checkAndAwardCitizenBadges(ctx, {
+          citizenId: citizen._id,
+          userId: citizen.userId,
+          relatedIssueId: args.issueId,
+        });
+      }
+    }
+
     return { success: true };
   },
 });

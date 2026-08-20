@@ -63,8 +63,11 @@ export const getUnitOfficerIssues = query({
 
     if (!officer) return [];
 
-    // 2. Fetch Issues
-    const issues = await Promise.all(officer.activeIssueIds.map((id) => ctx.db.get(id)));
+    // 2. Fetch Issues using by_assigned_unit_officer index (canonical source for Unit Officer issues)
+    const issues = await ctx.db
+      .query('issues')
+      .withIndex('by_assigned_unit_officer', (q) => q.eq('assignedUnitOfficer', officer.userId))
+      .collect();
 
     const validIssues = issues.filter(Boolean);
 

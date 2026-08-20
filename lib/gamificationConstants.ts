@@ -9,7 +9,6 @@ export const POINT_RULES = {
 
   comment_added: 2,
   comment_liked: 1,
-  report_upvoted: 2,
 
   streak_bonus: 10,
   badge_bonus: 25,

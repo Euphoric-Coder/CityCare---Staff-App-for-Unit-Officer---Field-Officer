@@ -88,7 +88,6 @@ export default defineSchema({
       v.literal('issue_withdrawn'),
       v.literal('comment_added'),
       v.literal('comment_liked'),
-      v.literal('report_upvoted'),
       v.literal('streak_bonus'),
       v.literal('badge_bonus'),
       v.literal('manual_adjustment')
@@ -770,4 +769,20 @@ export default defineSchema({
     .index('by_user', ['userId'])
     .index('by_request', ['requestId'])
     .index('by_token_hash', ['tokenHash']),
+
+  accountProvisioningImports: defineTable({
+    importType: v.union(v.literal('officers'), v.literal('city_admins')),
+    fileName: v.string(),
+    uploadedBy: v.id('users'),
+    totalRows: v.number(),
+    validRows: v.number(),
+    createdRows: v.number(),
+    skippedRows: v.number(),
+    failedRows: v.number(),
+    status: v.string(), // "completed", "partially_completed", "failed"
+    details: v.optional(v.string()), // JSON string of row results
+    createdAt: v.number(),
+  })
+    .index('by_uploaded_by', ['uploadedBy'])
+    .index('by_created_at', ['createdAt']),
 });

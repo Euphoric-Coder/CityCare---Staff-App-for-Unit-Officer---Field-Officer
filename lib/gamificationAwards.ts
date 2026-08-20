@@ -40,7 +40,6 @@ function getDefaultReason(type: PointTransactionType) {
 
     comment_added: "Comment added to public discussion",
     comment_liked: "Comment received appreciation",
-    report_upvoted: "Report received citizen upvote",
 
     streak_bonus: "Civic activity streak bonus",
     badge_bonus: "Badge achievement bonus",
@@ -234,10 +233,6 @@ export async function awardCitizenPoints(
 
     case "comment_added":
       patchData.commentsAdded = (citizen.commentsAdded ?? 0) + 1;
-      break;
-
-    case "report_upvoted":
-      patchData.upvotesReceived = (citizen.upvotesReceived ?? 0) + 1;
       break;
   }
 

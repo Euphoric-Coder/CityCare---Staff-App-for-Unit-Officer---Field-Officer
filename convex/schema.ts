@@ -504,7 +504,8 @@ export default defineSchema({
     .index('by_city', ['city'])
     .index('by_category', ['category'])
     .index('by_assigned_unit_officer', ['assignedUnitOfficer'])
-    .index('by_assigned_field_officer', ['assignedFieldOfficer']),
+    .index('by_assigned_field_officer', ['assignedFieldOfficer'])
+    .index('by_issue_code', ['issueCode']),
 
   issueUpdates: defineTable({
     // Reference
@@ -785,4 +786,65 @@ export default defineSchema({
   })
     .index('by_uploaded_by', ['uploadedBy'])
     .index('by_created_at', ['createdAt']),
+
+  auditLogs: defineTable({
+    performedByUserId: v.optional(v.id('users')),
+
+    performerRole: v.union(
+      v.literal('citizen'),
+      v.literal('unit_officer'),
+      v.literal('field_officer'),
+      v.literal('city_admin'),
+      v.literal('admin'),
+      v.literal('system')
+    ),
+
+    action: v.string(),
+
+    actionCategory: v.union(
+      v.literal('issue'),
+      v.literal('verification'),
+      v.literal('assignment'),
+      v.literal('resolution'),
+      v.literal('rework'),
+      v.literal('rejection'),
+      v.literal('withdrawal'),
+      v.literal('reopen'),
+      v.literal('sla'),
+      v.literal('escalation'),
+      v.literal('classification'),
+      v.literal('priority'),
+      v.literal('other')
+    ),
+
+    affectedEntityType: v.string(),
+    affectedEntityId: v.optional(v.string()),
+
+    issueId: v.optional(v.id('issues')),
+    issueCode: v.optional(v.string()),
+
+    city: v.optional(v.string()),
+    department: v.optional(v.string()),
+
+    oldValue: v.optional(v.any()),
+    newValue: v.optional(v.any()),
+
+    reason: v.optional(v.string()),
+    description: v.optional(v.string()),
+
+    source: v.union(
+      v.literal('web'),
+      v.literal('mobile'),
+      v.literal('system')
+    ),
+
+    timestamp: v.number(),
+  })
+    .index('by_user', ['performedByUserId'])
+    .index('by_role', ['performerRole'])
+    .index('by_issue', ['issueId'])
+    .index('by_city', ['city'])
+    .index('by_city_timestamp', ['city', 'timestamp'])
+    .index('by_category', ['actionCategory'])
+    .index('by_timestamp', ['timestamp']),
 });

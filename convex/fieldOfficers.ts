@@ -1,6 +1,7 @@
 import { v } from 'convex/values';
 import { mutation, query } from './_generated/server';
 import { Id } from './_generated/dataModel';
+import { auditIssueActionMobile } from './auditLogger';
 
 export const getFieldOfficerByUserId = query({
   args: { userId: v.id('users') },
@@ -270,6 +271,22 @@ export const startWork = mutation({
       createdAt: now,
     });
 
+    // Audit log
+    await auditIssueActionMobile(ctx, {
+      issue,
+      performedByUserId: args.userId,
+      performerRole: 'field_officer',
+      action: 'work_started',
+      actionCategory: 'issue',
+      oldValue: {
+        status: issue.status,
+      },
+      newValue: {
+        status: 'in_progress',
+      },
+      description: `Field Officer started work on ${issue.issueCode}.`,
+    });
+
     return { success: true };
   },
 });
@@ -363,6 +380,27 @@ export const submitFieldOfficerWork = mutation({
           : `Resolution submitted successfully by you for issue "${issue.title}" (${issue.issueCode}).`,
       read: false,
       createdAt: now,
+    });
+
+    const isRework = issue.status === 'rework_required' || issue.status === 'rework_requested';
+
+    // Audit log
+    await auditIssueActionMobile(ctx, {
+      issue,
+      performedByUserId: args.fieldOfficerId,
+      performerRole: 'field_officer',
+      action: isRework ? 'rework_resubmitted' : 'resolution_submitted',
+      actionCategory: isRework ? 'rework' : 'resolution',
+      oldValue: {
+        status: issue.status,
+      },
+      newValue: {
+        status: 'pending_uo_verification',
+        hasBeforeEvidence: Array.isArray(args.beforePhotos) && args.beforePhotos.length > 0,
+        hasAfterEvidence: Array.isArray(args.afterPhotos) && args.afterPhotos.length > 0,
+      },
+      reason: args.notes,
+      description: `Resolution ${isRework ? 'rework resubmitted' : 'submitted'} for issue ${issue.issueCode}.`,
     });
 
     return { success: true };

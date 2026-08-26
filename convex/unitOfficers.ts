@@ -2,6 +2,7 @@ import { v } from 'convex/values';
 import { mutation, query } from './_generated/server';
 import { Id } from './_generated/dataModel';
 import { awardCitizenPoints, checkAndAwardCitizenBadges } from 'lib/gamificationAwards';
+import { auditIssueActionMobile } from './auditLogger';
 
 export const getUnitOfficerByUserId = query({
   args: { userId: v.id('users') },
@@ -377,6 +378,25 @@ export const verifyIssue = mutation({
         }
       }
     }
+
+    await auditIssueActionMobile(ctx, {
+      issue,
+      performedByUserId: args.verifiedBy,
+      performerRole: 'unit_officer',
+      action: 'issue_verified',
+      actionCategory: 'verification',
+      oldValue: {
+        status: issue.status,
+        slaDeadline: issue.slaDeadline,
+      },
+      newValue: {
+        status: 'verified',
+        slaDeadline: args.slaDeadline,
+        verificationChecklist: args.verificationChecklist,
+      },
+      reason: args.notes,
+      description: `Issue ${issue.issueCode} verified by Unit Officer.`,
+    });
   },
 });
 
@@ -585,6 +605,22 @@ export const rejectIssue = mutation({
         });
       }
     }
+
+    await auditIssueActionMobile(ctx, {
+      issue,
+      performedByUserId: args.rejectedBy,
+      performerRole: 'unit_officer',
+      action: 'issue_rejected',
+      actionCategory: 'rejection',
+      oldValue: {
+        status: issue.status,
+      },
+      newValue: {
+        status: 'rejected',
+      },
+      reason: args.reason,
+      description: `Issue ${issue.issueCode} rejected by Unit Officer.${args.comment ? ` Comment: ${args.comment}` : ''}`.trim(),
+    });
 
     return { success: true };
   },
@@ -820,6 +856,24 @@ export const assignIssueToFieldOfficer = mutation({
       }
     }
 
+    await auditIssueActionMobile(ctx, {
+      issue,
+      performedByUserId: args.assignedBy,
+      performerRole: 'unit_officer',
+      action: args.isReassign ? 'reassign_field_officer' : 'assign_field_officer',
+      actionCategory: 'assignment',
+      oldValue: {
+        assignedFieldOfficer: issue.assignedFieldOfficer ?? null,
+        slaDeadline: issue.slaDeadline ?? null,
+      },
+      newValue: {
+        assignedFieldOfficer: fieldOfficer.userId,
+        slaDeadline: args.newSLADeadline ?? issue.slaDeadline ?? null,
+      },
+      reason: args.reassignmentReason ?? args.reassignmentComment ?? (args.isReassign ? 'Field Officer reassigned' : 'Field Officer assigned'),
+      description: `Field Officer ${fieldOfficer.fullName} ${args.isReassign ? 'reassigned to' : 'assigned to'} issue ${issue.issueCode}.`,
+    });
+
     return {
       success: true,
       assignedFieldOfficerUserId: fieldOfficer.userId,
@@ -935,6 +989,21 @@ export const approveIssueResolution = mutation({
       }
     }
 
+    await auditIssueActionMobile(ctx, {
+      issue,
+      performedByUserId: args.updatedBy,
+      performerRole: 'unit_officer',
+      action: 'resolution_approved',
+      actionCategory: 'resolution',
+      oldValue: {
+        status: issue.status,
+      },
+      newValue: {
+        status: 'resolved',
+      },
+      description: `Unit Officer approved resolution for issue ${issue.issueCode}.`,
+    });
+
     return { success: true };
   },
 });
@@ -1014,6 +1083,23 @@ export const requestRework = mutation({
       type: 'rework',
       read: false,
       createdAt: now,
+    });
+
+    await auditIssueActionMobile(ctx, {
+      issue,
+      performedByUserId: args.updatedBy,
+      performerRole: 'unit_officer',
+      action: 'rework_requested',
+      actionCategory: 'rework',
+      oldValue: {
+        status: issue.status,
+      },
+      newValue: {
+        status: 'rework_required',
+        reworkReasons: args.reasons || [],
+      },
+      reason: args.note,
+      description: `Rework requested by Unit Officer for issue ${issue.issueCode}.`,
     });
 
     return { success: true };
@@ -1120,6 +1206,22 @@ export const extendSLADeadline = mutation({
       type: 'sla_alert',
       read: false,
       createdAt: now,
+    });
+
+    await auditIssueActionMobile(ctx, {
+      issue,
+      performedByUserId: args.extendedBy,
+      performerRole: 'unit_officer',
+      action: 'sla_extended',
+      actionCategory: 'sla',
+      oldValue: {
+        slaDeadline: issue.slaDeadline,
+      },
+      newValue: {
+        slaDeadline: args.newSlaDeadline,
+      },
+      reason: args.reason,
+      description: `SLA deadline extended for issue ${issue.issueCode}. Note: ${args.comment}`,
     });
 
     return { success: true };
@@ -1245,6 +1347,22 @@ export const rejectDuplicateIssues = mutation({
         previousStatus,
         newStatus: 'rejected',
       });
+
+      await auditIssueActionMobile(ctx, {
+        issue,
+        performedByUserId: args.rejectedBy,
+        performerRole: 'unit_officer',
+        action: 'duplicate_rejected',
+        actionCategory: 'issue',
+        oldValue: {
+          status: previousStatus,
+        },
+        newValue: {
+          status: 'rejected',
+        },
+        reason: rejectionReason,
+        description: `Duplicate issue ${issueCode} rejected by Unit Officer.`,
+      });
     }
 
     const rejectedCount = results.filter((item) => item.success).length;
@@ -1340,6 +1458,25 @@ export const reopenIssue = mutation({
       type: 'reopened',
       read: false,
       createdAt: now,
+    });
+
+    await auditIssueActionMobile(ctx, {
+      issue,
+      performedByUserId: args.userId,
+      performerRole: 'unit_officer',
+      action: 'issue_reopened',
+      actionCategory: 'reopen',
+      oldValue: {
+        status: issue.status,
+        reopenCount: issue.reopenCount ?? 0,
+      },
+      newValue: {
+        status: 'reopened',
+        reopenCategory: args.category,
+        reopenCount: (issue.reopenCount || 0) + 1,
+      },
+      reason: args.reason,
+      description: `Issue ${issue.issueCode} reopened by Unit Officer.`,
     });
 
     return { success: true };
@@ -1457,6 +1594,22 @@ export const closeIssue = mutation({
         }
       }
     }
+
+    await auditIssueActionMobile(ctx, {
+      issue,
+      performedByUserId: args.userId,
+      performerRole: 'unit_officer',
+      action: 'issue_closed',
+      actionCategory: 'resolution',
+      oldValue: {
+        status: issue.status,
+      },
+      newValue: {
+        status: 'closed',
+      },
+      reason: args.closeReason,
+      description: `Issue ${issue.issueCode} officially closed by Unit Officer.`,
+    });
 
     return { success: true };
   },

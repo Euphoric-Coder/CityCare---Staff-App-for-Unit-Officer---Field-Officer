@@ -31,4 +31,12 @@ crons.interval(
   {}
 );
 
+// Ensure demo baseline data (runs every 24 hours - idempotent NO-OP if baseline exists)
+crons.interval(
+  'ensure demo baseline data',
+  { hours: 24 },
+  internal.demoSeedPasswords.ensureDemoBaseline,
+  {}
+);
+
 export default crons;

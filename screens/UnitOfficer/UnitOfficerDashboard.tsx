@@ -2058,9 +2058,9 @@ export default function UnitOfficerDashboard() {
               <Animated.View
                 entering={FadeInDown.springify().damping(16).mass(0.8)}
                 className="z-10 mb-8 flex-row items-start justify-between">
-                <View className="flex-row items-center gap-4">
+                <View className="flex-1 min-w-0 flex-row items-center gap-3.5 mr-3">
                   {/* Ultra-Premium Avatar */}
-                  <View className="relative h-16 w-16 items-center justify-center overflow-hidden rounded-[20px] border border-white/20 bg-white/10 shadow-xl shadow-blue-900/40">
+                  <View className="relative h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-[20px] border border-white/20 bg-white/10 shadow-xl shadow-blue-900/40">
                     <BlurView intensity={25} tint="light" style={StyleSheet.absoluteFill} />
                     <LinearGradient
                       colors={['rgba(255,255,255,0.4)', 'rgba(255,255,255,0.0)']}
@@ -2073,23 +2073,29 @@ export default function UnitOfficerDashboard() {
                     </Text>
                   </View>
 
-                  <View>
+                  <View className="flex-1 min-w-0">
                     <Text className="mb-1 text-[12px] font-bold uppercase tracking-[0.2em] text-blue-200/90">
                       Welcome back
                     </Text>
-                    <Text className="text-[24px] font-black leading-tight tracking-tighter text-white drop-shadow-lg">
+                    <Text
+                      numberOfLines={2}
+                      ellipsizeMode="tail"
+                      className="text-[22px] font-black leading-tight tracking-tighter text-white drop-shadow-lg">
                       {unitOfficer?.fullName}
                     </Text>
                     <View className="mt-1.5 flex-row items-center gap-1.5 self-start rounded-full border border-white/10 bg-black/20 px-3 py-1">
                       <MapPin color="#93C5FD" size={11} strokeWidth={3} />
-                      <Text className="text-[10px] font-black uppercase tracking-widest text-blue-100">
+                      <Text
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
+                        className="text-[10px] font-black uppercase tracking-widest text-blue-100">
                         {unitOfficer?.city}
                       </Text>
                     </View>
                   </View>
                 </View>
 
-                <View className="items-end gap-3 pt-1">
+                <View className="shrink-0 items-end gap-3 pt-1 z-50">
                   <TouchableOpacity
                     onPress={() => setShowNotifications(true)}
                     activeOpacity={0.7}

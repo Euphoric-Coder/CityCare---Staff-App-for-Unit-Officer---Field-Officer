@@ -32,7 +32,8 @@
         "NSCameraUsageDescription": "This app needs access to the camera to capture before and after images of work completed.",
         "NSPhotoLibraryUsageDescription": "This app needs access to your photo library to select images.",
         "NSLocationWhenInUseUsageDescription": "This app needs access to your location to verify the work location."
-      }
+      },
+      "bundleIdentifier": "com.euphoriccoder.CityCareMobile"
     },
     "android": {
       "softwareKeyboardLayoutMode": "resize",

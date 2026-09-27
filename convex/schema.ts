@@ -16,6 +16,7 @@ export default defineSchema({
     ),
 
     createdAt: v.string(),
+    nextPasswordChangeAllowedAt: v.optional(v.number()),
   })
     .index('by_email', ['email'])
     .index('by_role', ['role']),
@@ -65,6 +66,7 @@ export default defineSchema({
 
     createdAt: v.optional(v.number()),
     updatedAt: v.optional(v.number()),
+    nextPasswordChangeAllowedAt: v.optional(v.number()),
   })
     .index('by_user', ['userId'])
     .index('by_city', ['city'])
@@ -213,6 +215,7 @@ export default defineSchema({
     createdBy: v.id('users'),
     profileImage: v.optional(v.id('_storage')),
     notes: v.optional(v.string()),
+    nextPasswordChangeAllowedAt: v.optional(v.number()),
   })
     .index('by_user', ['userId'])
     .index('by_email', ['email'])
@@ -432,7 +435,7 @@ export default defineSchema({
         reason: v.string(),
         comments: v.optional(v.string()),
         escalatedBy: v.id('users'),
-        prevIssueStatus: v.string(),
+        prevIssueStatus: v.optional(v.string()),
         escalatedAt: v.number(),
         resolved: v.optional(v.boolean()),
         resolvedAt: v.optional(v.number()),
@@ -491,6 +494,7 @@ export default defineSchema({
 
     citizenRating: v.union(v.number(), v.null()),
     citizenFeedback: v.union(v.string(), v.null()),
+    citizenFeedbackAt: v.optional(v.union(v.number(), v.null())),
 
     reopenCount: v.number(),
     reopenCategory: v.optional(v.string()),
@@ -726,7 +730,15 @@ export default defineSchema({
 
   passwordResetRequests: defineTable({
     userId: v.id('users'),
-    officerRole: v.union(v.literal('unit_officer'), v.literal('field_officer')),
+    // Historical field name retained for mobile backward compatibility.
+    // Represents the account role participating in password recovery.
+    officerRole: v.union(
+      v.literal('citizen'),
+      v.literal('unit_officer'),
+      v.literal('field_officer'),
+      v.literal('city_admin'),
+      v.literal('admin')
+    ),
     emailNormalized: v.string(),
     maskedDeliveryEmail: v.string(),
     otpHash: v.string(),
@@ -832,11 +844,7 @@ export default defineSchema({
     reason: v.optional(v.string()),
     description: v.optional(v.string()),
 
-    source: v.union(
-      v.literal('web'),
-      v.literal('mobile'),
-      v.literal('system')
-    ),
+    source: v.union(v.literal('web'), v.literal('mobile'), v.literal('system')),
 
     timestamp: v.number(),
   })

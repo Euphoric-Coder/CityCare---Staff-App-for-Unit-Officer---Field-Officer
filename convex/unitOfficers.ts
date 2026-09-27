@@ -2,7 +2,7 @@ import { v } from 'convex/values';
 import { mutation, query } from './_generated/server';
 import { Id } from './_generated/dataModel';
 import { awardCitizenPoints, checkAndAwardCitizenBadges } from 'lib/gamificationAwards';
-import { auditIssueActionMobile } from './auditLogger';
+import { auditIssueActionMobile } from './mobileAuditLogger';
 
 export const getUnitOfficerByUserId = query({
   args: { userId: v.id('users') },
@@ -619,7 +619,8 @@ export const rejectIssue = mutation({
         status: 'rejected',
       },
       reason: args.reason,
-      description: `Issue ${issue.issueCode} rejected by Unit Officer.${args.comment ? ` Comment: ${args.comment}` : ''}`.trim(),
+      description:
+        `Issue ${issue.issueCode} rejected by Unit Officer.${args.comment ? ` Comment: ${args.comment}` : ''}`.trim(),
     });
 
     return { success: true };
@@ -870,7 +871,10 @@ export const assignIssueToFieldOfficer = mutation({
         assignedFieldOfficer: fieldOfficer.userId,
         slaDeadline: args.newSLADeadline ?? issue.slaDeadline ?? null,
       },
-      reason: args.reassignmentReason ?? args.reassignmentComment ?? (args.isReassign ? 'Field Officer reassigned' : 'Field Officer assigned'),
+      reason:
+        args.reassignmentReason ??
+        args.reassignmentComment ??
+        (args.isReassign ? 'Field Officer reassigned' : 'Field Officer assigned'),
       description: `Field Officer ${fieldOfficer.fullName} ${args.isReassign ? 'reassigned to' : 'assigned to'} issue ${issue.issueCode}.`,
     });
 

@@ -214,51 +214,111 @@ export default function AnalyticsTab({ ward = 'Varanasi Zone', user }: Analytics
 
   const rawStatusBreakdown = analytics?.charts?.statusBreakdown ?? {};
 
-  const statusBreakdown = [
+  const allStatusItems = [
     {
+      key: 'pending',
       label: 'Pending',
       value: safeNumber(rawStatusBreakdown.pending),
       color: '#F59E0B',
     },
     {
+      key: 'verified',
       label: 'Verified',
       value: safeNumber(rawStatusBreakdown.verified),
-      color: '#10B981',
+      color: '#14B8A6',
     },
     {
+      key: 'assigned',
       label: 'Assigned',
       value: safeNumber(rawStatusBreakdown.assigned),
       color: '#3B82F6',
     },
     {
+      key: 'in_progress',
       label: 'In Progress',
       value: safeNumber(rawStatusBreakdown.in_progress),
       color: '#8B5CF6',
     },
     {
-      label: 'Rework',
-      value: safeNumber(rawStatusBreakdown.rework_required),
-      color: '#EF4444',
+      key: 'submitted_for_review',
+      label: 'Pending UO Review',
+      value: safeNumber(
+        rawStatusBreakdown.submitted_for_review ??
+        rawStatusBreakdown.pending_uo_verification
+      ),
+      color: '#06B6D4',
     },
     {
+      key: 'rework_required',
+      label: 'Rework Required',
+      value: safeNumber(
+        rawStatusBreakdown.rework_required ??
+        rawStatusBreakdown.rework_requested
+      ),
+      color: '#F97316',
+    },
+    {
+      key: 'escalated',
       label: 'Escalated',
       value: safeNumber(rawStatusBreakdown.escalated),
-      color: '#DC2626',
+      color: '#7C3AED',
     },
     {
-      label: 'Closed',
+      key: 'resolved',
+      label: 'Resolved & Closed',
       value: safeNumber(
-        rawStatusBreakdown.closed ??
-        rawStatusBreakdown.resolved
+        (rawStatusBreakdown.resolved || 0) + (rawStatusBreakdown.closed || 0)
       ),
       color: '#10B981',
     },
     {
+      key: 'reopened',
       label: 'Reopened',
       value: safeNumber(rawStatusBreakdown.reopened),
-      color: '#F97316',
+      color: '#EC4899',
+    },
+    {
+      key: 'rejected',
+      label: 'Rejected',
+      value: safeNumber(rawStatusBreakdown.rejected),
+      color: '#EF4444',
     },
   ];
+
+  const mappedKeys = new Set([
+    'pending',
+    'verified',
+    'assigned',
+    'in_progress',
+    'submitted_for_review',
+    'pending_uo_verification',
+    'rework_required',
+    'rework_requested',
+    'escalated',
+    'resolved',
+    'closed',
+    'reopened',
+    'rejected',
+  ]);
+
+  Object.keys(rawStatusBreakdown).forEach((k) => {
+    if (!mappedKeys.has(k)) {
+      const val = safeNumber(rawStatusBreakdown[k]);
+      if (val > 0) {
+        allStatusItems.push({
+          key: k,
+          label: k.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase()),
+          value: val,
+          color: '#64748B',
+        });
+      }
+    }
+  });
+
+  const statusTotalSum = allStatusItems.reduce((sum, item) => sum + item.value, 0);
+  const statusDenominator = Math.max(totalIssues, statusTotalSum, 1);
+  const activeStatusItems = allStatusItems.filter((item) => item.value > 0);
+  const statusBreakdown = activeStatusItems.length > 0 ? activeStatusItems : allStatusItems;
 
   return (
     <SafeAreaView className="flex-1 bg-slate-50 dark:bg-slate-900" edges={['top']}>
@@ -393,7 +453,7 @@ export default function AnalyticsTab({ ward = 'Varanasi Zone', user }: Analytics
                 title="Status Breakdown"
                 isDark={isDark}
               />
-              {totalIssues <= 0 ? (
+              {statusTotalSum <= 0 && totalIssues <= 0 ? (
                 <View className="items-center justify-center rounded-xl bg-slate-50 px-4 py-6 dark:bg-slate-700/40">
                   <Activity
                     color={isDark ? '#64748B' : '#94A3B8'}
@@ -413,7 +473,7 @@ export default function AnalyticsTab({ ward = 'Varanasi Zone', user }: Analytics
                 </View>
               ) : (
                 statusBreakdown.map((item: any) => {
-                  const pct = safePercentage(item.value, totalIssues);
+                  const pct = safePercentage(item.value, statusDenominator);
 
                   return (
                     <View key={item.label} className="mb-3">

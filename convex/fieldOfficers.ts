@@ -1,7 +1,7 @@
 import { v } from 'convex/values';
 import { mutation, query } from './_generated/server';
 import { Id } from './_generated/dataModel';
-import { auditIssueActionMobile } from './auditLogger';
+import { auditIssueActionMobile } from './mobileAuditLogger';
 
 export const getFieldOfficerByUserId = query({
   args: { userId: v.id('users') },
@@ -10,14 +10,14 @@ export const getFieldOfficerByUserId = query({
       .query('fieldOfficers')
       .withIndex('by_user', (q) => q.eq('userId', args.userId))
       .unique();
-      
+
     if (!officer) return null;
-    
+
     let profilePictureUrl = null;
     if (officer.profilePicture) {
       profilePictureUrl = await ctx.storage.getUrl(officer.profilePicture);
     }
-    
+
     return {
       ...officer,
       profilePictureUrl,
@@ -35,18 +35,18 @@ export const updateFieldOfficerProfilePicture = mutation({
       .query('fieldOfficers')
       .withIndex('by_user', (q) => q.eq('userId', args.userId))
       .unique();
-      
+
     if (!officer) throw new Error('Field Officer not found');
-    
+
     // Delete old profile picture from storage
     if (officer.profilePicture) {
       await ctx.storage.delete(officer.profilePicture);
     }
-    
+
     await ctx.db.patch(officer._id, {
       profilePicture: args.profilePicture,
     });
-    
+
     return { success: true };
   },
 });

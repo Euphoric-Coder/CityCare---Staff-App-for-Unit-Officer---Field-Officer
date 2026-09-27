@@ -2480,6 +2480,167 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
             </LinearGradient>
           </View>
 
+          
+          {/* CITIZEN FEEDBACK & SATISFACTION POD */}
+          {(mappedIssue.status === "resolved" ||
+            mappedIssue.status === "closed" ||
+            mappedIssue.citizenRating !== null ||
+            mappedIssue.citizenFeedback) && (
+            <View
+              style={{
+                shadowColor: "#F59E0B",
+                shadowOffset: { width: 0, height: 20 },
+                shadowOpacity: isDark ? 0.35 : 0.12,
+                shadowRadius: 30,
+                elevation: 15,
+                marginBottom: 32,
+              }}>
+              <LinearGradient
+                colors={isDark ? ["#1e1b18", "#0f172a"] : ["#FFFBEB", "#FEF3C7"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={{
+                  borderColor: isDark ? "rgba(245, 158, 11, 0.3)" : "#FDE68A",
+                  borderWidth: 1.5,
+                  borderRadius: 40,
+                  overflow: "hidden",
+                  position: "relative",
+                }}>
+                {/* Cinematic Watermark Layer */}
+                <View style={{ position: "absolute", right: -40, bottom: -40, opacity: 0.04 }}>
+                  <Star size={220} color="#F59E0B" strokeWidth={1} />
+                </View>
+
+                <View className="py-9 pe-7 ps-7">
+                  {/* Header Section */}
+                  <View className="mb-6 flex-row items-center gap-4">
+                    <LinearGradient
+                      colors={["#F59E0B", "#D97706"]}
+                      style={{
+                        height: 50,
+                        width: 50,
+                        borderRadius: 18,
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}>
+                      <Star size={24} color="#FFFFFF" fill="#FFFFFF" strokeWidth={2.5} />
+                    </LinearGradient>
+                    <View className="flex-1">
+                      <Text className="text-[20px] font-black tracking-tight text-slate-900 dark:text-white">
+                        Citizen Review & Feedback
+                      </Text>
+                      <Text className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-600 dark:text-amber-400">
+                        RESOLUTION SATISFACTION EVALUATION
+                      </Text>
+                    </View>
+                  </View>
+
+                  {mappedIssue.citizenRating !== null && mappedIssue.citizenRating !== undefined ? (
+                    <View className="gap-5">
+                      {/* Rating Stars & Badge Header */}
+                      {(() => {
+                        const ratingVal = Number(mappedIssue.citizenRating) || 0;
+                        return (
+                          <View className="flex-row flex-wrap items-center justify-between gap-4 rounded-3xl border border-amber-200/60 bg-amber-50/80 p-5 dark:border-amber-500/20 dark:bg-amber-950/30">
+                            <View className="flex-row items-center gap-3.5">
+                              <View className="flex-row items-center gap-2">
+                                {[1, 2, 3, 4, 5].map((starIndex) => {
+                                  const diff = ratingVal - (starIndex - 1);
+                                  if (diff >= 0.75) {
+                                    return (
+                                      <Star
+                                        key={starIndex}
+                                        size={22}
+                                        color="#F59E0B"
+                                        fill="#F59E0B"
+                                        strokeWidth={2}
+                                      />
+                                    );
+                                  } else if (diff >= 0.25) {
+                                    return (
+                                      <View key={starIndex} style={{ width: 22, height: 22, position: "relative" }}>
+                                        <Star
+                                          size={22}
+                                          color="#F59E0B"
+                                          fill="transparent"
+                                          strokeWidth={2}
+                                        />
+                                        <View style={{ position: "absolute", top: 0, left: 0, width: 11, height: 22, overflow: "hidden" }}>
+                                          <Star
+                                            size={22}
+                                            color="#F59E0B"
+                                            fill="#F59E0B"
+                                            strokeWidth={2}
+                                          />
+                                        </View>
+                                      </View>
+                                    );
+                                  } else {
+                                    return (
+                                      <Star
+                                        key={starIndex}
+                                        size={22}
+                                        color="#F59E0B"
+                                        fill="transparent"
+                                        strokeWidth={2}
+                                      />
+                                    );
+                                  }
+                                })}
+                              </View>
+                              <View className="rounded-xl border border-amber-300/40 bg-amber-100/60 px-3 py-1 dark:border-amber-500/30 dark:bg-amber-900/40">
+                                <Text className="text-[18px] font-black text-amber-900 dark:text-amber-200">
+                                  {ratingVal.toFixed(1)} <Text className="text-[13px] font-bold text-amber-700/70 dark:text-amber-400/70">/ 5</Text>
+                                </Text>
+                              </View>
+                            </View>
+
+                            <View className="rounded-full bg-amber-500/20 px-3.5 py-1.5 border border-amber-500/30">
+                              <Text className="text-[10px] font-black uppercase tracking-wider text-amber-700 dark:text-amber-300">
+                                {ratingVal >= 4
+                                  ? "Satisfied Citizen"
+                                  : ratingVal >= 3
+                                    ? "Neutral Rating"
+                                    : "Low Satisfaction"}
+                              </Text>
+                            </View>
+                          </View>
+                        );
+                      })()}
+
+                      {/* Citizen Feedback Text */}
+                      <View className="flex-row overflow-hidden rounded-[28px] border border-amber-200/50 bg-white/70 dark:border-amber-500/10 dark:bg-slate-900/60">
+                        <View style={{ width: 6, backgroundColor: "#F59E0B" }} />
+                        <View className="flex-1 p-6">
+                          <Text className="mb-2 text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500">
+                            CITIZEN REMARKS
+                          </Text>
+                          <Text
+                            style={{ lineHeight: 26, letterSpacing: 0.2 }}
+                            className="text-[15px] font-medium text-slate-800 dark:text-slate-200">
+                            {mappedIssue.citizenFeedback
+                              ? `"${mappedIssue.citizenFeedback}"`
+                              : "No written comments provided by the citizen."}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                  ) : (
+                    <View className="items-center justify-center rounded-3xl border border-dashed border-amber-300/60 bg-amber-50/50 p-6 dark:border-amber-500/20 dark:bg-amber-950/20">
+                      <Clock size={28} color="#F59E0B" strokeWidth={2} className="mb-2" />
+                      <Text className="text-[14px] font-extrabold text-amber-800 dark:text-amber-300">
+                        Awaiting Citizen Rating & Review
+                      </Text>
+                      <Text className="mt-1 text-center text-[12px] font-medium text-amber-700/80 dark:text-amber-400/70">
+                        The citizen has not yet submitted feedback for this resolved issue.
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              </LinearGradient>
+            </View>
+          )}
+
           {/* DESCRIPTION */}
           <View
             style={{

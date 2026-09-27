@@ -421,7 +421,22 @@ const SLA_META: Record<SLAKey, SLAMeta> = {
   },
 };
 
-function getSlaStatus(slaDeadline?: string): SLAFilter {
+function getSlaStatus(slaDeadline?: string, status?: string): SLAFilter {
+  if (status) {
+    const normStatus = status.toLowerCase().trim();
+    if (
+      [
+        'pending_uo_verification',
+        'resolved',
+        'closed',
+        'withdrawn',
+        'rejected',
+        'rework_required',
+      ].includes(normStatus)
+    ) {
+      return 'on_track';
+    }
+  }
   if (!slaDeadline) return 'on_track';
   const now = new Date();
   const deadline = new Date(slaDeadline);
@@ -662,7 +677,7 @@ function IssueCard({ issue, onPress }: { issue: MappedIssue; onPress: () => void
   const StatusIcon = getStatusIcon(issue?.status);
 
   const cm = CATEGORY_META[issue?.category as CategoryKey] ?? CATEGORY_META.other;
-  const slaStatus = getSlaStatus(issue?.slaDeadline ?? undefined);
+  const slaStatus = getSlaStatus(issue?.slaDeadline ?? undefined, issue?.status);
   const slaLabel = formatSlaDeadline(issue?.slaDeadline ?? undefined);
   const isOverdue = slaStatus === 'overdue';
   const isDueSoon = slaStatus === 'due_soon';
@@ -1912,7 +1927,8 @@ export default function UnitOfficerDashboard() {
         if (!match) return false;
       }
       if (filters.status !== 'all' && issue?.status !== filters.status) return false;
-      if (filters.sla !== 'all' && getSlaStatus(issue?.slaDeadline) !== filters.sla) return false;
+      if (filters.sla !== 'all' && getSlaStatus(issue?.slaDeadline, issue?.status) !== filters.sla)
+        return false;
       if (filters.category !== 'all' && issue?.category !== filters.category) return false;
       if (filters.subCategories.length > 0) {
         const matchesSub = filters.subCategories.some((sc) => issue?.subCategories?.includes(sc));
@@ -1924,7 +1940,7 @@ export default function UnitOfficerDashboard() {
   }, [issues, searchQuery, filters]);
 
   const overdueCount = useMemo(
-    () => issues.filter((i) => getSlaStatus(i?.slaDeadline) === 'overdue').length,
+    () => issues.filter((i) => getSlaStatus(i?.slaDeadline, i?.status) === 'overdue').length,
     []
   );
 
@@ -2058,7 +2074,7 @@ export default function UnitOfficerDashboard() {
               <Animated.View
                 entering={FadeInDown.springify().damping(16).mass(0.8)}
                 className="z-10 mb-8 flex-row items-start justify-between">
-                <View className="flex-1 min-w-0 flex-row items-center gap-3.5 mr-3">
+                <View className="mr-3 min-w-0 flex-1 flex-row items-center gap-3.5">
                   {/* Ultra-Premium Avatar */}
                   <View className="relative h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-[20px] border border-white/20 bg-white/10 shadow-xl shadow-blue-900/40">
                     <BlurView intensity={25} tint="light" style={StyleSheet.absoluteFill} />
@@ -2073,7 +2089,7 @@ export default function UnitOfficerDashboard() {
                     </Text>
                   </View>
 
-                  <View className="flex-1 min-w-0">
+                  <View className="min-w-0 flex-1">
                     <Text className="mb-1 text-[12px] font-bold uppercase tracking-[0.2em] text-blue-200/90">
                       Welcome back
                     </Text>
@@ -2095,7 +2111,7 @@ export default function UnitOfficerDashboard() {
                   </View>
                 </View>
 
-                <View className="shrink-0 items-end gap-3 pt-1 z-50">
+                <View className="z-50 shrink-0 items-end gap-3 pt-1">
                   <TouchableOpacity
                     onPress={() => setShowNotifications(true)}
                     activeOpacity={0.7}

@@ -7,8 +7,17 @@ import { randomInt, randomBytes, createHmac } from 'node:crypto';
 import { Resend } from 'resend';
 import bcrypt from 'bcryptjs';
 
-const OTP_SECRET = process.env.PASSWORD_RESET_OTP_SECRET || 'citycare-otp-secret-default-key';
-const TOKEN_SECRET = process.env.PASSWORD_RESET_TOKEN_SECRET || 'citycare-token-secret-default-key';
+const getOtpSecret = () => {
+  const secret = process.env.PASSWORD_RESET_OTP_SECRET;
+  if (!secret) throw new Error('PASSWORD_RESET_OTP_SECRET is not configured.');
+  return secret;
+};
+
+const getTokenSecret = () => {
+  const secret = process.env.PASSWORD_RESET_TOKEN_SECRET;
+  if (!secret) throw new Error('PASSWORD_RESET_TOKEN_SECRET is not configured.');
+  return secret;
+};
 const SENDER_EMAIL = process.env.CITYCARE_EMAIL_FROM || 'CityCare Security <security@citycare.dev>';
 
 const getResendClient = (): Resend => {
@@ -44,11 +53,11 @@ function maskEmail(email: string): string {
 }
 
 function hashOtp(otp: string): string {
-  return createHmac('sha256', OTP_SECRET).update(otp).digest('hex');
+  return createHmac('sha256', getOtpSecret()).update(otp).digest('hex');
 }
 
 function hashResetToken(token: string): string {
-  return createHmac('sha256', TOKEN_SECRET).update(token).digest('hex');
+  return createHmac('sha256', getTokenSecret()).update(token).digest('hex');
 }
 
 function generateOtpEmailTemplate(otp: string) {
@@ -66,7 +75,7 @@ Your password verification code is: ${otp}
 
 This code expires in 10 minutes.
 
-Enter this code in the CityCare officer mobile application to continue resetting your password.
+Enter this code in CityCare to continue resetting your password.
 
 Never share this code with anyone. CityCare administrators will never ask for your verification code or password.
 
@@ -196,7 +205,7 @@ If you did not request this password reset, you can safely ignore this email.
                     font-weight: 700;
                   "
                 >
-                  Municipal Officer Account Recovery
+                  CityCare Account Recovery
                 </p>
               </td>
             </tr>
@@ -228,7 +237,7 @@ If you did not request this password reset, you can safely ignore this email.
                     line-height: 1.75;
                   "
                 >
-                  We received a request to reset the password for your CityCare officer account. Enter the verification code below in the CityCare mobile application.
+                  We received a request to reset the password for your CityCare account. Enter the verification code below in CityCare to continue resetting your password.
                 </p>
 
                 <!-- OTP Card -->
@@ -358,7 +367,7 @@ If you did not request this password reset, you can safely ignore this email.
                           line-height: 1.6;
                         "
                       >
-                        1. Open the CityCare officer mobile application.
+                        1. Open CityCare.
                       </p>
 
                       <p
@@ -502,7 +511,7 @@ If you did not request this password reset, you can safely ignore this email.
               text-align: center;
             "
           >
-            This message was sent because a password-reset request was made for a registered CityCare officer account.
+            This message was sent because a password-reset request was made for a registered CityCare account.
           </p>
         </td>
       </tr>
@@ -513,19 +522,21 @@ If you did not request this password reset, you can safely ignore this email.
   return { text, html };
 }
 
+import { passwordRecoveryRoleValidator } from './passwordResetInternal';
+
 export const requestPasswordResetOtp = action({
   args: {
     email: v.string(),
-    role: v.union(v.literal('unit_officer'), v.literal('field_officer')),
+    role: passwordRecoveryRoleValidator,
   },
   handler: async (ctx, args) => {
     const normalizedEmail = normalizeEmail(args.email);
 
     const officerData = await ctx.runQuery(
-      internal.passwordResetInternal.getOfficerByEmailAndRole,
+      internal.passwordResetInternal.getPasswordResetAccountByEmailAndRole,
       {
         emailNormalized: normalizedEmail,
-        officerRole: args.role,
+        accountRole: args.role,
       }
     );
 
@@ -537,13 +548,14 @@ export const requestPasswordResetOtp = action({
     }
 
     if (
-      officerData.officer.nextPasswordChangeAllowedAt &&
-      officerData.officer.nextPasswordChangeAllowedAt > Date.now()
+      officerData.profile &&
+      (officerData.profile as any).nextPasswordChangeAllowedAt &&
+      (officerData.profile as any).nextPasswordChangeAllowedAt > Date.now()
     ) {
       return {
         success: false as const,
         code: 'PASSWORD_CHANGE_COOLDOWN_ACTIVE' as const,
-        nextPasswordChangeAllowedAt: officerData.officer.nextPasswordChangeAllowedAt,
+        nextPasswordChangeAllowedAt: (officerData.profile as any).nextPasswordChangeAllowedAt,
       };
     }
 

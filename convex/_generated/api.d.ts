@@ -8,10 +8,14 @@
  * @module
  */
 
+import type * as accountProvisioning from "../accountProvisioning.js";
+import type * as accountProvisioningActions from "../accountProvisioningActions.js";
 import type * as admin from "../admin.js";
-import type * as auditLogger from "../auditLogger.js";
+import type * as auditLogs from "../auditLogs.js";
 import type * as auth from "../auth.js";
 import type * as badges from "../badges.js";
+import type * as cityAdmin from "../cityAdmin.js";
+import type * as cityAdminRewards from "../cityAdminRewards.js";
 import type * as crons from "../crons.js";
 import type * as demoSeed from "../demoSeed.js";
 import type * as demoSeedPasswords from "../demoSeedPasswords.js";
@@ -28,6 +32,7 @@ import type * as issueUpdates from "../issueUpdates.js";
 import type * as issues from "../issues.js";
 import type * as issuesMedia from "../issuesMedia.js";
 import type * as messages from "../messages.js";
+import type * as mobileAuditLogger from "../mobileAuditLogger.js";
 import type * as notifications from "../notifications.js";
 import type * as officerAssign from "../officerAssign.js";
 import type * as officerAuth from "../officerAuth.js";
@@ -49,10 +54,14 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  accountProvisioning: typeof accountProvisioning;
+  accountProvisioningActions: typeof accountProvisioningActions;
   admin: typeof admin;
-  auditLogger: typeof auditLogger;
+  auditLogs: typeof auditLogs;
   auth: typeof auth;
   badges: typeof badges;
+  cityAdmin: typeof cityAdmin;
+  cityAdminRewards: typeof cityAdminRewards;
   crons: typeof crons;
   demoSeed: typeof demoSeed;
   demoSeedPasswords: typeof demoSeedPasswords;
@@ -69,6 +78,7 @@ declare const fullApi: ApiFromModules<{
   issues: typeof issues;
   issuesMedia: typeof issuesMedia;
   messages: typeof messages;
+  mobileAuditLogger: typeof mobileAuditLogger;
   notifications: typeof notifications;
   officerAssign: typeof officerAssign;
   officerAuth: typeof officerAuth;

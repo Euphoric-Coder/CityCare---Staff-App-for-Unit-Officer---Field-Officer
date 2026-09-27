@@ -1,187 +1,199 @@
-import { internalMutation, internalQuery } from "./_generated/server";
-import { internal } from "./_generated/api";
-import { Id } from "./_generated/dataModel";
-import { v } from "convex/values";
+import { internalMutation, internalQuery } from './_generated/server';
+import { v } from 'convex/values';
+import { Id } from './_generated/dataModel';
+import { internal } from './_generated/api';
 
+/**
+ * Checks whether an email belongs to a pre-provisioned demo user account.
+ */
 export function isDemoSeedEmail(email?: string | null): boolean {
-  const value = String(email || "").trim().toLowerCase();
+  if (!email) return false;
+  const value = String(email).trim().toLowerCase();
   return (
-    value === "system.admin.demo@citycare.local" ||
-    value.endsWith(".demo@citycare.local")
+    value === 'system.admin.demo@citycare.local' ||
+    value.endsWith('.demo@citycare.local') ||
+    value.includes('.demo@citycare.local')
   );
 }
 
+/**
+ * Internal query to fetch all existing demo users for password validation/repair.
+ */
 export const getDemoUsersForPasswordRepair = internalQuery({
   args: {},
   handler: async (ctx) => {
-    const users = await ctx.db.query("users").collect();
-    return users
-      .filter((user) => isDemoSeedEmail(user.email))
-      .map((user) => ({
-        _id: user._id,
-        email: user.email,
-        password: user.password,
-      }));
+    const users = await ctx.db.query('users').collect();
+    return users.filter((u) => isDemoSeedEmail(u.email));
   },
 });
 
+/**
+ * Internal mutation to apply password repairs for demo users.
+ */
 export const applyDemoPasswordRepair = internalMutation({
   args: {
-    userIds: v.array(v.id("users")),
+    userIds: v.array(v.id('users')),
     passwordHash: v.string(),
   },
   handler: async (ctx, args) => {
     let repaired = 0;
     for (const userId of args.userIds) {
       const user = await ctx.db.get(userId);
-      if (!user || !isDemoSeedEmail(user.email)) {
-        continue;
+      if (user && isDemoSeedEmail(user.email)) {
+        await ctx.db.patch(userId, {
+          password: args.passwordHash,
+        });
+        repaired++;
       }
-      await ctx.db.patch(userId, {
-        password: args.passwordHash,
-      });
-      repaired++;
     }
-    return {
-      success: true,
-      repaired,
-    };
+    return { repaired };
   },
 });
 
-interface CityConfig {
-  city: string;
-  state: string;
-  district: string;
-  postal: string;
-  center: { latitude: number; longitude: number };
-  areas: string[];
-}
-
-const DEMO_CITIES: Record<string, CityConfig> = {
-  varanasi: {
-    city: "Varanasi",
-    state: "Uttar Pradesh",
-    district: "Varanasi",
-    postal: "221001",
-    center: { latitude: 25.3176, longitude: 82.9739 },
-    areas: ["Lanka", "Sigra", "Bhelupur", "Godowlia", "Cantonment", "Shivpur", "Mahmoorganj", "Assi"],
-  },
-  mumbai: {
-    city: "Mumbai",
-    state: "Maharashtra",
-    district: "Mumbai",
-    postal: "400001",
-    center: { latitude: 19.0760, longitude: 72.8777 },
-    areas: ["Andheri", "Bandra", "Dadar", "Powai", "Kurla", "Colaba", "Borivali", "Goregaon"],
-  },
-};
-
 const DEPARTMENTS = [
-  "road",
-  "electricity",
-  "water",
-  "sanitation",
-  "drainage",
-  "solid_waste",
-  "public_health",
-  "other",
-];
-
-const DEPARTMENT_LABELS: Record<string, string> = {
-  road: "Road & Infrastructure",
-  electricity: "Electricity & Lighting",
-  water: "Water Supply",
-  sanitation: "Public Sanitation",
-  drainage: "Drainage & Sewerage",
-  solid_waste: "Solid Waste Management",
-  public_health: "Public Health",
-  other: "General Civic Maintenance",
-};
+  'road',
+  'electricity',
+  'water',
+  'sanitation',
+  'drainage',
+  'solid_waste',
+  'public_health',
+  'other',
+] as const;
 
 const DEPARTMENT_PREFIXES: Record<string, string> = {
-  road: "RD",
-  electricity: "EL",
-  water: "WT",
-  sanitation: "SN",
-  drainage: "DR",
-  solid_waste: "SW",
-  public_health: "PH",
-  other: "OT",
+  road: 'RD',
+  electricity: 'EL',
+  water: 'WT',
+  sanitation: 'SN',
+  drainage: 'DR',
+  solid_waste: 'SW',
+  public_health: 'PH',
+  other: 'OT',
+};
+
+const DEPARTMENT_LABELS: Record<string, string> = {
+  road: 'Roads & Footpaths',
+  electricity: 'Electricity & Lighting',
+  water: 'Water Supply & Sewage',
+  sanitation: 'Sanitation & Hygiene',
+  drainage: 'Drainage & Storm Water',
+  solid_waste: 'Solid Waste Management',
+  public_health: 'Public Health & Safety',
+  other: 'General Civic Amenities',
 };
 
 const SPECIALISATIONS: Record<string, string[]> = {
-  road: ["Pothole Repair", "Road Surface Repair", "Footpath Maintenance"],
-  electricity: ["Street Lighting", "Electrical Faults", "Public Lighting"],
-  water: ["Water Leakage", "Pipeline Repair", "Water Supply"],
-  sanitation: ["Public Sanitation", "Drain Cleaning", "Hygiene"],
-  drainage: ["Storm Drainage", "Sewer Blockage", "Waterlogging"],
-  solid_waste: ["Waste Collection", "Garbage Removal", "Dumping Cleanup"],
-  public_health: ["Public Health Hazard", "Vector Control", "Community Health"],
-  other: ["General Civic Maintenance"],
+  road: ['Pothole Repair', 'Asphalt Laying', 'Footpath Maintenance'],
+  electricity: ['Street Lighting', 'Wiring Inspection', 'Transformer Maintenance'],
+  water: ['Pipeline Repair', 'Leak Detection', 'Water Supply'],
+  sanitation: ['Waste Collection', 'Public Toilet Maintenance', 'Sanitization'],
+  drainage: ['Drain Cleaning', 'Flood Prevention', 'Storm Water'],
+  solid_waste: ['Garbage Collection', 'Dumping Site Management', 'Segregation'],
+  public_health: ['Mosquito Control', 'Disinfection', 'Health Inspection'],
+  other: ['General Maintenance', 'Civil Infrastructure'],
 };
 
-const ISSUE_TEMPLATES: Record<string, string[]> = {
+const DEMO_TITLES: Record<string, string[]> = {
   road: [
-    "Large pothole causing traffic disruption",
-    "Damaged road surface near junction",
-    "Broken footpath requiring repair",
-    "Uneven asphalt on main road",
+    'Large pothole causing traffic disruption',
+    'Damaged road surface near junction',
+    'Broken footpath requiring urgent repair',
+    'Cracked asphalt hazard on main road',
   ],
   electricity: [
-    "Streetlight not functioning",
-    "Exposed electrical wiring on pole",
-    "Repeated lighting failure in residential area",
-    "Flickering street lamps near crossing",
+    'Streetlight not functioning at night',
+    'Exposed electrical wiring near walkway',
+    'Repeated lighting failure in residential area',
+    'Damaged transformer enclosure door',
   ],
   water: [
-    "Water pipeline leakage causing waste",
-    "Irregular water supply reported",
-    "Public water tap connection damaged",
-    "Contaminated water supply issue",
+    'Water pipeline leakage on main road',
+    'Irregular water supply connection',
+    'Public drinking water fountain damaged',
+    'Clean water wasting from broken pipe',
   ],
   sanitation: [
-    "Public toilet requires urgent sanitation",
-    "Drain-side hygiene issue reported",
-    "Unsanitary public market area",
-    "Lack of public cleaning in commercial zone",
+    'Public toilet requires urgent sanitation',
+    'Drain-side hygiene issue near market',
+    'Unsanitary public dumping area',
+    'Overflowing public waste receptacle',
   ],
   drainage: [
-    "Blocked storm drain causing overflow",
-    "Waterlogging near main junction",
-    "Sewer overflow reported in residential alley",
-    "Choked drainage line requiring desilting",
+    'Blocked storm drain causing waterlogging',
+    'Waterlogging near traffic junction',
+    'Sewer overflow reported in lane',
+    'Missing storm drain chamber cover',
   ],
   solid_waste: [
-    "Garbage accumulation at roadside corner",
-    "Missed waste collection for 3 days",
-    "Illegal waste dumping near public park",
-    "Overflowing community garbage bin",
+    'Garbage accumulation at street corner',
+    'Missed scheduled waste collection',
+    'Illegal waste dumping behind complex',
+    'Overflowing communal garbage bin',
   ],
   public_health: [
-    "Mosquito breeding hotspot in stagnant water",
-    "Public health hazard near open drain",
-    "Stagnant water health concern",
-    "Unclean public dumping area health risk",
+    'Mosquito breeding hotspot in stagnant pool',
+    'Public health hazard from stagnant runoff',
+    'Stagnant water health concern near school',
+    'Open drain pest infestation reported',
   ],
   other: [
-    "Damaged civic infrastructure fence",
-    "Public facility maintenance required",
-    "Broken boundary wall near public space",
-    "Signage board damaged on main avenue",
+    'Damaged civic infrastructure signpost',
+    'Public facility maintenance required',
+    'Broken park bench in civic garden',
+    'Unmaintained public notice board',
   ],
 };
+
+const CITY_CONFIGS = [
+  {
+    city: 'Varanasi',
+    key: 'varanasi',
+    state: 'Uttar Pradesh',
+    postal: '221001',
+    codePrefix: 'VNS',
+    center: { latitude: 25.3176, longitude: 82.9739 },
+    areas: [
+      'Godowlia',
+      'Dashashwamedh',
+      'Sigra',
+      'Lanka',
+      'Bhelupur',
+      'Cantonment',
+      'Maldahiya',
+      'Chetganj',
+    ],
+  },
+  {
+    city: 'Mumbai',
+    key: 'mumbai',
+    state: 'Maharashtra',
+    postal: '400001',
+    codePrefix: 'MUM',
+    center: { latitude: 19.0760, longitude: 72.8777 },
+    areas: [
+      'Colaba',
+      'Bandra West',
+      'Andheri East',
+      'Dadar',
+      'Juhu',
+      'Worli',
+      'Chembur',
+      'Powai',
+    ],
+  },
+];
 
 function offsetCoordinates(baseLat: number, baseLng: number, index: number) {
   const offsets = [
-    [0.002, 0.001],
-    [-0.003, 0.002],
-    [0.004, -0.002],
-    [-0.002, -0.003],
-    [0.005, 0.003],
-    [-0.004, 0.004],
-    [0.001, -0.004],
-    [-0.005, 0.001],
+    [0.002, 0.003],
+    [-0.003, 0.004],
+    [0.005, -0.002],
+    [-0.004, -0.005],
+    [0.001, -0.006],
+    [-0.006, 0.002],
+    [0.003, -0.003],
+    [-0.002, 0.005],
   ];
   const [latOffset, lngOffset] = offsets[index % offsets.length];
   return {
@@ -190,460 +202,492 @@ function offsetCoordinates(baseLat: number, baseLng: number, index: number) {
   };
 }
 
+/**
+ * Main deterministic, idempotent baseline demo data seeder.
+ * Idempotently checks existence of accounts, officer profiles, and per-issue codes.
+ */
 export const seedDemoDataOnce = internalMutation({
   args: {
     passwordHash: v.string(),
   },
   handler: async (ctx, args) => {
     const now = Date.now();
-    const DAY = 24 * 60 * 60 * 1000;
+    const DAY_MS = 24 * 60 * 60 * 1000;
+    const passwordHash = args.passwordHash;
+    let totalCreatedCount = 0;
 
-    let systemAdminCreated = false;
-    let systemAdminUserId: Id<"users">;
+    // 1. System Admin Resolution / Seeding
+    const demoAdminEmail = 'system.admin.demo@citycare.local';
+    let systemAdminUserId: Id<'users'>;
 
-    // 1. Ensure System Admin
-    const existingAdminUser = await ctx.db
-      .query("users")
-      .withIndex("by_role", (q) => q.eq("role", "admin"))
-      .first();
+    const existingDemoAdminUser = await ctx.db
+      .query('users')
+      .withIndex('by_email', (q) => q.eq('email', demoAdminEmail))
+      .unique();
 
-    if (existingAdminUser) {
-      systemAdminUserId = existingAdminUser._id;
+    if (!existingDemoAdminUser) {
+      systemAdminUserId = await ctx.db.insert('users', {
+        fullName: 'System Admin',
+        email: demoAdminEmail,
+        password: passwordHash,
+        role: 'admin',
+        createdAt: new Date(now).toISOString(),
+      });
+      totalCreatedCount++;
     } else {
-      const adminEmail = "system.admin.demo@citycare.local";
-      const existingEmailUser = await ctx.db
-        .query("users")
-        .withIndex("by_email", (q) => q.eq("email", adminEmail))
-        .first();
-
-      if (existingEmailUser) {
-        systemAdminUserId = existingEmailUser._id;
-      } else {
-        systemAdminUserId = await ctx.db.insert("users", {
-          fullName: "CityCare Demo System Admin",
-          email: adminEmail,
-          password: args.passwordHash,
-          role: "admin",
-          createdAt: new Date(now).toISOString(),
-        });
-        systemAdminCreated = true;
-      }
+      systemAdminUserId = existingDemoAdminUser._id;
     }
 
     const citySummaryResults: Record<string, any> = {};
-    let totalCreatedAcrossAllCities = 0;
 
-    // 2. Seed City Data (Varanasi & Mumbai)
-    for (const [cityKey, cityConfig] of Object.entries(DEMO_CITIES)) {
-      const city = cityConfig.city;
+    // 2. City-by-City Seeding (Varanasi & Mumbai)
+    for (const cityConfig of CITY_CONFIGS) {
+      const cityName = cityConfig.city;
+      const cityKey = cityConfig.key;
+      const codePrefix = cityConfig.codePrefix;
 
-      // Check existing city baseline
-      const existingUOs = await ctx.db
-        .query("unitOfficers")
-        .withIndex("by_city", (q) => q.eq("city", city))
-        .collect();
+      // --- A. Dummy Citizens (3 Citizens per City) ---
+      const cityCitizenUserIds: Id<'users'>[] = [];
+      for (let cIdx = 1; cIdx <= 3; cIdx++) {
+        const citizenEmail = `citizen.${cityKey}.0${cIdx}.demo@citycare.local`;
+        const citizenName = `Citizen ${cIdx} (${cityName})`;
+        const area = cityConfig.areas[(cIdx - 1) % cityConfig.areas.length];
+        const coords = offsetCoordinates(
+          cityConfig.center.latitude,
+          cityConfig.center.longitude,
+          cIdx
+        );
 
-      const existingFOs = await ctx.db
-        .query("fieldOfficers")
-        .withIndex("by_city", (q) => q.eq("city", city))
-        .collect();
+        let citizenUserId: Id<'users'>;
+        const existingUser = await ctx.db
+          .query('users')
+          .withIndex('by_email', (q) => q.eq('email', citizenEmail))
+          .unique();
 
-      const existingCityAdmin = await ctx.db
-        .query("cityAdmins")
-        .withIndex("by_city", (q) => q.eq("city", city))
-        .first();
+        if (!existingUser) {
+          citizenUserId = await ctx.db.insert('users', {
+            fullName: citizenName,
+            email: citizenEmail,
+            password: passwordHash,
+            role: 'citizen',
+            createdAt: new Date(now - 60 * DAY_MS).toISOString(),
+          });
+          totalCreatedCount++;
+        } else {
+          citizenUserId = existingUser._id;
+        }
 
-      const existingIssues = await ctx.db
-        .query("issues")
-        .withIndex("by_city", (q) => q.eq("city", city))
-        .collect();
+        cityCitizenUserIds.push(citizenUserId);
 
-      let cityAdminCreated = false;
-      let unitOfficersCreated = 0;
-      let fieldOfficersCreated = 0;
-      let citizensCreated = 0;
-      let issuesCreated = 0;
+        const existingCitizenProfile = await ctx.db
+          .query('citizens')
+          .withIndex('by_user', (q) => q.eq('userId', citizenUserId))
+          .unique();
 
-      // --- A. City Admin ---
-      let cityAdminUserId: Id<"users">;
-      let cityAdminProfileId: Id<"cityAdmins"> | null = existingCityAdmin ? existingCityAdmin._id : null;
-
-      const caEmail = `cityadmin.${cityKey}.demo@citycare.local`;
-      let caUser = await ctx.db
-        .query("users")
-        .withIndex("by_email", (q) => q.eq("email", caEmail))
-        .first();
-
-      if (!caUser) {
-        cityAdminUserId = await ctx.db.insert("users", {
-          fullName: `Demo City Admin - ${city}`,
-          email: caEmail,
-          password: args.passwordHash,
-          role: "city_admin",
-          createdAt: new Date(now).toISOString(),
-        });
-      } else {
-        cityAdminUserId = caUser._id;
+        if (!existingCitizenProfile) {
+          await ctx.db.insert('citizens', {
+            userId: citizenUserId,
+            fullName: citizenName,
+            email: citizenEmail,
+            phone: `+9198765${cityKey === 'varanasi' ? '1' : '2'}00${cIdx}`,
+            city: cityName,
+            state: cityConfig.state,
+            region: area,
+            postal: cityConfig.postal,
+            fullAddress: `${area}, ${cityName}, ${cityConfig.state}`,
+            latitude: String(coords.latitude),
+            longitude: String(coords.longitude),
+            points: 150 + cIdx * 50,
+            level: 2,
+            levelTitle: 'Active Contributor',
+            badgeCount: 3,
+            reportsSubmitted: 10,
+            reportsVerified: 8,
+            reportsResolved: 7,
+            reportsRejected: 1,
+            duplicateReports: 0,
+            commentsAdded: 5,
+            upvotesReceived: 12,
+            videoEvidenceAdded: 2,
+            currentStreak: 4,
+            longestStreak: 7,
+            createdAt: now - 60 * DAY_MS,
+            updatedAt: now,
+          });
+          totalCreatedCount++;
+        }
       }
 
-      if (!existingCityAdmin) {
-        cityAdminProfileId = await ctx.db.insert("cityAdmins", {
-          userId: cityAdminUserId,
-          fullName: `Demo City Admin - ${city}`,
-          email: caEmail,
-          phone: `+9198765${cityKey === "varanasi" ? "00001" : "00002"}`,
-          state: cityConfig.state,
-          city: cityConfig.city,
-          managedUnitOfficers: [],
-          managedFieldOfficers: [],
-          mustChangePassword: false,
-          totalIssuesInCity: 0,
-          issuesResolved: 0,
-          issuesPending: 0,
-          avgResolutionTime: 0,
-          slaComplianceRate: 0,
-          createdAt: now,
-          createdBy: systemAdminUserId,
-          notes: "Automatically created CityCare demo account.",
-        });
-        cityAdminCreated = true;
-      }
-
-      // --- B. Unit Officers (1 per department) ---
-      const uoProfileMap = new Map<string, { profileId: Id<"unitOfficers">; userId: Id<"users"> }>();
+      // --- B. Unit Officers Seeding (8 UOs per City — 1 per Department) ---
+      const uoProfileMap = new Map<string, { profileId: Id<'unitOfficers'>; userId: Id<'users'> }>();
+      const cityUoProfileIds: Id<'unitOfficers'>[] = [];
 
       for (let dIdx = 0; dIdx < DEPARTMENTS.length; dIdx++) {
         const dept = DEPARTMENTS[dIdx];
+        const deptLabel = DEPARTMENT_LABELS[dept];
         const uoEmail = `uo.${dept}.${cityKey}.demo@citycare.local`;
+        const uoName = `UO ${deptLabel} (${cityName})`;
 
-        let uoUser = await ctx.db
-          .query("users")
-          .withIndex("by_email", (q) => q.eq("email", uoEmail))
-          .first();
+        let uoUserId: Id<'users'>;
+        const existingUser = await ctx.db
+          .query('users')
+          .withIndex('by_email', (q) => q.eq('email', uoEmail))
+          .unique();
 
-        let uoUserId: Id<"users">;
-        if (!uoUser) {
-          uoUserId = await ctx.db.insert("users", {
-            fullName: `${DEPARTMENT_LABELS[dept]} Unit Officer - ${city}`,
+        if (!existingUser) {
+          uoUserId = await ctx.db.insert('users', {
+            fullName: uoName,
             email: uoEmail,
-            password: args.passwordHash,
-            role: "unit_officer",
-            createdAt: new Date(now).toISOString(),
+            password: passwordHash,
+            role: 'unit_officer',
+            createdAt: new Date(now - 90 * DAY_MS).toISOString(),
           });
+          totalCreatedCount++;
         } else {
-          uoUserId = uoUser._id;
+          uoUserId = existingUser._id;
         }
 
-        let uoProfile = await ctx.db
-          .query("unitOfficers")
-          .withIndex("by_user", (q) => q.eq("userId", uoUserId))
-          .first();
+        let uoProfileId: Id<'unitOfficers'>;
+        const existingProfile = await ctx.db
+          .query('unitOfficers')
+          .withIndex('by_user', (q) => q.eq('userId', uoUserId))
+          .unique();
 
-        if (!uoProfile) {
-          const uoProfId = await ctx.db.insert("unitOfficers", {
+        if (!existingProfile) {
+          uoProfileId = await ctx.db.insert('unitOfficers', {
             userId: uoUserId,
-            fullName: `${DEPARTMENT_LABELS[dept]} Unit Officer - ${city}`,
+            fullName: uoName,
             email: uoEmail,
-            phone: `+9198765${cityKey === "varanasi" ? "1" : "2"}${String(dIdx + 1).padStart(4, "0")}`,
+            phone: `+9198111${cityKey === 'varanasi' ? '1' : '2'}00${dIdx + 1}`,
             state: cityConfig.state,
-            city: cityConfig.city,
-            district: cityConfig.district,
+            city: cityName,
+            district: cityName,
             department: dept,
-            totalVerifiedIssues: 0,
-            totalRejectedIssues: 0,
-            avgResolutionTime: 0,
+            totalVerifiedIssues: 12,
+            totalRejectedIssues: 1,
+            avgResolutionTime: 24.5,
             accountApproved: true,
-            rating: 0,
-            efficiencyScore: 0,
+            rating: 4.8,
+            efficiencyScore: 92,
             assignedFieldOfficers: [],
             activeIssueIds: [],
             resolvedIssueIds: [],
             mustChangePassword: false,
           });
-          unitOfficersCreated++;
-          uoProfileMap.set(dept, { profileId: uoProfId, userId: uoUserId });
+          totalCreatedCount++;
         } else {
-          uoProfileMap.set(dept, { profileId: uoProfile._id, userId: uoUserId });
+          uoProfileId = existingProfile._id;
         }
+
+        uoProfileMap.set(dept, { profileId: uoProfileId, userId: uoUserId });
+        cityUoProfileIds.push(uoProfileId);
       }
 
-      // --- C. Field Officers (2 per department) ---
-      const foProfileMap = new Map<string, Array<{ profileId: Id<"fieldOfficers">; userId: Id<"users"> }>>();
+      // --- C. Field Officers Seeding (16 FOs per City — 2 per Department) ---
+      const foProfileMap = new Map<string, Array<{ profileId: Id<'fieldOfficers'>; userId: Id<'users'> }>>();
+      const cityFoProfileIds: Id<'fieldOfficers'>[] = [];
 
       for (let dIdx = 0; dIdx < DEPARTMENTS.length; dIdx++) {
         const dept = DEPARTMENTS[dIdx];
-        const uoData = uoProfileMap.get(dept);
-        const foListForDept: Array<{ profileId: Id<"fieldOfficers">; userId: Id<"users"> }> = [];
+        const deptLabel = DEPARTMENT_LABELS[dept];
+        const uoInfo = uoProfileMap.get(dept)!;
+        const deptFoProfiles: Id<'fieldOfficers'>[] = [];
 
-        for (let fIdx = 1; fIdx <= 2; fIdx++) {
-          const foEmail = `fo.${dept}.0${fIdx}.${cityKey}.demo@citycare.local`;
+        for (let foIdx = 1; foIdx <= 2; foIdx++) {
+          const foEmail = `fo.${dept}.0${foIdx}.${cityKey}.demo@citycare.local`;
+          const foName = `FO ${deptLabel} ${foIdx} (${cityName})`;
 
-          let foUser = await ctx.db
-            .query("users")
-            .withIndex("by_email", (q) => q.eq("email", foEmail))
-            .first();
+          let foUserId: Id<'users'>;
+          const existingUser = await ctx.db
+            .query('users')
+            .withIndex('by_email', (q) => q.eq('email', foEmail))
+            .unique();
 
-          let foUserId: Id<"users">;
-          if (!foUser) {
-            foUserId = await ctx.db.insert("users", {
-              fullName: `${DEPARTMENT_LABELS[dept]} Field Officer 0${fIdx} - ${city}`,
+          if (!existingUser) {
+            foUserId = await ctx.db.insert('users', {
+              fullName: foName,
               email: foEmail,
-              password: args.passwordHash,
-              role: "field_officer",
-              createdAt: new Date(now).toISOString(),
+              password: passwordHash,
+              role: 'field_officer',
+              createdAt: new Date(now - 90 * DAY_MS).toISOString(),
             });
+            totalCreatedCount++;
           } else {
-            foUserId = foUser._id;
+            foUserId = existingUser._id;
           }
 
-          let foProfile = await ctx.db
-            .query("fieldOfficers")
-            .withIndex("by_user", (q) => q.eq("userId", foUserId))
-            .first();
+          let foProfileId: Id<'fieldOfficers'>;
+          const existingProfile = await ctx.db
+            .query('fieldOfficers')
+            .withIndex('by_user', (q) => q.eq('userId', foUserId))
+            .unique();
 
-          let foProfileId: Id<"fieldOfficers">;
-
-          if (!foProfile) {
-            foProfileId = await ctx.db.insert("fieldOfficers", {
+          if (!existingProfile) {
+            foProfileId = await ctx.db.insert('fieldOfficers', {
               userId: foUserId,
-              fullName: `${DEPARTMENT_LABELS[dept]} Field Officer 0${fIdx} - ${city}`,
+              fullName: foName,
               email: foEmail,
-              phone: `+9198764${cityKey === "varanasi" ? "1" : "2"}${String(dIdx * 2 + fIdx).padStart(4, "0")}`,
+              phone: `+9198222${cityKey === 'varanasi' ? '1' : '2'}${dIdx}${foIdx}`,
               state: cityConfig.state,
-              city: cityConfig.city,
-              district: cityConfig.district,
+              city: cityName,
+              district: cityName,
               department: dept,
-              specialisations: SPECIALISATIONS[dept] || ["General Civic Maintenance"],
-              reportingUnitOfficerId: uoData?.profileId,
+              specialisations: SPECIALISATIONS[dept] || ['General Maintenance'],
+              reportingUnitOfficerId: uoInfo.profileId,
               currentActiveIssues: 0,
               maxIssueCapacity: 10,
               assignedIssueIds: [],
               completedIssueIds: [],
-              totalResolvedIssues: 0,
-              avgResolutionTime: 0,
-              onTimeCompletionRate: 0,
+              totalResolvedIssues: 15,
+              avgResolutionTime: 18.2,
+              onTimeCompletionRate: 94.5,
               accountApproved: true,
-              rating: 0,
-              efficiencyScore: 0,
+              rating: 4.7,
+              efficiencyScore: 89,
               mustChangePassword: false,
             });
-            fieldOfficersCreated++;
+            totalCreatedCount++;
           } else {
-            foProfileId = foProfile._id;
-            if (uoData && String(foProfile.reportingUnitOfficerId) !== String(uoData.profileId)) {
-              await ctx.db.patch(foProfile._id, {
-                reportingUnitOfficerId: uoData.profileId,
-              });
+            foProfileId = existingProfile._id;
+            if (existingProfile.reportingUnitOfficerId !== uoInfo.profileId) {
+              await ctx.db.patch(foProfileId, { reportingUnitOfficerId: uoInfo.profileId });
             }
           }
 
-          foListForDept.push({ profileId: foProfileId, userId: foUserId });
+          deptFoProfiles.push(foProfileId);
+          cityFoProfileIds.push(foProfileId);
+
+          if (!foProfileMap.has(dept)) foProfileMap.set(dept, []);
+          foProfileMap.get(dept)!.push({ profileId: foProfileId, userId: foUserId });
         }
 
-        foProfileMap.set(dept, foListForDept);
-
-        // Update UO's assignedFieldOfficers array
-        if (uoData) {
-          const uoDoc = await ctx.db.get(uoData.profileId);
-          if (uoDoc) {
-            const currentFoIds = (uoDoc.assignedFieldOfficers || []).map(String);
-            const newFoIds = foListForDept.map((f) => String(f.profileId));
-            const merged = Array.from(new Set([...currentFoIds, ...newFoIds])) as Id<"fieldOfficers">[];
-
-            await ctx.db.patch(uoData.profileId, {
-              assignedFieldOfficers: merged,
-            });
-          }
+        // Reconcile corresponding UO profile's assignedFieldOfficers
+        const uoDoc = await ctx.db.get(uoInfo.profileId);
+        if (uoDoc) {
+          const currentAssigned = (uoDoc.assignedFieldOfficers || []).map(String);
+          const mergedAssigned = Array.from(
+            new Set([...currentAssigned, ...deptFoProfiles.map(String)])
+          ) as Id<'fieldOfficers'>[];
+          await ctx.db.patch(uoInfo.profileId, { assignedFieldOfficers: mergedAssigned });
         }
       }
 
-      // --- D. Dummy Citizens (3 per city) ---
-      const citizenUserIds: Id<"users">[] = [];
+      // --- D. City Admin Seeding (1 per City) ---
+      const cityAdminEmail = `cityadmin.${cityKey}.demo@citycare.local`;
+      const cityAdminName = `City Admin (${cityName})`;
 
-      for (let cIdx = 1; cIdx <= 3; cIdx++) {
-        const citizenEmail = `citizen.${cityKey}.0${cIdx}.demo@citycare.local`;
+      let cityAdminUserId: Id<'users'>;
+      const existingUser = await ctx.db
+        .query('users')
+        .withIndex('by_email', (q) => q.eq('email', cityAdminEmail))
+        .unique();
 
-        let citUser = await ctx.db
-          .query("users")
-          .withIndex("by_email", (q) => q.eq("email", citizenEmail))
-          .first();
-
-        let citUserId: Id<"users">;
-        if (!citUser) {
-          citUserId = await ctx.db.insert("users", {
-            fullName: `Demo Citizen ${city} 0${cIdx}`,
-            email: citizenEmail,
-            password: args.passwordHash,
-            role: "citizen",
-            createdAt: new Date(now).toISOString(),
-          });
-        } else {
-          citUserId = citUser._id;
-        }
-
-        let citProfile = await ctx.db
-          .query("citizens")
-          .withIndex("by_user", (q) => q.eq("userId", citUserId))
-          .first();
-
-        const areaName = cityConfig.areas[cIdx - 1] || "Central";
-        const coords = offsetCoordinates(cityConfig.center.latitude, cityConfig.center.longitude, cIdx);
-
-        if (!citProfile) {
-          await ctx.db.insert("citizens", {
-            userId: citUserId,
-            fullName: `Demo Citizen ${city} 0${cIdx}`,
-            email: citizenEmail,
-            phone: `+9198763${cityKey === "varanasi" ? "1" : "2"}${String(cIdx).padStart(4, "0")}`,
-            city: cityConfig.city,
-            state: cityConfig.state,
-            region: areaName,
-            postal: cityConfig.postal,
-            fullAddress: `${areaName}, ${cityConfig.city}, ${cityConfig.state} ${cityConfig.postal}`,
-            latitude: String(coords.latitude),
-            longitude: String(coords.longitude),
-            points: 0,
-            level: 1,
-            levelTitle: "Civic Starter",
-            badgeCount: 0,
-            reportsSubmitted: 0,
-            reportsVerified: 0,
-            reportsResolved: 0,
-            reportsRejected: 0,
-            duplicateReports: 0,
-            commentsAdded: 0,
-            upvotesReceived: 0,
-            videoEvidenceAdded: 0,
-            currentStreak: 0,
-            longestStreak: 0,
-            createdAt: now,
-            updatedAt: now,
-          });
-          citizensCreated++;
-        }
-
-        citizenUserIds.push(citUserId);
+      if (!existingUser) {
+        cityAdminUserId = await ctx.db.insert('users', {
+          fullName: cityAdminName,
+          email: cityAdminEmail,
+          password: passwordHash,
+          role: 'city_admin',
+          createdAt: new Date(now - 90 * DAY_MS).toISOString(),
+        });
+        totalCreatedCount++;
+      } else {
+        cityAdminUserId = existingUser._id;
       }
 
-      // --- E. Dummy Issues (32 per city: 4 per department) ---
-      const statusCycle = [
-        "pending",
-        "verified",
-        "assigned",
-        "in_progress",
-        "pending_uo_verification",
-        "rework_required",
-        "resolved",
-        "closed",
-        "rejected",
+      let cityAdminProfileId: Id<'cityAdmins'>;
+      const existingCityAdminProfile = await ctx.db
+        .query('cityAdmins')
+        .withIndex('by_user', (q) => q.eq('userId', cityAdminUserId))
+        .unique();
+
+      if (!existingCityAdminProfile) {
+        cityAdminProfileId = await ctx.db.insert('cityAdmins', {
+          userId: cityAdminUserId,
+          fullName: cityAdminName,
+          email: cityAdminEmail,
+          phone: `+9198999${cityKey === 'varanasi' ? '1' : '2'}001`,
+          state: cityConfig.state,
+          city: cityName,
+          managedUnitOfficers: cityUoProfileIds,
+          managedFieldOfficers: cityFoProfileIds,
+          mustChangePassword: false,
+          totalIssuesInCity: 32,
+          issuesResolved: 20,
+          issuesPending: 12,
+          avgResolutionTime: 22.4,
+          slaComplianceRate: 91.5,
+          createdAt: now - 90 * DAY_MS,
+          createdBy: systemAdminUserId,
+          notes: `Pre-provisioned City Administrator for ${cityName}.`,
+        });
+        totalCreatedCount++;
+      } else {
+        cityAdminProfileId = existingCityAdminProfile._id;
+        const currentUos = (existingCityAdminProfile.managedUnitOfficers || []).map(String);
+        const currentFos = (existingCityAdminProfile.managedFieldOfficers || []).map(String);
+        const newUos = Array.from(new Set([...currentUos, ...cityUoProfileIds.map(String)])) as Id<'unitOfficers'>[];
+        const newFos = Array.from(new Set([...currentFos, ...cityFoProfileIds.map(String)])) as Id<'fieldOfficers'>[];
+        await ctx.db.patch(cityAdminProfileId, {
+          managedUnitOfficers: newUos,
+          managedFieldOfficers: newFos,
+        });
+      }
+
+      // --- E. Issues Seeding (32 Issues per City — 4 per Department) ---
+      const statusSpecs = [
+        { status: 'pending' }, // 0
+        { status: 'verified' }, // 1
+        { status: 'assigned' }, // 2
+        { status: 'in_progress' }, // 3
+        { status: 'pending_uo_verification' }, // 4
+        { status: 'rework_required' }, // 5
+        { status: 'resolved', slaOutcome: 'within' }, // 6
+        { status: 'resolved', slaOutcome: 'breached', feedback: true }, // 7
+        { status: 'closed' }, // 8
+        { status: 'rejected' }, // 9
+        { status: 'escalated' }, // 10
+        { status: 'pending' }, // 11
+        { status: 'verified' }, // 12
+        { status: 'assigned' }, // 13
+        { status: 'in_progress' }, // 14
+        { status: 'pending_uo_verification' }, // 15
+        { status: 'rework_required' }, // 16
+        { status: 'resolved', slaOutcome: 'within', feedback: true }, // 17
+        { status: 'resolved', slaOutcome: 'breached' }, // 18
+        { status: 'closed' }, // 19
+        { status: 'rejected' }, // 20
+        { status: 'pending' }, // 21
+        { status: 'verified' }, // 22
+        { status: 'assigned' }, // 23
+        { status: 'in_progress' }, // 24
+        { status: 'pending_uo_verification' }, // 25
+        { status: 'resolved', slaOutcome: 'within', feedback: true }, // 26
+        { status: 'resolved', slaOutcome: 'within' }, // 27
+        { status: 'closed' }, // 28
+        { status: 'assigned' }, // 29
+        { status: 'in_progress' }, // 30
+        { status: 'pending' }, // 31
       ];
 
-      const priorities: Array<"low" | "medium" | "high" | "critical"> = [
-        "medium",
-        "high",
-        "low",
-        "medium",
-        "critical",
-        "medium",
-        "high",
-        "low",
+      const priorities: Array<'low' | 'medium' | 'high' | 'critical'> = [
+        'low',
+        'medium',
+        'high',
+        'critical',
       ];
 
-      let cityIssueCounter = 0;
+      const createdCityIssueIds: Id<'issues'>[] = [];
+      let issueGlobalIndex = 0;
 
       for (let dIdx = 0; dIdx < DEPARTMENTS.length; dIdx++) {
         const dept = DEPARTMENTS[dIdx];
-        const deptPrefix = DEPARTMENT_PREFIXES[dept] || "OT";
-        const cityCodePrefix = cityKey === "varanasi" ? "VNS" : "MUM";
-        const templates = ISSUE_TEMPLATES[dept] || ["Civic maintenance required"];
+        const deptPrefix = DEPARTMENT_PREFIXES[dept] || 'OT';
+        const deptTitles = DEMO_TITLES[dept] || DEMO_TITLES.other;
+        const uoInfo = uoProfileMap.get(dept)!;
+        const deptFoList = foProfileMap.get(dept) || [];
 
-        const uoData = uoProfileMap.get(dept);
-        const foList = foProfileMap.get(dept) || [];
+        for (let issueNum = 1; issueNum <= 4; issueNum++) {
+          const specIndex = issueGlobalIndex;
+          const code = `DEMO-${codePrefix}-${deptPrefix}-${String(issueNum).padStart(3, '0')}`;
+          issueGlobalIndex++;
 
-        for (let iIdx = 1; iIdx <= 4; iIdx++) {
-          cityIssueCounter++;
-          const issueCode = `DEMO-${cityCodePrefix}-${deptPrefix}-${String(iIdx).padStart(3, "0")}`;
-
-          // Check if issue already exists
           const existingIssue = await ctx.db
-            .query("issues")
-            .withIndex("by_issue_code", (q) => q.eq("issueCode", issueCode))
+            .query('issues')
+            .withIndex('by_issue_code', (q) => q.eq('issueCode', code))
             .first();
 
           if (existingIssue) {
+            createdCityIssueIds.push(existingIssue._id);
             continue;
           }
 
-          const templateTitle = templates[(iIdx - 1) % templates.length];
-          const areaName = cityConfig.areas[(cityIssueCounter - 1) % cityConfig.areas.length];
-          const coords = offsetCoordinates(cityConfig.center.latitude, cityConfig.center.longitude, cityIssueCounter);
-          const mapUrl = `https://www.google.com/maps?q=${coords.latitude},${coords.longitude}`;
-          const citizenUserId = citizenUserIds[(cityIssueCounter - 1) % citizenUserIds.length];
-          const priority = priorities[(cityIssueCounter - 1) % priorities.length];
+          const spec = statusSpecs[specIndex % statusSpecs.length];
+          const title = deptTitles[(issueNum - 1) % deptTitles.length];
+          const area = cityConfig.areas[specIndex % cityConfig.areas.length];
+          const coords = offsetCoordinates(
+            cityConfig.center.latitude,
+            cityConfig.center.longitude,
+            specIndex
+          );
+          const reporterUserId = cityCitizenUserIds[specIndex % cityCitizenUserIds.length];
+          const foInfo = deptFoList.length > 0 ? deptFoList[(issueNum - 1) % deptFoList.length] : null;
 
-          // Deterministic status selection
-          let status = statusCycle[(cityIssueCounter - 1) % statusCycle.length];
-          let isEscalated = false;
+          const daysAgo = Math.max(1, Math.floor(90 - issueGlobalIndex * 2.7));
+          const issueCreatedAt = now - daysAgo * DAY_MS;
 
-          // Make issue #15 escalated
-          if (cityIssueCounter === 15) {
-            status = "escalated";
-            isEscalated = true;
-          }
-
-          const dayOffset = 5 + (cityIssueCounter * 2.5); // Spread over past 90 days
-          const createdAt = now - dayOffset * DAY;
-          const assignedAt = createdAt + 2 * 60 * 60 * 1000;
-          const workStartedAt = assignedAt + 4 * 60 * 60 * 1000;
-
-          // SLA Deadline logic
-          let slaDeadline: number | null = null;
+          let slaDeadline = issueCreatedAt + 4 * DAY_MS;
           let slaBreached = false;
-
-          if (["verified", "assigned", "in_progress", "pending_uo_verification", "rework_required", "escalated"].includes(status)) {
-            if (cityIssueCounter % 3 === 0) {
-              slaDeadline = now - 1 * DAY; // Overdue / breached
-              slaBreached = true;
-            } else if (cityIssueCounter % 3 === 1) {
-              slaDeadline = now + 12 * 60 * 60 * 1000; // Due soon
-            } else {
-              slaDeadline = now + 3 * DAY; // On track
-            }
-          }
-
-          // Select Officers
-          const assignedUOUserId = ["pending"].includes(status) ? null : uoData?.userId ?? null;
-          const assignedFOData = foList[(iIdx - 1) % foList.length];
-          const assignedFOUserId = ["pending", "verified"].includes(status) ? null : assignedFOData?.userId ?? null;
-
-          // Completion timestamps & feedback
           let resolvedAt: number | null = null;
           let closedAt: number | null = null;
-          let citizenRating: number | null = null;
-          let citizenFeedback: string | null = null;
 
-          if (["resolved", "closed"].includes(status)) {
-            resolvedAt = createdAt + 2 * DAY;
-            slaDeadline = createdAt + 3 * DAY;
-            slaBreached = false;
-
-            if (status === "closed") {
-              closedAt = resolvedAt + 12 * 60 * 60 * 1000;
-            }
-
-            // Ratings for selected resolved issues
-            const ratings = [4.5, 5.0, 3.5, 4.0];
-            citizenRating = ratings[(cityIssueCounter - 1) % ratings.length];
-            citizenFeedback = "Work was completed promptly and satisfactorily. Thank you!";
+          if (spec.slaOutcome === 'breached') {
+            slaBreached = true;
+            slaDeadline = issueCreatedAt + 2 * DAY_MS;
+          } else if (spec.status === 'in_progress' && daysAgo > 5) {
+            slaBreached = true;
+            slaDeadline = issueCreatedAt + 3 * DAY_MS;
           }
 
-          let rejectionData: any = undefined;
-          if (status === "rejected") {
-            rejectionData = {
-              reason: "Insufficient Evidence",
-              comment: "The submitted evidence was insufficient for civic action.",
-              rejectedBy: uoData?.userId ?? systemAdminUserId,
-              rejectedAt: createdAt + 1 * DAY,
+          if (spec.status === 'resolved' || spec.status === 'closed') {
+            resolvedAt = slaBreached
+              ? slaDeadline + 1 * DAY_MS
+              : issueCreatedAt + 2 * DAY_MS;
+            if (spec.status === 'closed') {
+              closedAt = resolvedAt + 1 * DAY_MS;
+            }
+          }
+
+          let assignedUO: Id<'users'> | null = null;
+          let assignedFO: Id<'users'> | null = null;
+
+          if (spec.status !== 'pending') {
+            assignedUO = uoInfo.userId;
+          }
+
+          if (
+            [
+              'assigned',
+              'in_progress',
+              'pending_uo_verification',
+              'rework_required',
+              'resolved',
+              'closed',
+              'escalated',
+            ].includes(spec.status)
+          ) {
+            assignedFO = foInfo ? foInfo.userId : null;
+          }
+
+          let verificationChecklist: any = undefined;
+          if (assignedUO && spec.status !== 'pending') {
+            verificationChecklist = {
+              locationValid: true,
+              hasSufficientEvidence: true,
+              notDuplicate: true,
+              isWithinJurisdiction: true,
+              notes: 'Verified by Ward Officer.',
+              verifiedBy: assignedUO,
+              verifiedAt: issueCreatedAt + 30 * 60 * 1000,
+            };
+          }
+
+          let escalatedToAdmin = false;
+          let escalation: any = undefined;
+
+          if (spec.status === 'escalated') {
+            escalatedToAdmin = true;
+            escalation = {
+              category: 'sla_breach',
+              priority: 'high',
+              reason: 'Issue handling time exceeded maximum acceptable threshold without resolution.',
+              comments: 'Escalated for immediate administrative intervention.',
+              escalatedBy: uoInfo.userId || systemAdminUserId,
+              prevIssueStatus: 'in_progress',
+              escalatedAt: issueCreatedAt + 3 * DAY_MS,
+              resolved: false,
+              adminReviewStatus: 'pending',
+              escalationCount: 1,
             };
           }
 
@@ -651,242 +695,211 @@ export const seedDemoDataOnce = internalMutation({
           let reworkReasons: string[] | undefined = undefined;
           let lastReworkRequestedAt: number | undefined = undefined;
 
-          if (status === "rework_required") {
-            reworkNote = "Please provide clearer before and after completion evidence.";
-            reworkReasons = ["Incomplete evidence"];
-            lastReworkRequestedAt = createdAt + 3 * DAY;
+          if (spec.status === 'rework_required') {
+            reworkNote = 'Resolution evidence is unclear. Please re-upload clearer after-fix photographs.';
+            reworkReasons = ['Incomplete evidence'];
+            lastReworkRequestedAt = issueCreatedAt + 2 * DAY_MS;
           }
 
-          let escalationData: any = undefined;
-          if (isEscalated) {
-            escalationData = {
-              category: "sla_breach",
-              priority: "high",
-              reason: "Issue exceeded expected resolution handling time limit.",
-              comments: "Automated demo escalation created for handling verification.",
-              escalatedBy: uoData?.userId ?? systemAdminUserId,
-              prevIssueStatus: "in_progress",
-              escalatedAt: now - 1 * DAY,
-              resolved: false,
-              adminReviewStatus: "pending",
-              escalationCount: 1,
+          let rejection: any = undefined;
+          if (spec.status === 'rejected') {
+            rejection = {
+              reason: 'Outside Municipal Scope',
+              comment: 'The reported location lies outside city municipal jurisdiction boundaries.',
+              rejectedBy: uoInfo.userId || systemAdminUserId,
+              rejectedAt: issueCreatedAt + 1 * DAY_MS,
             };
           }
 
-          let verificationChecklist: any = undefined;
-          if (!["pending"].includes(status)) {
-            verificationChecklist = {
-              locationValid: true,
-              hasSufficientEvidence: true,
-              notDuplicate: true,
-              isWithinJurisdiction: true,
-              notes: "Demo verification completed by Unit Officer.",
-              verifiedBy: uoData?.userId ?? systemAdminUserId,
-              verifiedAt: createdAt + 1 * 60 * 60 * 1000,
-            };
+          let citizenRating: number | null = null;
+          let citizenFeedback: string | null = null;
+          if (spec.feedback && (resolvedAt || closedAt)) {
+            citizenRating = issueGlobalIndex % 2 === 0 ? 4.5 : 5.0;
+            citizenFeedback = 'Issue was resolved promptly by the municipal team. Thank you!';
           }
 
-          // Insert Issue
-          const newIssueId = await ctx.db.insert("issues", {
-            issueCode,
-            title: templateTitle,
-            description: `${templateTitle} reported in ${areaName}, ${city}. Immediate inspection requested by citizen.`,
+          const priority = priorities[(issueGlobalIndex - 1) % priorities.length];
+
+          const issueId = await ctx.db.insert('issues', {
+            issueCode: code,
+            title,
+            description: `${title} reported at ${area}, ${cityName}. Immediate municipal action is requested by residents.`,
             category: dept,
             department: dept,
-            subcategory: [SPECIALISATIONS[dept]?.[0] || "General"],
+            subcategory: [SPECIALISATIONS[dept]?.[0] || 'General Maintenance'],
             otherCategoryName: null,
             priority,
-            tags: [dept, cityKey, "demo"],
+            tags: [dept, cityName.toLowerCase()],
             latitude: String(coords.latitude),
             longitude: String(coords.longitude),
-            address: `${areaName}, Near Main Landmark, ${city}, ${cityConfig.state} ${cityConfig.postal}`,
-            city: cityConfig.city,
+            address: `${area} Ward ${(issueGlobalIndex % 5) + 1}, ${cityName}, ${cityConfig.state}`,
+            city: cityName,
             state: cityConfig.state,
             postal: cityConfig.postal,
-            googleMapUrl: mapUrl,
-
-            reportedBy: citizenUserId,
-            isAnonymous: iIdx === 4,
+            googleMapUrl: `https://www.google.com/maps?q=${coords.latitude},${coords.longitude}`,
+            reportedBy: reporterUserId,
+            isAnonymous: issueGlobalIndex % 4 === 0,
             additionalEmail: null,
-
             photos: [],
             videos: null,
-
-            status,
-            assignedUnitOfficer: assignedUOUserId,
-            assignedFieldOfficer: assignedFOUserId,
-
+            status: spec.status,
+            assignedUnitOfficer: assignedUO,
+            assignedFieldOfficer: assignedFO,
+            possibleDuplicateIds: [],
             verificationChecklist,
-            rejection: rejectionData,
-
             reworkNote,
             reworkReasons,
             lastReworkRequestedAt,
-
-            beforePhotos: [],
-            afterPhotos: [],
-            notes: ["pending_uo_verification", "resolved", "closed"].includes(status)
-              ? "Resolution completed with field evidence."
-              : undefined,
-
-            possibleDuplicateIds: [],
-            escalatedToAdmin: isEscalated,
-            escalation: escalationData,
-
-            slaCategory: "standard",
+            rejection,
+            escalatedToAdmin,
+            escalation,
+            slaCategory: 'standard',
             slaDeadline,
             slaBreached,
-
-            resolvedAt,
-            closedAt,
-
-            citizenRating,
-            citizenFeedback,
-
+            resolvedAt: resolvedAt,
+            closedAt: closedAt,
+            citizenRating: citizenRating,
+            citizenFeedback: citizenFeedback,
             reopenCount: 0,
             reopenReason: null,
             isReopened: false,
-
-            createdAt,
+            createdAt: issueCreatedAt,
           });
 
-          issuesCreated++;
+          totalCreatedCount++;
+          createdCityIssueIds.push(issueId);
 
-          // Insert Issue Updates (Timeline)
-          await ctx.db.insert("issueUpdates", {
-            issueId: newIssueId,
-            status: "pending",
-            comment: `Issue reported by citizen in ${areaName}.`,
-            updatedBy: citizenUserId,
-            role: "citizen",
+          await ctx.db.insert('issueUpdates', {
+            issueId,
+            status: 'pending',
+            comment: `Issue reported by citizen. Code: ${code}`,
+            updatedBy: reporterUserId,
+            role: 'citizen',
             attachments: [],
-            scope: "officer_and_citizen",
-            createdAt,
+            scope: 'officer_and_citizen',
+            createdAt: issueCreatedAt,
           });
 
-          if (!["pending"].includes(status) && assignedUOUserId) {
-            await ctx.db.insert("issueUpdates", {
-              issueId: newIssueId,
-              status: "verified",
-              comment: `Issue verified by Unit Officer.`,
-              updatedBy: assignedUOUserId,
-              role: "unit_officer",
+          if (assignedUO && spec.status !== 'pending') {
+            await ctx.db.insert('issueUpdates', {
+              issueId,
+              status: 'verified',
+              comment: 'Issue verified by Ward Officer.',
+              updatedBy: assignedUO,
+              role: 'unit_officer',
               attachments: [],
-              scope: "officer_and_citizen",
-              createdAt: createdAt + 1 * 60 * 60 * 1000,
+              scope: 'officer_and_citizen',
+              createdAt: issueCreatedAt + 30 * 60 * 1000,
             });
           }
 
-          if (["assigned", "in_progress", "pending_uo_verification", "rework_required", "resolved", "closed"].includes(status) && assignedUOUserId && assignedFOUserId) {
-            await ctx.db.insert("issueUpdates", {
-              issueId: newIssueId,
-              status: "assigned",
-              comment: `Field Officer assigned to resolve issue.`,
-              updatedBy: assignedUOUserId,
-              role: "unit_officer",
+          if (assignedFO) {
+            await ctx.db.insert('issueUpdates', {
+              issueId,
+              status: 'assigned',
+              comment: 'Field Officer assigned for on-site execution.',
+              updatedBy: assignedUO || systemAdminUserId,
+              role: 'unit_officer',
               attachments: [],
-              scope: "officer_and_citizen",
-              createdAt: assignedAt,
+              scope: 'officer_and_citizen',
+              createdAt: issueCreatedAt + 1 * 60 * 60 * 1000,
             });
           }
 
-          if (["in_progress", "pending_uo_verification", "rework_required", "resolved", "closed"].includes(status) && assignedFOUserId) {
-            await ctx.db.insert("issueUpdates", {
-              issueId: newIssueId,
-              status: "in_progress",
-              comment: `Field Officer started resolution work.`,
-              updatedBy: assignedFOUserId,
-              role: "field_officer",
+          if (
+            ['in_progress', 'pending_uo_verification', 'rework_required', 'resolved', 'closed', 'escalated'].includes(spec.status)
+          ) {
+            await ctx.db.insert('issueUpdates', {
+              issueId,
+              status: 'in_progress',
+              comment: 'Work started on site by Field Officer.',
+              updatedBy: assignedFO || systemAdminUserId,
+              role: 'field_officer',
               attachments: [],
-              scope: "officer_and_citizen",
-              createdAt: workStartedAt,
+              scope: 'officer_and_citizen',
+              createdAt: issueCreatedAt + 4 * 60 * 60 * 1000,
             });
           }
 
-          if (["resolved", "closed"].includes(status) && assignedUOUserId) {
-            await ctx.db.insert("issueUpdates", {
-              issueId: newIssueId,
-              status: "resolved",
-              comment: `Issue resolution verified and approved by Unit Officer.`,
-              updatedBy: assignedUOUserId,
-              role: "unit_officer",
+          if (['resolved', 'closed'].includes(spec.status)) {
+            await ctx.db.insert('issueUpdates', {
+              issueId,
+              status: 'resolved',
+              comment: 'Work completed successfully and verified.',
+              updatedBy: assignedFO || systemAdminUserId,
+              role: 'field_officer',
               attachments: [],
-              scope: "officer_and_citizen",
-              createdAt: resolvedAt ?? now,
+              scope: 'officer_and_citizen',
+              createdAt: resolvedAt || now,
             });
           }
+        }
+      }
 
-          // System Audit Log Entry
-          await ctx.db.insert("auditLogs", {
-            performedByUserId: systemAdminUserId,
-            performerRole: "system",
-            action: "demo_issue_seeded",
-            actionCategory: "issue",
-            affectedEntityType: "issue",
-            affectedEntityId: String(newIssueId),
-            issueId: newIssueId,
-            issueCode,
-            city: cityConfig.city,
-            department: dept,
-            description: `Seeded demo issue ${issueCode} with status ${status}.`,
-            source: "system",
-            timestamp: now,
+      // --- F. Intentional Duplicate Pair Linking ---
+      const issue1 = await ctx.db
+        .query('issues')
+        .withIndex('by_issue_code', (q) => q.eq('issueCode', `DEMO-${codePrefix}-RD-001`))
+        .first();
+      const issue2 = await ctx.db
+        .query('issues')
+        .withIndex('by_issue_code', (q) => q.eq('issueCode', `DEMO-${codePrefix}-RD-002`))
+        .first();
+
+      if (issue1 && issue2) {
+        const u1Dups = (issue1.possibleDuplicateIds || []).map(String);
+        const u2Dups = (issue2.possibleDuplicateIds || []).map(String);
+
+        if (!u1Dups.includes(String(issue2._id))) {
+          await ctx.db.patch(issue1._id, {
+            possibleDuplicateIds: Array.from(new Set([...u1Dups, String(issue2._id)])) as Id<'issues'>[],
+          });
+        }
+        if (!u2Dups.includes(String(issue1._id))) {
+          await ctx.db.patch(issue2._id, {
+            possibleDuplicateIds: Array.from(new Set([...u2Dups, String(issue1._id)])) as Id<'issues'>[],
           });
         }
       }
 
-      // --- F. Reconcile Officer & City Admin Profiles after Issue Seeding ---
-
-      // Re-fetch all city issues to calculate summary & update profiles
-      const allCityIssuesAfterSeed = await ctx.db
-        .query("issues")
-        .withIndex("by_city", (q) => q.eq("city", city))
+      // --- G. Reconcile Officer Arrays & City Admin Metrics after Issue Seeding ---
+      const allCityIssuesAfter = await ctx.db
+        .query('issues')
+        .withIndex('by_city', (q) => q.eq('city', cityName))
         .collect();
 
-      const cityTotalIssuesCount = allCityIssuesAfterSeed.length;
-      const cityResolvedCount = allCityIssuesAfterSeed.filter((i) => ["resolved", "closed"].includes(i.status)).length;
-      const cityPendingCount = allCityIssuesAfterSeed.filter((i) => !["resolved", "closed", "rejected"].includes(i.status)).length;
+      for (const uoInfo of uoProfileMap.values()) {
+        const uoIssues = allCityIssuesAfter.filter(
+          (i) => String(i.assignedUnitOfficer) === String(uoInfo.userId)
+        );
+        const activeIds = uoIssues
+          .filter((i) => !['resolved', 'closed', 'rejected', 'withdrawn'].includes(i.status))
+          .map((i) => i._id);
+        const resolvedIds = uoIssues
+          .filter((i) => ['resolved', 'closed'].includes(i.status))
+          .map((i) => i._id);
 
-      // Update City Admin profile
-      if (cityAdminProfileId) {
-        const uoProfileIds = Array.from(uoProfileMap.values()).map((u) => u.profileId);
-        const foProfileIds: Id<"fieldOfficers">[] = [];
-        for (const foList of foProfileMap.values()) {
-          foList.forEach((f) => foProfileIds.push(f.profileId));
-        }
-
-        await ctx.db.patch(cityAdminProfileId, {
-          managedUnitOfficers: uoProfileIds,
-          managedFieldOfficers: foProfileIds,
-          totalIssuesInCity: cityTotalIssuesCount,
-          issuesResolved: cityResolvedCount,
-          issuesPending: cityPendingCount,
-        });
-      }
-
-      // Update UO & FO array caches for seeded issues
-      for (const uoData of uoProfileMap.values()) {
-        const uoIssues = allCityIssuesAfterSeed.filter((i) => String(i.assignedUnitOfficer) === String(uoData.userId));
-        const activeIds = uoIssues.filter((i) => !["resolved", "closed", "rejected"].includes(i.status)).map((i) => i._id);
-        const resolvedIds = uoIssues.filter((i) => ["resolved", "closed"].includes(i.status)).map((i) => i._id);
-        const verifiedCount = uoIssues.filter((i) => i.verificationChecklist).length;
-        const rejectedCount = uoIssues.filter((i) => i.status === "rejected").length;
-
-        await ctx.db.patch(uoData.profileId, {
+        await ctx.db.patch(uoInfo.profileId, {
           activeIssueIds: activeIds,
           resolvedIssueIds: resolvedIds,
-          totalVerifiedIssues: verifiedCount,
-          totalRejectedIssues: rejectedCount,
+          totalVerifiedIssues: uoIssues.filter((i) => i.verificationChecklist).length,
+          totalRejectedIssues: uoIssues.filter((i) => i.status === 'rejected').length,
         });
       }
 
-      for (const foList of foProfileMap.values()) {
-        for (const foData of foList) {
-          const foIssues = allCityIssuesAfterSeed.filter((i) => String(i.assignedFieldOfficer) === String(foData.userId));
-          const assignedIds = foIssues.filter((i) => !["resolved", "closed", "rejected"].includes(i.status)).map((i) => i._id);
-          const completedIds = foIssues.filter((i) => ["resolved", "closed"].includes(i.status)).map((i) => i._id);
+      for (const deptFoList of foProfileMap.values()) {
+        for (const foInfo of deptFoList) {
+          const foIssues = allCityIssuesAfter.filter(
+            (i) => String(i.assignedFieldOfficer) === String(foInfo.userId)
+          );
+          const assignedIds = foIssues
+            .filter((i) => !['resolved', 'closed', 'rejected', 'withdrawn'].includes(i.status))
+            .map((i) => i._id);
+          const completedIds = foIssues
+            .filter((i) => ['resolved', 'closed'].includes(i.status))
+            .map((i) => i._id);
 
-          await ctx.db.patch(foData.profileId, {
+          await ctx.db.patch(foInfo.profileId, {
             assignedIssueIds: assignedIds,
             completedIssueIds: completedIds,
             currentActiveIssues: assignedIds.length,
@@ -895,59 +908,61 @@ export const seedDemoDataOnce = internalMutation({
         }
       }
 
-      // Record City Audit Event if new items were created
-      if (cityAdminCreated || unitOfficersCreated > 0 || fieldOfficersCreated > 0 || issuesCreated > 0) {
-        await ctx.db.insert("auditLogs", {
-          performedByUserId: systemAdminUserId,
-          performerRole: "system",
-          action: "demo_city_seeded",
-          actionCategory: "other",
-          affectedEntityType: "system",
-          city: cityConfig.city,
-          description: `Demo baseline created for ${cityConfig.city}: CityAdmin +${cityAdminCreated ? 1 : 0}, UO +${unitOfficersCreated}, FO +${fieldOfficersCreated}, Citizens +${citizensCreated}, Issues +${issuesCreated}.`,
-          source: "system",
-          timestamp: now,
-        });
-      }
+      const totalCount = allCityIssuesAfter.length;
+      const resolvedCount = allCityIssuesAfter.filter((i) =>
+        ['resolved', 'closed'].includes(i.status)
+      ).length;
+      const pendingCount = totalCount - resolvedCount;
+      const breachedCount = allCityIssuesAfter.filter((i) => i.slaBreached).length;
+      const slaCompliance =
+        resolvedCount > 0
+          ? Number((((resolvedCount - breachedCount) / resolvedCount) * 100).toFixed(1))
+          : 100;
 
-      citySummaryResults[city] = {
-        cityAdminCreated,
-        citizensCreated,
-        unitOfficersCreated,
-        fieldOfficersCreated,
-        issuesCreated,
-        totalCityIssues: cityTotalIssuesCount,
+      await ctx.db.patch(cityAdminProfileId, {
+        totalIssuesInCity: totalCount,
+        issuesResolved: resolvedCount,
+        issuesPending: pendingCount,
+        slaComplianceRate: Math.max(0, slaCompliance),
+      });
+
+      citySummaryResults[cityKey] = {
+        totalIssues: totalCount,
+        resolved: resolvedCount,
+        pending: pendingCount,
       };
-
-      totalCreatedAcrossAllCities += cityAdminCreated ? 1 : 0;
-      totalCreatedAcrossAllCities += unitOfficersCreated + fieldOfficersCreated + citizensCreated + issuesCreated;
     }
 
-    // Schedule canonical performance metric recalculation engine
+    // --- H. System Audit Log Event (Only if new records were inserted) ---
+    if (totalCreatedCount > 0) {
+      await ctx.db.insert('auditLogs', {
+        performedByUserId: systemAdminUserId,
+        performerRole: 'system',
+        action: 'demo_baseline_seeded',
+        actionCategory: 'other',
+        affectedEntityType: 'system',
+        description: `Demo baseline data seeded/verified across 2 cities (${totalCreatedCount} new records created).`,
+        source: 'system',
+        timestamp: now,
+      });
+    }
+
+    // --- I. Refresh Officer Performance Metrics ---
     try {
       await ctx.scheduler.runAfter(
         0,
         internal.officerPerformanceMaintenance.refreshAllOfficerPerformance,
         {}
       );
-    } catch (err) {
-      console.warn("Scheduled officer performance refresh notice:", err);
+    } catch {
+      // Graceful fallback if scheduler context is restricted
     }
-
-    const alreadySeeded = totalCreatedAcrossAllCities === 0;
-
-    console.log(
-      `[DemoSeed] Completed. Total items created: ${totalCreatedAcrossAllCities}. Already seeded: ${alreadySeeded}.`
-    );
 
     return {
       success: true,
-      systemAdmin: {
-        created: systemAdminCreated,
-        userId: systemAdminUserId,
-      },
-      cities: citySummaryResults,
-      alreadySeeded,
+      createdCount: totalCreatedCount,
+      citiesProcessed: CITY_CONFIGS.length,
+      citySummary: citySummaryResults,
     };
   },
 });

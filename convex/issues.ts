@@ -518,6 +518,7 @@ export const submitIssueFeedback = mutation({
     await ctx.db.patch(issueId, {
       citizenRating: rating,
       citizenFeedback: feedback,
+      citizenFeedbackAt: now,
       status: issue.status,
       closedAt: issue.status === 'resolved' ? now : issue.closedAt,
     });

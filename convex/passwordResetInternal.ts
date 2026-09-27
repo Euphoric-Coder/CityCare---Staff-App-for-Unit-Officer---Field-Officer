@@ -10,35 +10,71 @@ export const getUserById = internalQuery({
   },
 });
 
-export const getOfficerByEmailAndRole = internalQuery({
+export const passwordRecoveryRoleValidator = v.union(
+  v.literal('citizen'),
+  v.literal('unit_officer'),
+  v.literal('field_officer'),
+  v.literal('city_admin'),
+  v.literal('admin')
+);
+
+export const getPasswordResetAccountByEmailAndRole = internalQuery({
   args: {
     emailNormalized: v.string(),
-    officerRole: v.union(v.literal('unit_officer'), v.literal('field_officer')),
+    accountRole: passwordRecoveryRoleValidator,
   },
   handler: async (ctx, args) => {
-    const user = await ctx.db
+    const normalizedEmail = args.emailNormalized.trim().toLowerCase();
+
+    let user = await ctx.db
       .query('users')
-      .withIndex('by_email', (q) => q.eq('email', args.emailNormalized))
+      .withIndex('by_email', (q) => q.eq('email', normalizedEmail))
       .first();
+
+    if (!user) {
+      const candidates = await ctx.db.query('users').collect();
+      user = candidates.find((c) => c.email.trim().toLowerCase() === normalizedEmail) ?? null;
+    }
 
     if (!user) return null;
 
-    if (args.officerRole === 'unit_officer') {
-      const officer = await ctx.db
-        .query('unitOfficers')
-        .withIndex('by_user', (q) => q.eq('userId', user._id))
-        .first();
+    if (user.role !== args.accountRole) {
+      return null;
+    }
 
-      if (!officer) return null;
-      return { user, officer, userId: user._id };
-    } else {
-      const officer = await ctx.db
-        .query('fieldOfficers')
-        .withIndex('by_user', (q) => q.eq('userId', user._id))
-        .first();
-
-      if (!officer) return null;
-      return { user, officer, userId: user._id };
+    switch (args.accountRole) {
+      case 'citizen': {
+        const profile = await ctx.db
+          .query('citizens')
+          .withIndex('by_user', (q) => q.eq('userId', user._id!))
+          .first();
+        return { user, profile: profile ?? null, userId: user._id, role: 'citizen' as const };
+      }
+      case 'unit_officer': {
+        const profile = await ctx.db
+          .query('unitOfficers')
+          .withIndex('by_user', (q) => q.eq('userId', user._id!))
+          .first();
+        if (!profile) return null;
+        return { user, profile, userId: user._id, role: 'unit_officer' as const };
+      }
+      case 'field_officer': {
+        const profile = await ctx.db
+          .query('fieldOfficers')
+          .withIndex('by_user', (q) => q.eq('userId', user._id!))
+          .first();
+        if (!profile) return null;
+        return { user, profile, userId: user._id, role: 'field_officer' as const };
+      }
+      case 'city_admin': {
+        const profile = await ctx.db
+          .query('cityAdmins')
+          .withIndex('by_user', (q) => q.eq('userId', user._id!))
+          .first();
+        return { user, profile: profile ?? null, userId: user._id, role: 'city_admin' as const };
+      }
+      case 'admin':
+        return { user, profile: null, userId: user._id, role: 'admin' as const };
     }
   },
 });
@@ -46,7 +82,7 @@ export const getOfficerByEmailAndRole = internalQuery({
 export const createResetRequest = internalMutation({
   args: {
     userId: v.id('users'),
-    officerRole: v.union(v.literal('unit_officer'), v.literal('field_officer')),
+    officerRole: passwordRecoveryRoleValidator,
     emailNormalized: v.string(),
     maskedDeliveryEmail: v.string(),
     otpHash: v.string(),
@@ -207,7 +243,7 @@ export const getSessionByTokenHash = internalQuery({
 export const completePasswordResetInternal = internalMutation({
   args: {
     userId: v.id('users'),
-    officerRole: v.union(v.literal('unit_officer'), v.literal('field_officer')),
+    officerRole: passwordRecoveryRoleValidator,
     newPasswordHash: v.string(),
     passwordChangedAt: v.number(),
     nextPasswordChangeAllowedAt: v.number(),
@@ -225,12 +261,7 @@ export const completePasswordResetInternal = internalMutation({
       });
     }
 
-    if (user.role !== 'unit_officer' && user.role !== 'field_officer') {
-      throw new ConvexError({
-        code: 'INVALID_OFFICER_ROLE',
-        message: 'This account is not eligible for officer password reset.',
-      });
-    }
+    // Accept any valid recovery role (handled by the schema validator automatically).
 
     if (user.role !== args.officerRole) {
       throw new ConvexError({
@@ -289,47 +320,47 @@ export const completePasswordResetInternal = internalMutation({
      */
     await ctx.db.patch(args.userId, {
       password: args.newPasswordHash,
+      nextPasswordChangeAllowedAt: args.nextPasswordChangeAllowedAt,
     });
 
     if (args.officerRole === 'unit_officer') {
-      const officer = await ctx.db
-        .query('unitOfficers')
-        .withIndex('by_user', (q) => q.eq('userId', args.userId))
-        .unique();
-
-      if (!officer) {
-        throw new ConvexError({
-          code: 'OFFICER_PROFILE_NOT_FOUND',
-          message: 'The Unit Officer profile could not be found.',
+      const officer = await ctx.db.query('unitOfficers').withIndex('by_user', (q) => q.eq('userId', args.userId)).unique();
+      if (officer) {
+        await ctx.db.patch(officer._id, {
+          mustChangePassword: false,
+          passwordChangedAt: args.passwordChangedAt,
+          nextPasswordChangeAllowedAt: args.nextPasswordChangeAllowedAt,
+          passwordChangeCooldownDays: args.passwordChangeCooldownDays,
         });
       }
-
-      await ctx.db.patch(officer._id, {
-        mustChangePassword: false,
-        passwordChangedAt: args.passwordChangedAt,
-        nextPasswordChangeAllowedAt: args.nextPasswordChangeAllowedAt,
-        passwordChangeCooldownDays: args.passwordChangeCooldownDays,
-      });
-    } else {
-      const officer = await ctx.db
-        .query('fieldOfficers')
-        .withIndex('by_user', (q) => q.eq('userId', args.userId))
-        .unique();
-
-      if (!officer) {
-        throw new ConvexError({
-          code: 'OFFICER_PROFILE_NOT_FOUND',
-          message: 'The Field Officer profile could not be found.',
+    } else if (args.officerRole === 'field_officer') {
+      const officer = await ctx.db.query('fieldOfficers').withIndex('by_user', (q) => q.eq('userId', args.userId)).unique();
+      if (officer) {
+        await ctx.db.patch(officer._id, {
+          mustChangePassword: false,
+          passwordChangedAt: args.passwordChangedAt,
+          nextPasswordChangeAllowedAt: args.nextPasswordChangeAllowedAt,
+          passwordChangeCooldownDays: args.passwordChangeCooldownDays,
         });
       }
-
-      await ctx.db.patch(officer._id, {
-        mustChangePassword: false,
-        passwordChangedAt: args.passwordChangedAt,
-        nextPasswordChangeAllowedAt: args.nextPasswordChangeAllowedAt,
-        passwordChangeCooldownDays: args.passwordChangeCooldownDays,
-      });
+    } else if (args.officerRole === 'city_admin') {
+      const cityAdmin = await ctx.db.query('cityAdmins').withIndex('by_user', (q) => q.eq('userId', args.userId)).unique();
+      if (cityAdmin) {
+        await ctx.db.patch(cityAdmin._id, { 
+          mustChangePassword: false,
+          nextPasswordChangeAllowedAt: args.nextPasswordChangeAllowedAt,
+        });
+      }
+    } else if (args.officerRole === 'citizen') {
+      const citizen = await ctx.db.query('citizens').withIndex('by_user', (q) => q.eq('userId', args.userId)).first();
+      if (citizen) {
+        await ctx.db.patch(citizen._id, {
+          nextPasswordChangeAllowedAt: args.nextPasswordChangeAllowedAt,
+        });
+      }
     }
+    // Admin does not require a dedicated profile update because the users table patch above already applies nextPasswordChangeAllowedAt to their primary record.
+
 
     await ctx.db.patch(args.resetSessionId, {
       usedAt: args.passwordChangedAt,

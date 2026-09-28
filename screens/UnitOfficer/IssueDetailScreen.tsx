@@ -467,7 +467,9 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
   const duplicatePool = useMemo(() => {
     if (!rawIssues || !issue) return [];
     const pool = [...rawIssues];
+    // @ts-ignore
     if (!pool.some((i) => (i._id ?? i.id) === (issue._id ?? issue.id))) {
+      // @ts-ignore
       pool.push(issue);
     }
     return pool.map(normalizeIssueForDuplicateDetection);
@@ -488,6 +490,7 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
         (i: any) =>
           i.status === 'pending' ||
           i.status === 'reopened' ||
+          // @ts-ignore
           (i._id ?? i.id) === (issue?._id ?? issue?.id)
       ),
       issueId
@@ -2480,15 +2483,14 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
             </LinearGradient>
           </View>
 
-          
           {/* CITIZEN FEEDBACK & SATISFACTION POD */}
-          {(mappedIssue.status === "resolved" ||
-            mappedIssue.status === "closed" ||
+          {(mappedIssue.status === 'resolved' ||
+            mappedIssue.status === 'closed' ||
             mappedIssue.citizenRating !== null ||
             mappedIssue.citizenFeedback) && (
             <View
               style={{
-                shadowColor: "#F59E0B",
+                shadowColor: '#F59E0B',
                 shadowOffset: { width: 0, height: 20 },
                 shadowOpacity: isDark ? 0.35 : 0.12,
                 shadowRadius: 30,
@@ -2496,18 +2498,18 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
                 marginBottom: 32,
               }}>
               <LinearGradient
-                colors={isDark ? ["#1e1b18", "#0f172a"] : ["#FFFBEB", "#FEF3C7"]}
+                colors={isDark ? ['#1e1b18', '#0f172a'] : ['#FFFBEB', '#FEF3C7']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={{
-                  borderColor: isDark ? "rgba(245, 158, 11, 0.3)" : "#FDE68A",
+                  borderColor: isDark ? 'rgba(245, 158, 11, 0.3)' : '#FDE68A',
                   borderWidth: 1.5,
                   borderRadius: 40,
-                  overflow: "hidden",
-                  position: "relative",
+                  overflow: 'hidden',
+                  position: 'relative',
                 }}>
                 {/* Cinematic Watermark Layer */}
-                <View style={{ position: "absolute", right: -40, bottom: -40, opacity: 0.04 }}>
+                <View style={{ position: 'absolute', right: -40, bottom: -40, opacity: 0.04 }}>
                   <Star size={220} color="#F59E0B" strokeWidth={1} />
                 </View>
 
@@ -2515,13 +2517,13 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
                   {/* Header Section */}
                   <View className="mb-6 flex-row items-center gap-4">
                     <LinearGradient
-                      colors={["#F59E0B", "#D97706"]}
+                      colors={['#F59E0B', '#D97706']}
                       style={{
                         height: 50,
                         width: 50,
                         borderRadius: 18,
-                        alignItems: "center",
-                        justifyContent: "center",
+                        alignItems: 'center',
+                        justifyContent: 'center',
                       }}>
                       <Star size={24} color="#FFFFFF" fill="#FFFFFF" strokeWidth={2.5} />
                     </LinearGradient>
@@ -2558,14 +2560,24 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
                                     );
                                   } else if (diff >= 0.25) {
                                     return (
-                                      <View key={starIndex} style={{ width: 22, height: 22, position: "relative" }}>
+                                      <View
+                                        key={starIndex}
+                                        style={{ width: 22, height: 22, position: 'relative' }}>
                                         <Star
                                           size={22}
                                           color="#F59E0B"
                                           fill="transparent"
                                           strokeWidth={2}
                                         />
-                                        <View style={{ position: "absolute", top: 0, left: 0, width: 11, height: 22, overflow: "hidden" }}>
+                                        <View
+                                          style={{
+                                            position: 'absolute',
+                                            top: 0,
+                                            left: 0,
+                                            width: 11,
+                                            height: 22,
+                                            overflow: 'hidden',
+                                          }}>
                                           <Star
                                             size={22}
                                             color="#F59E0B"
@@ -2590,18 +2602,21 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
                               </View>
                               <View className="rounded-xl border border-amber-300/40 bg-amber-100/60 px-3 py-1 dark:border-amber-500/30 dark:bg-amber-900/40">
                                 <Text className="text-[18px] font-black text-amber-900 dark:text-amber-200">
-                                  {ratingVal.toFixed(1)} <Text className="text-[13px] font-bold text-amber-700/70 dark:text-amber-400/70">/ 5</Text>
+                                  {ratingVal.toFixed(1)}{' '}
+                                  <Text className="text-[13px] font-bold text-amber-700/70 dark:text-amber-400/70">
+                                    / 5
+                                  </Text>
                                 </Text>
                               </View>
                             </View>
 
-                            <View className="rounded-full bg-amber-500/20 px-3.5 py-1.5 border border-amber-500/30">
+                            <View className="rounded-full border border-amber-500/30 bg-amber-500/20 px-3.5 py-1.5">
                               <Text className="text-[10px] font-black uppercase tracking-wider text-amber-700 dark:text-amber-300">
                                 {ratingVal >= 4
-                                  ? "Satisfied Citizen"
+                                  ? 'Satisfied Citizen'
                                   : ratingVal >= 3
-                                    ? "Neutral Rating"
-                                    : "Low Satisfaction"}
+                                    ? 'Neutral Rating'
+                                    : 'Low Satisfaction'}
                               </Text>
                             </View>
                           </View>
@@ -2610,7 +2625,7 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
 
                       {/* Citizen Feedback Text */}
                       <View className="flex-row overflow-hidden rounded-[28px] border border-amber-200/50 bg-white/70 dark:border-amber-500/10 dark:bg-slate-900/60">
-                        <View style={{ width: 6, backgroundColor: "#F59E0B" }} />
+                        <View style={{ width: 6, backgroundColor: '#F59E0B' }} />
                         <View className="flex-1 p-6">
                           <Text className="mb-2 text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500">
                             CITIZEN REMARKS
@@ -2620,7 +2635,7 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
                             className="text-[15px] font-medium text-slate-800 dark:text-slate-200">
                             {mappedIssue.citizenFeedback
                               ? `"${mappedIssue.citizenFeedback}"`
-                              : "No written comments provided by the citizen."}
+                              : 'No written comments provided by the citizen.'}
                           </Text>
                         </View>
                       </View>
@@ -4271,7 +4286,7 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
                       <CheckCircle color="#10B981" size={22} strokeWidth={2.5} />
                     </View>
                     <View className="flex-1">
-                      <View className="flex-row items-center gap-2 flex-wrap">
+                      <View className="flex-row flex-wrap items-center gap-2">
                         <Text className="text-[16px] font-extrabold text-emerald-700 dark:text-emerald-400">
                           Issue Resolved
                         </Text>
@@ -4294,7 +4309,7 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
                       <ShieldCheck color="#64748B" size={22} strokeWidth={2.5} />
                     </View>
                     <View className="flex-1">
-                      <View className="flex-row items-center gap-2 flex-wrap">
+                      <View className="flex-row flex-wrap items-center gap-2">
                         <Text className="text-[16px] font-extrabold text-slate-800 dark:text-slate-200">
                           Issue Closed
                         </Text>

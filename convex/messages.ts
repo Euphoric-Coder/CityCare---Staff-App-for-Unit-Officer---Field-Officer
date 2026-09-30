@@ -74,9 +74,11 @@ export const getOfficerIssueMessages = query({
       .collect();
 
     const filteredMessages = messages.filter((message) => {
-      const sentByMe = message.senderId === args.currentUserId && message.recipientId === args.citizenId;
-      const sentByCitizen = message.senderId === args.citizenId && message.recipientId === args.currentUserId;
-      
+      const sentByMe =
+        message.senderId === args.currentUserId && message.recipientId === args.citizenId;
+      const sentByCitizen =
+        message.senderId === args.citizenId && message.recipientId === args.currentUserId;
+
       return sentByMe || sentByCitizen;
     });
 
@@ -171,8 +173,6 @@ export const getUnreadIssueMessagesCount = query({
       .withIndex('by_issue', (q) => q.eq('issueId', args.issueId))
       .collect();
 
-    return messages.filter(
-      (m) => m.recipientId === args.userId && !m.isRead
-    ).length;
+    return messages.filter((m) => m.recipientId === args.userId && !m.isRead).length;
   },
 });

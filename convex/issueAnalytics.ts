@@ -6,7 +6,15 @@ import {
   analyseCurrentIssueTrend,
   normalizeKey,
   departmentMatchesCategory,
-  isPendingDuplicateReviewStatus
+  isPendingDuplicateReviewStatus,
+  buildRecurringPatterns,
+  buildCityTrendBreakdown,
+  buildDepartmentTrendBreakdown,
+  buildSystemAdminDuplicateTrend,
+  buildSystemSlaAnalytics,
+  buildEscalationAnalytics,
+  buildCityAwareHotspots,
+  buildSystemAdminTrendRecommendations,
 } from '../lib/trendAnalyzer';
 
 const rangeValidation = v.optional(v.number());
@@ -257,5 +265,191 @@ export const getCurrentIssueTrendAnalysis = query({
     const analysis = analyseCurrentIssueTrend(issue, pool, { days: args.days ?? 90 });
 
     return analysis;
+  },
+});
+
+export const getSystemAdminCitywideTrendAnalytics = query({
+  args: {
+    userId: v.id('users'),
+    city: v.optional(v.string()),
+    department: v.optional(v.string()),
+    days: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    // 1. Fetch user & verify allowed role
+    const user = await ctx.db.get(args.userId);
+    if (!user) {
+      throw new Error('User not found');
+    }
+    const role = normalizeKey(user.role);
+    const allowedRoles = new Set(['admin', 'system_admin', 'administrator']);
+    if (!allowedRoles.has(role)) {
+      throw new Error('Unauthorized access to system administration analytics');
+    }
+
+    // 2. Fetch all issues or city-scoped issues
+    let allIssues = [];
+    if (args.city) {
+      allIssues = await ctx.db
+        .query('issues')
+        .withIndex('by_city', (q: any) => q.eq('city', args.city as string))
+        .collect();
+    } else {
+      allIssues = await ctx.db.query('issues').collect();
+    }
+
+    // 3. Apply category/department filter
+    const scopedIssues = allIssues.filter((issue: any) => {
+      const matchesCity = !args.city || normalizeKey(issue.city) === normalizeKey(args.city);
+      const matchesDepartment =
+        !args.department || departmentMatchesCategory(args.department, issue.category);
+      return matchesCity && matchesDepartment;
+    });
+
+    const selectedDays = args.days ?? 30;
+    const isAllTime = selectedDays === 0;
+    const now = Date.now();
+
+    // 4. Time cutoff filter (we filter scopedIssues to current selected range)
+    let currentRangeIssues = scopedIssues;
+    if (!isAllTime) {
+      const cutoff = now - selectedDays * 24 * 60 * 60 * 1000;
+      currentRangeIssues = scopedIssues.filter((i: any) => {
+        const created = i.createdAt ?? i._creationTime ?? now;
+        return created >= cutoff;
+      });
+    }
+
+    // 5. Gather available cities & departments lists for frontend drop-downs
+    const availableCities = [...new Set(allIssues.map((i: any) => i.city).filter(Boolean))].sort();
+    const availableDepartments = [
+      ...new Set(allIssues.map((i: any) => i.category).filter(Boolean)),
+    ].sort();
+
+    // 6. Base analytics for reporting change, status distribution, priorities, etc.
+    const baseAnalytics = analyseIssueTrends(scopedIssues, {
+      days: isAllTime ? undefined : selectedDays,
+      allTime: isAllTime,
+    });
+
+    // 7. System Admin breakdowns, duplicates, SLA, escalations, hotspots, recommendations
+    const cityBreakdown = buildCityTrendBreakdown(scopedIssues, now, selectedDays);
+    const departmentBreakdown = buildDepartmentTrendBreakdown(scopedIssues, now, selectedDays);
+    const systemDuplicateTrend = buildSystemAdminDuplicateTrend(currentRangeIssues);
+    const systemSlaAnalytics = buildSystemSlaAnalytics(currentRangeIssues, now);
+    const escalationAnalytics = buildEscalationAnalytics(currentRangeIssues, now);
+    const cityAwareHotspots = buildCityAwareHotspots(currentRangeIssues, 500);
+    const recurringPatterns = buildRecurringPatterns(currentRangeIssues, { radiusMeters: 500 });
+
+    const systemRecommendations = buildSystemAdminTrendRecommendations({
+      cityBreakdown: cityBreakdown as any[],
+      departmentBreakdown: departmentBreakdown as any[],
+      systemSlaAnalytics,
+      escalationAnalytics,
+      systemDuplicateTrend,
+      hotspotTrends: cityAwareHotspots as any[],
+    });
+
+    // 8. Overall Risk Score
+    const overdueRate = systemSlaAnalytics.overdueRate;
+    const escalationRate = escalationAnalytics.escalationRate;
+    const duplicateRate = systemDuplicateTrend.duplicateRate;
+    const activeCount = currentRangeIssues.filter((i: any) =>
+      [
+        'assigned',
+        'in_progress',
+        'submitted_for_review',
+        'pending_uo_verification',
+        'rework_required',
+        'escalated',
+      ].includes(i.status)
+    ).length;
+    const unresolvedRate =
+      currentRangeIssues.length > 0 ? (activeCount / currentRangeIssues.length) * 100 : 0;
+
+    const systemRiskScore = Math.round(
+      overdueRate * 0.4 + escalationRate * 0.25 + unresolvedRate * 0.2 + duplicateRate * 0.15
+    );
+
+    const systemRiskLevel =
+      systemRiskScore >= 70
+        ? 'critical'
+        : systemRiskScore >= 50
+          ? 'high'
+          : systemRiskScore >= 30
+            ? 'medium'
+            : 'low';
+
+    const mostAtRiskCity = cityBreakdown[0]?.city || 'None';
+    const mostAtRiskDepartment = departmentBreakdown[0]?.department || 'None';
+
+    return {
+      scope: {
+        userId: args.userId,
+        role: user.role,
+        city: args.city ?? 'all',
+        department: args.department ?? 'all',
+        days: selectedDays,
+        rangeLabel: isAllTime ? 'All Time' : `${selectedDays} Days`,
+        isAllTime,
+        totalIssuesAnalysed: currentRangeIssues.length,
+        generatedAt: now,
+      },
+
+      filters: {
+        availableCities,
+        availableDepartments,
+        selectedCity: args.city ?? 'all',
+        selectedDepartment: args.department ?? 'all',
+      },
+
+      summary: {
+        ...baseAnalytics.summary,
+        totalIssues: currentRangeIssues.length,
+        totalCities: cityBreakdown.length,
+        totalDepartments: departmentBreakdown.length,
+        totalEscalatedIssues: escalationAnalytics.totalEscalatedIssues,
+        unresolvedEscalations: escalationAnalytics.unresolvedEscalations,
+        systemRiskScore,
+        systemRiskLevel,
+        mostAtRiskCity,
+        mostAtRiskDepartment,
+        pendingDuplicateCandidateCount: systemDuplicateTrend.activeDuplicateCandidateCount,
+        duplicateGroups: systemDuplicateTrend.totalGroups,
+        duplicateIssues: systemDuplicateTrend.duplicateGroupIssueCount,
+        redundantDuplicateIssues: systemDuplicateTrend.redundantDuplicateIssues,
+        duplicateRate: systemDuplicateTrend.duplicateRate,
+      },
+
+      trendDirection: baseAnalytics.trendDirection,
+      statusDistribution: baseAnalytics.statusDistribution,
+      priorityDistribution: baseAnalytics.priorityDistribution,
+      categoryTrends: baseAnalytics.categoryTrends,
+      subcategoryTrends: baseAnalytics.subcategoryTrends,
+
+      cityBreakdown: cityBreakdown as any[],
+      departmentBreakdown: departmentBreakdown as any[],
+      systemDuplicateTrend,
+      hotspotTrends: cityAwareHotspots as any[],
+      systemSlaAnalytics,
+      escalationAnalytics,
+      recurringPatterns: recurringPatterns as any[],
+      recommendations: systemRecommendations as any[],
+
+      debugCounts: {
+        allIssueCount: allIssues.length,
+        scopedIssueCount: scopedIssues.length,
+        selectedRangeIssueCount: currentRangeIssues.length,
+        cityCount: availableCities.length,
+        departmentCount: availableDepartments.length,
+        activeDuplicateCandidateCount: systemDuplicateTrend.activeDuplicateCandidateCount,
+        duplicateGroupCount: systemDuplicateTrend.totalGroups,
+        hotspotCount: cityAwareHotspots.length,
+        slaApplicableCount: systemSlaAnalytics.applicableIssueCount,
+        overdueCount: systemSlaAnalytics.overdueCount,
+        dueSoonCount: systemSlaAnalytics.dueSoonCount,
+        escalationCount: escalationAnalytics.totalEscalatedIssues,
+      },
+    };
   },
 });

@@ -7,6 +7,16 @@ const toISO = (value: string | number | undefined | null) => {
   return new Date(value).toISOString();
 };
 
+const normalizeDepartment = (value: any) => {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/&/g, 'and')
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .replace(/_+/g, '_');
+};
+
 const getPhotoUrls = async (ctx: any, storageIds: string[] = []) => {
   const urls = await Promise.all(
     storageIds.map(async (id: string) => await ctx.storage.getUrl(id))
@@ -49,11 +59,16 @@ export const syncPublicIssues = internalMutation({
 
       const photosAfter = await getPhotoUrls(ctx, issue.afterPhotos || []);
 
-      const payload = {
+      // Only fields that should stay synchronized with the original issue.
+      const syncedPayload = {
         issueId: issue._id,
 
         issueCode: issue.issueCode,
-        title: issue.title,
+
+        // Do NOT overwrite a moderated/published title after publication.
+        // Preserve existing public title if one already exists.
+        title: existing?.title ?? issue.title,
+
         description: issue.description,
 
         category: issue.category,
@@ -79,8 +94,6 @@ export const syncPublicIssues = internalMutation({
 
         rejectedAt: !isResolved ? toISO(issue.rejection?.rejectedAt) : null,
 
-        publicCompletionNote: existing?.publicCompletionNote ?? null,
-
         rejectionReason: !isResolved
           ? issue.rejection?.reason ||
             issue.rejection?.comment ||
@@ -89,18 +102,30 @@ export const syncPublicIssues = internalMutation({
 
         photosBefore,
         photosAfter: isResolved ? photosAfter : [],
-
-        publicVisible: false,
-        publishStatus: 'draft',
-
-        createdPublicAt: existing?.createdPublicAt ?? Date.now(),
       };
 
       if (existing) {
-        await ctx.db.patch(existing._id, payload as any);
+        // IMPORTANT:
+        // Only synchronize issue-derived fields.
+        // Do NOT reset moderation/publication state.
+        await ctx.db.patch(existing._id, syncedPayload as any);
+
         updated++;
       } else {
-        await ctx.db.insert('publicIssues', payload as any);
+        // Only a brand-new public issue starts as a draft.
+        await ctx.db.insert('publicIssues', {
+          ...syncedPayload,
+
+          publicCompletionNote: null,
+
+          publicVisible: false,
+          publishStatus: 'draft',
+
+          foVisible: false,
+
+          createdPublicAt: Date.now(),
+        } as any);
+
         inserted++;
       }
     }
@@ -134,7 +159,7 @@ export const getPublicIssues = query({
       .collect();
 
     const filteredPublicIssues = publicIssues.filter(
-      (issue) => issue.category === unitOfficer.department
+      (issue) => issue.category === normalizeDepartment(unitOfficer.department)
     );
 
     const enriched = await Promise.all(

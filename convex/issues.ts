@@ -5,6 +5,7 @@ import { v } from 'convex/values';
 import { internal } from './_generated/api';
 import { Redis } from '@upstash/redis';
 import { Ratelimit } from '@upstash/ratelimit';
+import { auditIssueAction } from 'lib/auditLogger';
 
 const CATEGORY_PREFIX = {
   road: 'RD',
@@ -219,6 +220,29 @@ export const internalCreateIssue = internalMutation({
       });
     }
 
+    // Universal Audit Log
+    await auditIssueAction(ctx, {
+      issue: {
+        _id: issueId,
+        issueCode,
+        city: args.city,
+        department: args.category,
+        category: args.category,
+      },
+      performedByUserId: args.reportedBy,
+      performerRole: 'citizen',
+      action: 'issue_created',
+      actionCategory: 'issue',
+      oldValue: null,
+      newValue: {
+        status: 'pending',
+        category: args.category,
+        priority: args.priority,
+      },
+      description: `Citizen reported issue ${issueCode}.`,
+      source: 'web',
+    });
+
     return {
       success: true,
       issueCode,
@@ -240,10 +264,10 @@ export const getCitizenDashboardIssues = query({
 
     if (!citizen || !citizen.city) return [];
 
-    // 2. Fetch ALL issues in same city (includes user's issues automatically)
+    // 2. Fetch ONLY issues reported by this citizen
     const issues = await ctx.db
       .query('issues')
-      .withIndex('by_city', (q) => q.eq('city', citizen.city))
+      .withIndex('by_reporter', (q) => q.eq('reportedBy', args.userId))
       .collect();
 
     // 3. Attach photo preview
@@ -261,7 +285,7 @@ export const getCitizenDashboardIssues = query({
         if (issue.assignedFieldOfficer) {
           const fo = await ctx.db
             .query('fieldOfficers')
-            .withIndex('by_user', (q) => q.eq('userId', issue.assignedFieldOfficer as Id<'users'>))
+            .withIndex('by_user', (q) => q.eq('userId', issue.assignedFieldOfficer))
             .unique();
 
           if (fo) {
@@ -288,7 +312,7 @@ export const getCitizenDashboardIssues = query({
         if (issue.assignedUnitOfficer) {
           const uo = await ctx.db
             .query('unitOfficers')
-            .withIndex('by_user', (q) => q.eq('userId', issue.assignedUnitOfficer as Id<'users'>))
+            .withIndex('by_user', (q) => q.eq('userId', issue.assignedUnitOfficer))
             .unique();
 
           if (uo) {
@@ -430,6 +454,24 @@ export const withdrawIssue = mutation({
       }
     }
 
+    // Universal Audit Log
+    await auditIssueAction(ctx, {
+      issue,
+      performedByUserId: args.userId,
+      performerRole: 'citizen',
+      action: 'issue_withdrawn',
+      actionCategory: 'withdrawal',
+      oldValue: {
+        status: issue.status,
+      },
+      newValue: {
+        status: 'withdrawn',
+      },
+      reason: args.withdrawalReason,
+      description: `Citizen withdrew issue ${issue.issueCode}.`,
+      source: 'web',
+    });
+
     return { success: true };
   },
 });
@@ -490,6 +532,24 @@ export const reopenIssue = mutation({
         createdAt: Date.now(),
       });
     }
+
+    // Universal Audit Log
+    await auditIssueAction(ctx, {
+      issue,
+      performedByUserId: args.userId,
+      performerRole: 'citizen',
+      action: 'issue_reopened',
+      actionCategory: 'reopen',
+      oldValue: {
+        status: issue.status,
+      },
+      newValue: {
+        status: 'reopened',
+      },
+      reason: args.reason,
+      description: `Issue ${issue.issueCode} reopened by citizen.`,
+      source: 'web',
+    });
   },
 });
 
@@ -559,6 +619,23 @@ export const submitIssueFeedback = mutation({
       type: 'feedback_confirmation',
       read: false,
       createdAt: now,
+    });
+
+    // Universal Audit Log
+    await auditIssueAction(ctx, {
+      issue,
+      performedByUserId: userId,
+      performerRole: 'citizen',
+      action: 'citizen_feedback_submitted',
+      actionCategory: 'issue',
+      oldValue: {
+        rating: issue.citizenRating ?? null,
+      },
+      newValue: {
+        rating: rating,
+      },
+      description: 'Citizen submitted resolution feedback.',
+      source: 'web',
     });
 
     return { success: true };

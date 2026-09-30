@@ -18,11 +18,46 @@ export type PasswordRecoveryState =
     };
 
 /**
- * Persists the current password recovery state to SecureStore.
+ * Validates a persisted password recovery object.
+ */
+function isValidPasswordRecoveryState(value: unknown): value is PasswordRecoveryState {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const parsed = value as Record<string, unknown>;
+
+  if (parsed.stage === 'otp_pending') {
+    return (
+      typeof parsed.requestId === 'string' &&
+      typeof parsed.maskedDeliveryEmail === 'string' &&
+      (parsed.officerRole === 'unit_officer' || parsed.officerRole === 'field_officer') &&
+      typeof parsed.expiresAt === 'number' &&
+      Number.isFinite(parsed.expiresAt) &&
+      typeof parsed.resendAllowedAt === 'number' &&
+      Number.isFinite(parsed.resendAllowedAt)
+    );
+  }
+
+  if (parsed.stage === 'otp_verified') {
+    return (
+      typeof parsed.resetSessionToken === 'string' &&
+      typeof parsed.resetSessionExpiresAt === 'number' &&
+      Number.isFinite(parsed.resetSessionExpiresAt)
+    );
+  }
+
+  return false;
+}
+
+/**
+ * Persists the current password recovery state securely
+ * on the mobile device.
  */
 export async function savePasswordRecoveryState(state: PasswordRecoveryState): Promise<void> {
   try {
     const serialized = JSON.stringify(state);
+
     await SecureStore.setItemAsync(PASSWORD_RECOVERY_KEY, serialized);
   } catch (error) {
     console.error('Failed to save password recovery state:', error);
@@ -30,50 +65,35 @@ export async function savePasswordRecoveryState(state: PasswordRecoveryState): P
 }
 
 /**
- * Retrieves and validates the persisted password recovery state from SecureStore.
+ * Retrieves and validates the persisted password recovery state.
  */
 export async function getPasswordRecoveryState(): Promise<PasswordRecoveryState | null> {
   try {
     const serialized = await SecureStore.getItemAsync(PASSWORD_RECOVERY_KEY);
-    if (!serialized) return null;
 
-    const parsed = JSON.parse(serialized);
+    if (!serialized) {
+      return null;
+    }
 
-    if (!parsed || typeof parsed !== 'object') {
+    const parsed: unknown = JSON.parse(serialized);
+
+    if (!isValidPasswordRecoveryState(parsed)) {
       await clearPasswordRecoveryState();
       return null;
     }
 
-    if (parsed.stage === 'otp_pending') {
-      if (
-        typeof parsed.requestId === 'string' &&
-        typeof parsed.maskedDeliveryEmail === 'string' &&
-        (parsed.officerRole === 'unit_officer' || parsed.officerRole === 'field_officer') &&
-        typeof parsed.expiresAt === 'number' &&
-        typeof parsed.resendAllowedAt === 'number'
-      ) {
-        return parsed as PasswordRecoveryState;
-      }
-    } else if (parsed.stage === 'otp_verified') {
-      if (
-        typeof parsed.resetSessionToken === 'string' &&
-        typeof parsed.resetSessionExpiresAt === 'number'
-      ) {
-        return parsed as PasswordRecoveryState;
-      }
-    }
-
-    await clearPasswordRecoveryState();
-    return null;
+    return parsed;
   } catch (error) {
     console.error('Failed to read or parse password recovery state:', error);
+
     await clearPasswordRecoveryState();
+
     return null;
   }
 }
 
 /**
- * Clears the password recovery state from SecureStore.
+ * Clears the currently persisted password recovery state.
  */
 export async function clearPasswordRecoveryState(): Promise<void> {
   try {

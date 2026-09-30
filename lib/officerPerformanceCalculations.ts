@@ -167,7 +167,10 @@ export function getRangeCutoff(range?: string | null): number | null {
   return Date.now() - days * 24 * 60 * 60 * 1000;
 }
 
-export function issueHasActivityInRange(issue: Record<string, any>, cutoff: number | null): boolean {
+export function issueHasActivityInRange(
+  issue: Record<string, any>,
+  cutoff: number | null
+): boolean {
   if (cutoff === null) {
     return true;
   }
@@ -187,7 +190,10 @@ export function issueHasActivityInRange(issue: Record<string, any>, cutoff: numb
   return activityTimes.some((timestamp) => timestamp >= cutoff);
 }
 
-export function filterByRange<T extends Record<string, any>>(issues: T[], range?: string | null): T[] {
+export function filterByRange<T extends Record<string, any>>(
+  issues: T[],
+  range?: string | null
+): T[] {
   const cutoff = getRangeCutoff(range);
   return issues.filter((issue) => issueHasActivityInRange(issue, cutoff));
 }
@@ -395,7 +401,10 @@ export function getSlaBreakdown(issues: Record<string, any>[]): SlaBreakdown {
   return { met, breached };
 }
 
-export function getQualityMetrics(issues: Record<string, any>[], totalAssigned: number): QualityMetrics {
+export function getQualityMetrics(
+  issues: Record<string, any>[],
+  totalAssigned: number
+): QualityMetrics {
   const resolved = issues.filter((i) => {
     const st = normalizeStatus(i.status);
     return st === 'resolved' || st === 'closed';

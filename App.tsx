@@ -209,6 +209,12 @@ function UnitOfficerTabNavigator({ user, onSignOut }: TabNavigatorProps) {
   const isDark = colorScheme === 'dark';
   const tabBarHeight = 60 + insets.bottom;
 
+  const unitOfficer = useQuery(
+    api.unitOfficers.getUnitOfficerByUserId,
+    user?.id ? { userId: user.id as any } : 'skip'
+  );
+  const isApproved = unitOfficer?.accountApproved === true;
+
   const conversations =
     useQuery(api.directMessages.getUserConversations, { userId: user.id as any }) || [];
   const unreadCount = conversations.reduce((acc, conv) => {
@@ -248,6 +254,7 @@ function UnitOfficerTabNavigator({ user, onSignOut }: TabNavigatorProps) {
         }}>
         {() => <DashboardStack user={user} />}
       </Tab.Screen>
+      {isApproved && (
       <Tab.Screen
         name="Public"
         component={PublicStack}
@@ -255,6 +262,7 @@ function UnitOfficerTabNavigator({ user, onSignOut }: TabNavigatorProps) {
           tabBarIcon: ({ color, size }) => <Globe size={size} color={color} />,
         }}
       />
+      )}
       <Tab.Screen
         name="Messages"
         component={MessagesTab}
@@ -263,6 +271,7 @@ function UnitOfficerTabNavigator({ user, onSignOut }: TabNavigatorProps) {
           tabBarBadge: unreadCount > 0 ? unreadCount : undefined,
         }}
       />
+      {isApproved && (
       <Tab.Screen
         name="Analytics"
         options={{
@@ -270,6 +279,7 @@ function UnitOfficerTabNavigator({ user, onSignOut }: TabNavigatorProps) {
         }}>
         {() => <AnalyticsTab user={user} />}
       </Tab.Screen>
+      )}
       <Tab.Screen
         name="Profile"
         options={{

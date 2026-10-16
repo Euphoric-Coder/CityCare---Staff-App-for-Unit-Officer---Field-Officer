@@ -356,7 +356,13 @@ export default function FieldIssueDetailScreen() {
 
   // @ts-ignore
   // For getting the Issue data by ID
-  const rawIssue = useQuery(api.fieldOfficers.getIssueById, { issueId: issueId });
+  const fieldOfficer = useQuery(
+    api.fieldOfficers.getFieldOfficerByUserId,
+    // @ts-ignore
+    user?.id ? { userId: user.id } : 'skip'
+  );
+  
+  const rawIssue = useQuery(api.fieldOfficers.getIssueById, { userId: user?.id as any, issueId: issueId });
 
   const issue = mapIssueToUI(rawIssue);
 

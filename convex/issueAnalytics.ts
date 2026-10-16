@@ -1,3 +1,4 @@
+import { requireApprovedUnitOfficer } from './officerAuth';
 import { v } from 'convex/values';
 import { query } from './_generated/server';
 import { Id } from './_generated/dataModel';
@@ -73,6 +74,7 @@ export const getUnitOfficerTrendAnalytics = query({
     days: rangeValidation,
   },
   handler: async (ctx, args) => {
+    await requireApprovedUnitOfficer(ctx, args.userId);
     const unitOfficer = await ctx.db
       .query('unitOfficers')
       .withIndex('by_user', (q) => q.eq('userId', args.userId))
@@ -226,6 +228,7 @@ export const getCurrentIssueTrendAnalysis = query({
     days: rangeValidation,
   },
   handler: async (ctx, args) => {
+    await requireApprovedUnitOfficer(ctx, args.userId);
     const unitOfficer = await ctx.db
       .query('unitOfficers')
       .withIndex('by_user', (q) => q.eq('userId', args.userId))

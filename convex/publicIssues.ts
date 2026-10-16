@@ -1,3 +1,4 @@
+import { requireApprovedUnitOfficer } from './officerAuth';
 import { v } from 'convex/values';
 import { internalMutation, mutation, query } from './_generated/server';
 
@@ -10,6 +11,7 @@ const toISO = (value: string | number | undefined | null) => {
 const normalizeDepartment = (value: any) => {
   return String(value || '')
     .trim()
+    
     .toLowerCase()
     .replace(/&/g, 'and')
     .replace(/[^a-z0-9]+/g, '_')
@@ -144,6 +146,7 @@ export const getPublicIssues = query({
   },
 
   handler: async (ctx, args) => {
+    await requireApprovedUnitOfficer(ctx, args.unitOfficerId);
     const unitOfficer = await ctx.db
       .query('unitOfficers')
       .withIndex('by_user', (q) => q.eq('userId', args.unitOfficerId))
@@ -374,6 +377,7 @@ export const getCityPublicIssueByIssueCode = query({
 
 export const publishPublicIssue = mutation({
   args: {
+    unitOfficerId: v.id('users'),
     id: v.id('publicIssues'),
     title: v.string(),
     publicCompletionNote: v.string(),
@@ -382,6 +386,7 @@ export const publishPublicIssue = mutation({
   },
 
   handler: async (ctx, args) => {
+    await requireApprovedUnitOfficer(ctx, args.unitOfficerId);
     const publicIssue = await ctx.db.get(args.id);
 
     if (!publicIssue) {
@@ -410,10 +415,12 @@ export const publishPublicIssue = mutation({
 
 export const unpublishPublicIssue = mutation({
   args: {
+    unitOfficerId: v.id('users'),
     id: v.id('publicIssues'),
   },
 
   handler: async (ctx, args) => {
+    await requireApprovedUnitOfficer(ctx, args.unitOfficerId);
     const publicIssue = await ctx.db.get(args.id);
 
     if (!publicIssue) {
@@ -437,6 +444,7 @@ export const unpublishPublicIssue = mutation({
 
 export const saveDraftPublicIssue = mutation({
   args: {
+    unitOfficerId: v.id('users'),
     id: v.id('publicIssues'),
     title: v.string(),
     publicCompletionNote: v.optional(v.string()),
@@ -444,6 +452,7 @@ export const saveDraftPublicIssue = mutation({
   },
 
   handler: async (ctx, args) => {
+    await requireApprovedUnitOfficer(ctx, args.unitOfficerId);
     const publicIssue = await ctx.db.get(args.id);
 
     if (!publicIssue) {

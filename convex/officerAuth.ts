@@ -78,15 +78,49 @@ export const changeOfficerPassword = action({
     // 7. Send resulting hash, role, and IDs to internal mutation
     await ctx.runMutation(internal.officerAuthInternal.saveOfficerPasswordChange, {
       userId: data.userId,
-      role: data.role as 'unit_officer' | 'field_officer',
+      role: data.role,
       newPasswordHash,
       changedAt: Date.now(),
       expectedCurrentPasswordHash: data.passwordHash,
     });
 
     return {
-      success: true as const,
+      success: true,
       mustChangePassword: false,
     };
   },
 });
+
+export async function requireApprovedUnitOfficer(ctx: any, userId: any) {
+  const officer = await ctx.db
+    .query('unitOfficers')
+    .withIndex('by_user', (q: any) => q.eq('userId', userId))
+    .unique();
+
+  if (!officer) {
+    throw new Error('Unit officer profile not found');
+  }
+
+  if (officer.accountApproved !== true) {
+    throw new Error('ACCOUNT_NOT_APPROVED');
+  }
+
+  return officer;
+}
+
+export async function requireApprovedFieldOfficer(ctx: any, userId: any) {
+  const officer = await ctx.db
+    .query('fieldOfficers')
+    .withIndex('by_user', (q: any) => q.eq('userId', userId))
+    .unique();
+
+  if (!officer) {
+    throw new Error('Field officer profile not found');
+  }
+
+  if (officer.accountApproved !== true) {
+    throw new Error('ACCOUNT_NOT_APPROVED');
+  }
+
+  return officer;
+}

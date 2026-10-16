@@ -201,14 +201,14 @@ export default function FieldProfileTab({ user, profile, onLogout }: FieldProfil
 
   const performance = useQuery(
     api.officerPerformance.getFieldOfficerPerformanceByUserId,
-    validUserId ? { userId: validUserId, range: '30d' } : 'skip'
+    validUserId && fieldOfficer?.accountApproved === true ? { userId: validUserId, range: '30d' } : 'skip'
   );
 
   const generateUploadUrl = useMutation(api.issuesMedia.generateUploadUrl);
   const updateProfilePicture = useMutation(api.fieldOfficers.updateFieldOfficerProfilePicture);
 
   const isQuerying = Boolean(validUserId);
-  const isLoading = isQuerying && (fieldOfficer === undefined || performance === undefined);
+  const isLoading = isQuerying && (fieldOfficer === undefined || (fieldOfficer?.accountApproved === true && performance === undefined));
 
   if (isLoading) {
     return (

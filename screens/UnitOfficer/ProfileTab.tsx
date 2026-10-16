@@ -142,24 +142,24 @@ export default function ProfileTab({
   const generateUploadUrl = useMutation(api.issuesMedia.generateUploadUrl);
   const updateProfilePicture = useMutation(api.unitOfficers.updateUnitOfficerProfilePicture);
 
-  const rawIssues = useQuery(
-    api.unitOfficers.getUnitOfficerIssues,
-    user?.id ? { userId: user.id as Id<'users'> } : 'skip'
-  );
-
   const unitOfficer = useQuery(
     api.unitOfficers.getUnitOfficerByUserId,
     // @ts-ignore
     user.role === 'unit_officer' ? { userId: user.id } : 'skip'
   );
 
+  const rawIssues = useQuery(
+    api.unitOfficers.getUnitOfficerIssues,
+    user?.id && unitOfficer?.accountApproved === true ? { userId: user.id as Id<'users'> } : 'skip'
+  );
+
   const performance = useQuery(
     api.officerPerformance.getUnitOfficerProfilePerformance,
     // @ts-ignore
-    user.role === 'unit_officer' ? { userId: user.id as Id<'users'>, range: '30d' } : 'skip'
+    user.role === 'unit_officer' && unitOfficer?.accountApproved === true ? { userId: user.id as Id<'users'>, range: '30d' } : 'skip'
   );
 
-  if (user.role === 'unit_officer' && (!unitOfficer || !performance)) {
+  if (user.role === 'unit_officer' && (!unitOfficer || (unitOfficer?.accountApproved === true && !performance))) {
     return (
       <SafeAreaView className="flex-1 justify-center items-center bg-slate-50 dark:bg-slate-950">
         <ActivityIndicator size="large" color="#0EA5A4" />

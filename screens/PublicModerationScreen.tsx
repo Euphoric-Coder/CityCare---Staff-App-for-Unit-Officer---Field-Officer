@@ -155,8 +155,7 @@ export default function PublicModerationScreen() {
   const handlePublish = useCallback(
     async (updated: PublicIssue) => {
       try {
-        await publishPublicIssue({
-          id: updated.id as Id<'publicIssues'>,
+        await publishPublicIssue({ unitOfficerId: user?.id as any, id: updated.id as Id<'publicIssues'>,
           title: updated.title.trim(),
           publicCompletionNote: updated.publicCompletionNote?.trim() || '',
           foVisible: updated.foVisible,
@@ -175,8 +174,7 @@ export default function PublicModerationScreen() {
   const handleSaveDraft = useCallback(
     async (updated: PublicIssue) => {
       try {
-        await saveDraftPublicIssue({
-          id: updated.id as Id<'publicIssues'>,
+        await saveDraftPublicIssue({ unitOfficerId: user?.id as any, id: updated.id as Id<'publicIssues'>,
           title: updated.title.trim(),
           publicCompletionNote: updated.publicCompletionNote?.trim() || '',
           foVisible: updated.foVisible ?? true,
@@ -194,7 +192,7 @@ export default function PublicModerationScreen() {
   const handleUnpublish = useCallback(
     async (id: string) => {
       try {
-        await unpublishPublicIssue({ id: id as Id<'publicIssues'> });
+        await unpublishPublicIssue({ unitOfficerId: user?.id as any, id: id as Id<'publicIssues'> });
 
         showToast('Issue moved back to drafts');
       } catch (error) {

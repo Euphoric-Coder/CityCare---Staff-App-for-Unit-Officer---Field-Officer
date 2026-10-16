@@ -93,6 +93,7 @@ import { useUser } from 'context/UserContext';
 import { Id } from 'convex/_generated/dataModel';
 import { buildDuplicateGroupsFromIssues, getDuplicateFlagsByIssueId } from 'lib/duplicateDetection';
 import TrendAnalyserPanel from 'components/UnitOfficer/TrendAnalyserPanel';
+import { RestrictedOfficerDashboard, OfficerApprovalLoading } from 'components/OfficerAccess/RestrictedOfficerDashboard';
 
 interface UnitOfficerDashboardProps {
   user: User;
@@ -1828,6 +1829,8 @@ export default function UnitOfficerDashboard() {
     // @ts-ignore
     user?.id ? { userId: user.id } : 'skip'
   );
+  
+  const isApproved = unitOfficer?.accountApproved === true;
 
   // Fetch Unit Officer Notifications
   const notifications = useQuery(
@@ -1875,12 +1878,12 @@ export default function UnitOfficerDashboard() {
   const rawIssues = useQuery(
     api.unitOfficers.getUnitOfficerIssues,
     // @ts-ignore
-    user?.id ? { userId: user.id } : 'skip'
+    user?.id && isApproved ? { userId: user.id } : 'skip'
   );
 
   const trendAnalytics = useQuery(
     api.issueAnalytics.getUnitOfficerTrendAnalytics,
-    user?.id
+    user?.id && isApproved
       ? {
           userId: user.id as Id<'users'>,
           days: trendRange === 'all' ? 0 : trendRange,
@@ -2039,6 +2042,45 @@ export default function UnitOfficerDashboard() {
         <Text className="mt-3 text-sm font-medium text-slate-400">
           Loading Unit Officer Dashboard...
         </Text>
+      </View>
+    );
+  }
+
+  if (unitOfficer === undefined) {
+    return <OfficerApprovalLoading />;
+  }
+
+  if (unitOfficer.accountApproved === false) {
+    return (
+      <View style={{ flex: 1 }}>
+        <RestrictedOfficerDashboard
+          officerName={unitOfficer.fullName || user?.name || "Unit Officer"}
+          city={unitOfficer.city}
+          department={CATEGORY_LABEL_MAP[unitOfficer.department as keyof typeof CATEGORY_LABEL_MAP] || unitOfficer.department}
+          role="unit_officer"
+          unreadNotificationCount={unreadNotifCount || 0}
+          onNotificationPress={() => setShowNotifications(true)}
+          onMessagesPress={() => navigation.navigate("Messages")}
+        />
+        <Modal
+          visible={showNotifications}
+          animationType="slide"
+          transparent={true}
+          onRequestClose={() => setShowNotifications(false)}>
+          <NotificationPanel
+            visible={showNotifications}
+            onClose={() => setShowNotifications(false)}
+            // @ts-ignore
+            notification={notifications || []}
+            handleMarkAllAsRead={() => {
+              if (user?.id) {
+                markAll({ userId: user.id });
+              }
+            }}
+            handleDelete={(id) => deleteNotification({ notificationId: id })}
+            role="UnitOfficer"
+          />
+        </Modal>
       </View>
     );
   }

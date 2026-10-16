@@ -5,7 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   RefreshControl,
-  ActivityIndicator,
+  ActivityIndicator, Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -20,6 +20,7 @@ import { api } from 'convex/_generated/api';
 import { useUser } from 'context/UserContext';
 import { mapIssueToUI } from 'lib/issueMapper';
 import { Id } from 'convex/_generated/dataModel';
+import { RestrictedOfficerDashboard, OfficerApprovalLoading } from 'components/OfficerAccess/RestrictedOfficerDashboard';
 
 const FILTERS = ['all', 'assigned', 'in_progress', 'pending_uo_verification', 'rework_required'];
 
@@ -32,14 +33,16 @@ export default function FieldDashboardScreen() {
 
   const fieldOfficer = useQuery(
     api.fieldOfficers.getFieldOfficerByUserId,
-    // @ts-ignore
+    
     user?.id ? { userId: user.id } : 'skip'
   );
+  
+  const isApproved = fieldOfficer?.accountApproved === true;
 
   const rawIssues = useQuery(
     api.fieldOfficers.getFieldOfficerIssues,
-    // @ts-ignore
-    user?.id ? { userId: user.id } : 'skip'
+    
+    user?.id && isApproved ? { userId: user.id } : 'skip'
   );
 
   // Fetch Field Officer Notifications
@@ -133,13 +136,46 @@ export default function FieldDashboardScreen() {
   const handleIssuePress = (issueId: string) => {
     if (!issueId) {
       // This should never happen since the card is only rendered for valid issues, but just in case
-      // @ts-ignore
+      
       Alert.alert('Error', 'Invalid issue data');
       return;
     }
     // @ts-expect-error - navigation params
     navigation.navigate('FieldIssueDetail' as never, { issueId } as never);
   };
+
+  if (fieldOfficer === undefined) {
+    return <OfficerApprovalLoading />;
+  }
+
+  if (fieldOfficer.accountApproved === false) {
+    return (
+      <View style={{ flex: 1 }}>
+        <RestrictedOfficerDashboard
+          officerName={fieldOfficer.fullName || user?.name || 'Field Officer'}
+          city={fieldOfficer.city}
+          department={fieldOfficer.department || 'Field Officer'}
+          role="field_officer"
+          unreadNotificationCount={realStats.unread_notifs || 0}
+          onNotificationPress={() => setShowNotifications(true)}
+          
+          onMessagesPress={() => navigation.navigate('Messages')}
+        />
+        <Modal
+          visible={showNotifications}
+          animationType="slide"
+          transparent={true}
+          onRequestClose={() => setShowNotifications(false)}>
+          <NotificationPanel
+            notification={notifications || []}
+            onClose={() => setShowNotifications(false)}
+            onMarkAllAsRead={handleMarkAllAsRead}
+            onDelete={handleDelete}
+          />
+        </Modal>
+      </View>
+    );
+  }
 
   if (!rawIssues && !notifications) {
     return (
@@ -201,7 +237,6 @@ export default function FieldDashboardScreen() {
             filteredIssues.map((issue) => (
               <FieldIssueCard
                 key={issue?.id}
-                // @ts-ignore - Passing issue as is
                 issue={issue}
                 onPress={() => handleIssuePress(issue?.id)}
               />
@@ -228,8 +263,8 @@ export default function FieldDashboardScreen() {
         <NotificationPanel
           visible={showNotifications}
           onClose={() => setShowNotifications(false)}
-          // @ts-ignore
-          notification={notifications}
+          
+          notification={notifications || []}
           handleMarkAllAsRead={handleMarkAllAsRead}
           handleDelete={handleDelete}
           role="FieldOfficer"

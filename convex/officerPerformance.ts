@@ -1,3 +1,4 @@
+import { requireApprovedUnitOfficer, requireApprovedFieldOfficer } from './officerAuth';
 import { v } from 'convex/values';
 import { query } from './_generated/server';
 import { Id } from './_generated/dataModel';
@@ -902,6 +903,7 @@ export const getFieldOfficerPerformanceByUserId = query({
     range: rangeValidation,
   },
   handler: async (ctx, args) => {
+    await requireApprovedFieldOfficer(ctx, args.userId);
     const fieldOfficer = await ctx.db
       .query('fieldOfficers')
       .withIndex('by_user', (q) => q.eq('userId', args.userId))
@@ -969,6 +971,7 @@ export const getUnitOfficerProfilePerformance = query({
     range: rangeValidation,
   },
   handler: async (ctx, args) => {
+    await requireApprovedUnitOfficer(ctx, args.userId);
     const unitOfficer = await ctx.db
       .query('unitOfficers')
       .withIndex('by_user', (q) => q.eq('userId', args.userId))
@@ -1060,6 +1063,7 @@ export const getUnitOfficerTeamAnalytics = query({
     range: rangeValidation,
   },
   handler: async (ctx, args) => {
+    await requireApprovedUnitOfficer(ctx, args.userId);
     const unitOfficer = await ctx.db
       .query('unitOfficers')
       .withIndex('by_user', (q) => q.eq('userId', args.userId))

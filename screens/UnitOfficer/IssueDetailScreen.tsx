@@ -462,7 +462,13 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
   );
 
   // @ts-ignore
-  const issue = useQuery(api.unitOfficers.getIssueById, { issueId });
+  const unitOfficer = useQuery(
+    api.unitOfficers.getUnitOfficerByUserId,
+    // @ts-ignore
+    user?.id ? { userId: user.id } : 'skip'
+  );
+  
+  const issue = useQuery(api.unitOfficers.getIssueById, { userId: user?.id as any, issueId });
 
   const duplicatePool = useMemo(() => {
     if (!rawIssues || !issue) return [];

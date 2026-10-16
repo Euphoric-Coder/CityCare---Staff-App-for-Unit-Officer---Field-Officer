@@ -1,3 +1,4 @@
+import { requireApprovedFieldOfficer } from './officerAuth';
 import { v } from 'convex/values';
 import { mutation, query } from './_generated/server';
 import { Id } from './_generated/dataModel';
@@ -55,6 +56,7 @@ export const getFieldOfficerIssues = query({
   args: { userId: v.id('users') },
 
   handler: async (ctx, args) => {
+    await requireApprovedFieldOfficer(ctx, args.userId);
     // 1. Get Unit Officer
     const officer = await ctx.db
       .query('fieldOfficers')
@@ -116,10 +118,12 @@ export const getFieldOfficerIssues = query({
 
 export const getIssueById = query({
   args: {
+    userId: v.id('users'),
     issueId: v.id('issues'),
   },
 
   handler: async (ctx, args) => {
+    await requireApprovedFieldOfficer(ctx, args.userId);
     const issue = await ctx.db.get(args.issueId);
 
     if (!issue) return null;
@@ -213,6 +217,7 @@ export const startWork = mutation({
   },
 
   handler: async (ctx, args) => {
+    await requireApprovedFieldOfficer(ctx, args.userId);
     const issue = await ctx.db.get(args.issueId);
     if (!issue) throw new Error('Issue not found');
 
@@ -293,6 +298,7 @@ export const startWork = mutation({
 
 export const submitFieldOfficerWork = mutation({
   args: {
+    userId: v.id('users'),
     issueId: v.id('issues'),
 
     beforePhotos: v.optional(v.array(v.id('_storage'))),
@@ -318,6 +324,7 @@ export const submitFieldOfficerWork = mutation({
   },
 
   handler: async (ctx, args) => {
+    await requireApprovedFieldOfficer(ctx, args.userId);
     const issue = await ctx.db.get(args.issueId);
     if (!issue) throw new Error('Issue not found');
 

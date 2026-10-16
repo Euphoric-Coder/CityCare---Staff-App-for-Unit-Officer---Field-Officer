@@ -1,3 +1,4 @@
+import { requireApprovedUnitOfficer } from './officerAuth';
 import { v } from 'convex/values';
 import { mutation, query } from './_generated/server';
 import { Id } from './_generated/dataModel';
@@ -56,6 +57,7 @@ export const getUnitOfficerIssues = query({
   args: { userId: v.id('users') },
 
   handler: async (ctx, args) => {
+    await requireApprovedUnitOfficer(ctx, args.userId);
     // 1. Get Unit Officer
     const officer = await ctx.db
       .query('unitOfficers')
@@ -131,10 +133,12 @@ export const getUnitOfficerIssues = query({
 
 export const getIssueById = query({
   args: {
+    userId: v.id('users'),
     issueId: v.id('issues'),
   },
 
   handler: async (ctx, args) => {
+    await requireApprovedUnitOfficer(ctx, args.userId);
     const issue = await ctx.db.get(args.issueId);
 
     if (!issue) return null;
@@ -258,6 +262,7 @@ export const verifyIssue = mutation({
   },
 
   handler: async (ctx, args) => {
+    await requireApprovedUnitOfficer(ctx, args.unitOfficerUserId);
     const issue = await ctx.db.get(args.issueId);
     if (!issue) throw new Error('Issue not found');
 
@@ -415,6 +420,7 @@ export const rejectIssue = mutation({
   },
 
   handler: async (ctx, args) => {
+    await requireApprovedUnitOfficer(ctx, args.rejectedBy);
     const issue = await ctx.db.get(args.issueId);
 
     // Fallback for missing issue
@@ -633,6 +639,7 @@ export const getAssignedFieldOfficers = query({
   },
 
   handler: async (ctx, args) => {
+    await requireApprovedUnitOfficer(ctx, args.userId);
     // Find Unit Officer using userId
     const unitOfficer = await ctx.db
       .query('unitOfficers')
@@ -669,6 +676,7 @@ export const assignIssueToFieldOfficer = mutation({
   },
 
   handler: async (ctx, args) => {
+    await requireApprovedUnitOfficer(ctx, args.assignedBy);
     const issue = await ctx.db.get(args.issueId);
     if (!issue) throw new Error('Issue not found');
 
@@ -894,6 +902,7 @@ export const approveIssueResolution = mutation({
   },
 
   handler: async (ctx, args) => {
+    await requireApprovedUnitOfficer(ctx, args.updatedBy);
     const issue = await ctx.db.get(args.issueId);
     if (!issue) throw new Error('Issue not found');
 
@@ -1022,6 +1031,7 @@ export const requestRework = mutation({
   },
 
   handler: async (ctx, args) => {
+    await requireApprovedUnitOfficer(ctx, args.updatedBy);
     const issue = await ctx.db.get(args.issueId);
     if (!issue) throw new Error('Issue not found');
 
@@ -1130,6 +1140,7 @@ export const extendSLADeadline = mutation({
   },
 
   handler: async (ctx, args) => {
+    await requireApprovedUnitOfficer(ctx, args.extendedBy);
     const issue = await ctx.db.get(args.issueId);
 
     // Fallback for null values in issue
@@ -1244,6 +1255,7 @@ export const rejectDuplicateIssues = mutation({
   },
 
   handler: async (ctx, args) => {
+    await requireApprovedUnitOfficer(ctx, args.rejectedBy);
     const now = Date.now();
 
     const rejectionReason = args.reason ?? 'Duplicate issue detected';
@@ -1396,6 +1408,7 @@ export const reopenIssue = mutation({
   },
 
   handler: async (ctx, args) => {
+    await requireApprovedUnitOfficer(ctx, args.userId);
     const issue = await ctx.db.get(args.issueId);
     if (!issue) throw new Error('Issue not found');
 
@@ -1494,6 +1507,7 @@ export const closeIssue = mutation({
     closeReason: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireApprovedUnitOfficer(ctx, args.userId);
     const issue = await ctx.db.get(args.issueId);
     if (!issue) throw new Error('Issue not found');
 

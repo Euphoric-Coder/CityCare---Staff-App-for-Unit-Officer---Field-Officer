@@ -441,7 +441,12 @@ export default defineSchema({
         resolvedAt: v.optional(v.number()),
         resolutionNote: v.optional(v.string()),
         adminReviewStatus: v.optional(
-          v.union(v.literal('pending'), v.literal('reviewed'), v.literal('resolved'))
+          v.union(
+            v.literal('pending'),
+            v.literal('reviewed'),
+            v.literal('resolved'),
+            v.literal('rejected')
+          )
         ),
         escalationCount: v.optional(v.number()),
       })
@@ -490,11 +495,9 @@ export default defineSchema({
 
     resolvedAt: v.union(v.number(), v.null()),
     closedAt: v.union(v.number(), v.null()),
-    closedBy: v.optional(v.union(v.id('users'), v.null())),
 
     citizenRating: v.union(v.number(), v.null()),
     citizenFeedback: v.union(v.string(), v.null()),
-    citizenFeedbackAt: v.optional(v.union(v.number(), v.null())),
 
     reopenCount: v.number(),
     reopenCategory: v.optional(v.string()),
@@ -798,6 +801,13 @@ export default defineSchema({
   })
     .index('by_uploaded_by', ['uploadedBy'])
     .index('by_created_at', ['createdAt']),
+
+  monthlyProvisioningLimits: defineTable({
+    yearMonth: v.string(), // "YYYY-MM"
+    count: v.number(), // count of provisioned officers/admins this month
+    limit: v.number(), // limit (default 1000)
+    lastUpdated: v.number(),
+  }).index('by_year_month', ['yearMonth']),
 
   auditLogs: defineTable({
     performedByUserId: v.optional(v.id('users')),

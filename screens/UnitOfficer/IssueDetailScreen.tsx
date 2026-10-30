@@ -705,7 +705,7 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
 
   const uploadFileToConvex = async (file: FileAttachment) => {
     try {
-      const uploadUrl = await generateUploadUrl();
+      const uploadUrl = await generateUploadUrl({ userId: user?.id as any });
 
       const fileResponse = await fetch(file.uri);
 

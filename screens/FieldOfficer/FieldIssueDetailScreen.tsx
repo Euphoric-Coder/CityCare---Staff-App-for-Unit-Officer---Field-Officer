@@ -502,7 +502,7 @@ export default function FieldIssueDetailScreen() {
 
   const uploadFileToConvex = async (file: FileAttachment) => {
     try {
-      const uploadUrl = await generateUploadUrl();
+      const uploadUrl = await generateUploadUrl({ userId: user?.id as any });
 
       const fileResponse = await fetch(file.uri);
 
@@ -634,7 +634,7 @@ export default function FieldIssueDetailScreen() {
     const blob = await response.blob();
 
     // Get upload URL
-    const uploadUrl = await generateUploadUrl();
+    const uploadUrl = await generateUploadUrl({ userId: user?.id as any });
 
     // Upload to Convex storage
     const result = await fetch(uploadUrl, {

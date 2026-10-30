@@ -220,7 +220,7 @@ export default function ProfileTab({
       const response = await fetch(uri);
       const blob = await response.blob();
       
-      const postUrl = await generateUploadUrl();
+      const postUrl = await generateUploadUrl({ userId: user?.id as any });
       const resultUpload = await fetch(postUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'image/jpeg' },

@@ -1,4 +1,3 @@
-import { useUser } from "../../context/UserContext";
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -236,7 +235,6 @@ export default function WorkExecutionFlow({
 
   const isRework = status === 'rework_required';
 
-  const { user } = useUser();
   const deleteImage = useMutation(api.issuesMedia.deleteMedia);
 
   // Effective data getters (state || previousWork fallback)
@@ -410,14 +408,12 @@ export default function WorkExecutionFlow({
         if (isBeforeReplaced && previousWork?.beforePhotos?.[0]) {
           await deleteImage({
             storageId: previousWork.beforePhotosId[0] as Id<'_storage'>,
-            userId: user?.id as any,
           });
         }
 
         if (isAfterReplaced && previousWork?.afterPhotos?.[0]) {
           await deleteImage({
             storageId: previousWork.afterPhotosId[0] as Id<'_storage'>,
-            userId: user?.id as any,
           });
         }
       }

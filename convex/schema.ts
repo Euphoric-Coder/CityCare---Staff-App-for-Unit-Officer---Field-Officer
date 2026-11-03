@@ -865,4 +865,31 @@ export default defineSchema({
     .index('by_city_timestamp', ['city', 'timestamp'])
     .index('by_category', ['actionCategory'])
     .index('by_timestamp', ['timestamp']),
+
+  sessions: defineTable({
+    userId: v.id('users'),
+    role: v.string(),
+    tokenHash: v.string(),
+    createdAt: v.number(),
+    expiresAt: v.number(),
+    lastActiveAt: v.optional(v.number()),
+    revokedAt: v.optional(v.number()),
+  })
+    .index('by_user', ['userId'])
+    .index('by_token_hash', ['tokenHash'])
+    .index('by_expires', ['expiresAt']),
+
+  mediaAttachments: defineTable({
+    storageId: v.id('_storage'),
+    uploadedBy: v.id('users'),
+    issueId: v.optional(v.id('issues')),
+    mimeType: v.string(),
+    size: v.number(),
+    status: v.string(),
+    createdAt: v.number(),
+    attachedAt: v.optional(v.number()),
+  })
+    .index('by_storage', ['storageId'])
+    .index('by_user', ['uploadedBy'])
+    .index('by_issue', ['issueId']),
 });

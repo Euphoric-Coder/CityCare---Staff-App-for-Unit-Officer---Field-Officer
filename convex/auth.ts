@@ -3,7 +3,8 @@
 import { action } from './_generated/server';
 import { v } from 'convex/values';
 import bcrypt from 'bcryptjs';
-import { api } from './_generated/api';
+import crypto from 'crypto';
+import { api, internal } from './_generated/api';
 
 // @ts-ignore
 export const verifyUser = action({
@@ -56,11 +57,25 @@ export const verifyUser = action({
       mustChangePassword = officer?.mustChangePassword ?? true;
     }
 
+    // Generate 256-bit cryptographically secure session token
+    const tokenBytes = crypto.randomBytes(32).toString('hex');
+    const sessionToken = 'citycare_sec_' + tokenBytes;
+
+    const secret = process.env.SESSION_SECRET || process.env.NEXTAUTH_SECRET || 'citycare-session-token-secret-v1';
+    const tokenHash = crypto.createHmac('sha256', secret).update(sessionToken).digest('hex');
+    const expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000; // 30 days
+
+    await ctx.runMutation((internal as any).authInternal.createSessionRecord, {
+      userId: user._id,
+      role: user.role,
+      tokenHash,
+      expiresAt,
+    });
+
     return {
       success: true,
-
-      token: 'token-' + user._id,
-
+      token: sessionToken,
+      sessionToken: sessionToken,
       user: {
         id: user._id,
         name: user.fullName,

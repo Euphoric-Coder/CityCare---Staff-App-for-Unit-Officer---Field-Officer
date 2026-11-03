@@ -1,4 +1,4 @@
-import { requireApprovedUnitOfficer } from './officerAuth';
+import { requireApprovedUnitOfficer, assertIdentityMatch, assertCityScope } from './lib/authorization';
 import { v } from 'convex/values';
 import { mutation, query } from './_generated/server';
 import { Id } from './_generated/dataModel';
@@ -31,8 +31,11 @@ export const updateUnitOfficerProfilePicture = mutation({
   args: {
     userId: v.id('users'),
     profilePicture: v.optional(v.id('_storage')),
+    sessionToken: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const auth = await requireApprovedUnitOfficer(ctx, args.sessionToken);
+    assertIdentityMatch(auth.userId, args.userId);
     const officer = await ctx.db
       .query('unitOfficers')
       .withIndex('by_user', (q) => q.eq('userId', args.userId))
@@ -259,12 +262,17 @@ export const verifyIssue = mutation({
     issueName: v.string(),
 
     reporterId: v.id('users'),
+    sessionToken: v.optional(v.string()),
+    unitOfficerUserId: v.optional(v.id('users')),
   },
 
   handler: async (ctx, args) => {
-    await requireApprovedUnitOfficer(ctx, args.unitOfficerUserId);
+    const auth = await requireApprovedUnitOfficer(ctx, args.sessionToken);
+    if (args.verifiedBy) assertIdentityMatch(auth.userId, args.verifiedBy);
+    if (args.unitOfficerUserId) assertIdentityMatch(auth.userId, args.unitOfficerUserId);
     const issue = await ctx.db.get(args.issueId);
     if (!issue) throw new Error('Issue not found');
+    assertCityScope(auth.profile, issue.city);
 
     // Update Issue Status
     await ctx.db.patch(args.issueId, {
@@ -417,11 +425,14 @@ export const rejectIssue = mutation({
     issueName: v.string(),
     reporterId: v.id('users'),
     isSlaRejection: v.optional(v.boolean()),
+    sessionToken: v.optional(v.string()),
   },
 
   handler: async (ctx, args) => {
-    await requireApprovedUnitOfficer(ctx, args.rejectedBy);
+    const auth = await requireApprovedUnitOfficer(ctx, args.sessionToken);
+    if (args.rejectedBy) assertIdentityMatch(auth.userId, args.rejectedBy);
     const issue = await ctx.db.get(args.issueId);
+    if (issue) assertCityScope(auth.profile, issue.city);
 
     // Fallback for missing issue
     if (!issue) {
@@ -673,11 +684,14 @@ export const assignIssueToFieldOfficer = mutation({
     reassignmentComment: v.optional(v.string()),
     newSLADeadline: v.optional(v.number()),
     isSlaReassign: v.optional(v.boolean()),
+    sessionToken: v.optional(v.string()),
   },
 
   handler: async (ctx, args) => {
-    await requireApprovedUnitOfficer(ctx, args.assignedBy);
+    const auth = await requireApprovedUnitOfficer(ctx, args.sessionToken);
+    if (args.assignedBy) assertIdentityMatch(auth.userId, args.assignedBy);
     const issue = await ctx.db.get(args.issueId);
+    if (issue) assertCityScope(auth.profile, issue.city);
     if (!issue) throw new Error('Issue not found');
 
     const fieldOfficer = await ctx.db.get(args.fieldOfficerId);
@@ -899,11 +913,14 @@ export const approveIssueResolution = mutation({
     issueId: v.id('issues'),
     updatedBy: v.id('users'),
     unitOfficerName: v.string(),
+    sessionToken: v.optional(v.string()),
   },
 
   handler: async (ctx, args) => {
-    await requireApprovedUnitOfficer(ctx, args.updatedBy);
+    const auth = await requireApprovedUnitOfficer(ctx, args.sessionToken);
+    if (args.updatedBy) assertIdentityMatch(auth.userId, args.updatedBy);
     const issue = await ctx.db.get(args.issueId);
+    if (issue) assertCityScope(auth.profile, issue.city);
     if (!issue) throw new Error('Issue not found');
 
     const now = Date.now();
@@ -1028,11 +1045,14 @@ export const requestRework = mutation({
     unitOfficerName: v.string(),
     note: v.string(),
     reasons: v.optional(v.array(v.string())),
+    sessionToken: v.optional(v.string()),
   },
 
   handler: async (ctx, args) => {
-    await requireApprovedUnitOfficer(ctx, args.updatedBy);
+    const auth = await requireApprovedUnitOfficer(ctx, args.sessionToken);
+    if (args.updatedBy) assertIdentityMatch(auth.userId, args.updatedBy);
     const issue = await ctx.db.get(args.issueId);
+    if (issue) assertCityScope(auth.profile, issue.city);
     if (!issue) throw new Error('Issue not found');
 
     const now = Date.now();

@@ -326,7 +326,7 @@ export default function FieldProfileTab({ user, profile, onLogout }: FieldProfil
       const response = await fetch(uri);
       const blob = await response.blob();
       
-      const postUrl = await generateUploadUrl();
+      const postUrl = await generateUploadUrl({ userId: user?.id as any, sessionToken: user?.sessionToken });
       const resultUpload = await fetch(postUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'image/jpeg' },

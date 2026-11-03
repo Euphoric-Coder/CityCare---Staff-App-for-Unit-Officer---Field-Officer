@@ -91,36 +91,7 @@ export const changeOfficerPassword = action({
   },
 });
 
-export async function requireApprovedUnitOfficer(ctx: any, userId: any) {
-  const officer = await ctx.db
-    .query('unitOfficers')
-    .withIndex('by_user', (q: any) => q.eq('userId', userId))
-    .unique();
-
-  if (!officer) {
-    throw new Error('Unit officer profile not found');
-  }
-
-  if (officer.accountApproved !== true) {
-    throw new Error('ACCOUNT_NOT_APPROVED');
-  }
-
-  return officer;
-}
-
-export async function requireApprovedFieldOfficer(ctx: any, userId: any) {
-  const officer = await ctx.db
-    .query('fieldOfficers')
-    .withIndex('by_user', (q: any) => q.eq('userId', userId))
-    .unique();
-
-  if (!officer) {
-    throw new Error('Field officer profile not found');
-  }
-
-  if (officer.accountApproved !== true) {
-    throw new Error('ACCOUNT_NOT_APPROVED');
-  }
-
-  return officer;
-}
+export {
+  requireApprovedUnitOfficer,
+  requireApprovedFieldOfficer,
+} from "./lib/authorization";

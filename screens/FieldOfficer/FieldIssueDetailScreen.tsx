@@ -502,7 +502,7 @@ export default function FieldIssueDetailScreen() {
 
   const uploadFileToConvex = async (file: FileAttachment) => {
     try {
-      const uploadUrl = await generateUploadUrl();
+      const uploadUrl = await generateUploadUrl({ userId: user?.id as any, sessionToken: user?.sessionToken });
 
       const fileResponse = await fetch(file.uri);
 
@@ -555,6 +555,7 @@ export default function FieldIssueDetailScreen() {
       await startWorkMutation({
         issueId: issue.id as Id<'issues'>,
         userId: user.id as Id<'users'>,
+        sessionToken: user.sessionToken,
       });
       setShowStartWorkConfirm(false);
     } catch (error) {
@@ -634,7 +635,7 @@ export default function FieldIssueDetailScreen() {
     const blob = await response.blob();
 
     // Get upload URL
-    const uploadUrl = await generateUploadUrl();
+    const uploadUrl = await generateUploadUrl({ userId: user?.id as any, sessionToken: user?.sessionToken });
 
     // Upload to Convex storage
     const result = await fetch(uploadUrl, {
@@ -695,12 +696,14 @@ export default function FieldIssueDetailScreen() {
 
       await submitFieldOfficerWork({
         issueId: issue.id,
+        userId: user?.id as Id<'users'>,
         beforePhotos: beforePhotoId ? [beforePhotoId] : [],
         afterPhotos: afterPhotoId ? [afterPhotoId] : [],
         beforeLocation: data.beforeLocation || undefined,
         afterLocation: data.afterLocation || undefined,
         notes: data.notes,
         fieldOfficerId: user?.id as Id<'users'>,
+        sessionToken: user?.sessionToken,
       });
 
       // Safe Close for iOS devices
@@ -2468,6 +2471,7 @@ export default function FieldIssueDetailScreen() {
         onRequestClose={() => setShowWorkFlow(false)}>
         <WorkExecutionFlow
           issueId={issue.id}
+          user={user}
           previousWork={{
             afterPhotos: issue.afterPhotos,
             afterPhotosId: issue.afterPhotosId,

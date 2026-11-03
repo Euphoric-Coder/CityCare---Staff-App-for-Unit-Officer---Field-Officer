@@ -705,7 +705,7 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
 
   const uploadFileToConvex = async (file: FileAttachment) => {
     try {
-      const uploadUrl = await generateUploadUrl();
+      const uploadUrl = await generateUploadUrl({ userId: user?.id as any, sessionToken: user?.sessionToken });
 
       const fileResponse = await fetch(file.uri);
 
@@ -764,6 +764,7 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
         verifiedBy: user.id as Id<'users'>,
         issueName: issue.title,
         reporterId: issue.reportedBy as Id<'users'>,
+        sessionToken: user.sessionToken,
       });
 
       setStatusDialog({
@@ -808,6 +809,7 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
         rejectedBy: user.id as Id<'users'>,
         issueName: issue.title,
         reporterId: issue.reportedBy as Id<'users'>,
+        sessionToken: user.sessionToken,
       });
 
       // Delay alert to next frame for iOS

@@ -220,7 +220,7 @@ export default function ProfileTab({
       const response = await fetch(uri);
       const blob = await response.blob();
       
-      const postUrl = await generateUploadUrl();
+      const postUrl = await generateUploadUrl({ userId: user?.id as any, sessionToken: user?.sessionToken });
       const resultUpload = await fetch(postUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'image/jpeg' },
@@ -236,6 +236,7 @@ export default function ProfileTab({
       await updateProfilePicture({
         userId: user.id as Id<'users'>,
         profilePicture: storageId,
+        sessionToken: user?.sessionToken,
       });
       
       Alert.alert('Success', 'Profile picture updated successfully!');

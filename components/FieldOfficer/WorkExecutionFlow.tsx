@@ -79,7 +79,6 @@ interface Coords {
 
 interface WorkExecutionFlowProps {
   issueId: string;
-  user?: any;
   previousWork: {
     beforePhotos: string[];
     beforePhotosId: string[];
@@ -217,7 +216,6 @@ function ChecklistItem({ done, label }: { done: boolean; label: string }) {
 
 export default function WorkExecutionFlow({
   issueId,
-  user,
   previousWork,
   status,
   onClose,
@@ -410,16 +408,12 @@ export default function WorkExecutionFlow({
         if (isBeforeReplaced && previousWork?.beforePhotos?.[0]) {
           await deleteImage({
             storageId: previousWork.beforePhotosId[0] as Id<'_storage'>,
-            userId: user?.id as any,
-            sessionToken: user?.sessionToken,
           });
         }
 
         if (isAfterReplaced && previousWork?.afterPhotos?.[0]) {
           await deleteImage({
             storageId: previousWork.afterPhotosId[0] as Id<'_storage'>,
-            userId: user?.id as any,
-            sessionToken: user?.sessionToken,
           });
         }
       }

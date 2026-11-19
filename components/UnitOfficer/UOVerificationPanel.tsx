@@ -550,7 +550,6 @@ export default function UOVerificationPanel({
         issueId: issue?.id as Id<'issues'>,
         updatedBy: user?.id as Id<'users'>,
         unitOfficerName: user?.name,
-        sessionToken: user?.sessionToken,
       });
 
       setShowVerifyModal(false);

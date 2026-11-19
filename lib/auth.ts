@@ -12,7 +12,6 @@ export type User = {
   role: OfficerRole;
   mustChangePassword: boolean;
   officerProfileId?: string;
-  sessionToken?: string;
 };
 
 /**
@@ -42,8 +41,6 @@ export const normalizeAuthenticatedUser = (result: any): User => {
     throw new Error('The sign-in response did not contain a valid officer account.');
   }
 
-  const sessionToken = source?.sessionToken ?? result?.sessionToken ?? result?.token ?? undefined;
-
   return {
     id,
     name: typeof rawName === 'string' ? rawName : 'Officer',
@@ -51,7 +48,6 @@ export const normalizeAuthenticatedUser = (result: any): User => {
     role: normalizedRole,
     mustChangePassword: source?.mustChangePassword === true,
     officerProfileId: source?.officerProfileId ?? result?.officerProfileId,
-    sessionToken: typeof sessionToken === 'string' ? sessionToken : undefined,
   };
 };
 
@@ -159,7 +155,6 @@ export async function getUserData(): Promise<User | null> {
       role,
       mustChangePassword: parsed.mustChangePassword === true,
       officerProfileId: parsed.officerProfileId,
-      sessionToken: parsed.sessionToken,
     };
 
     return normalized;

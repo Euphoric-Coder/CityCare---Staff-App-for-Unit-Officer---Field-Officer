@@ -1,5 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, useColorScheme, Modal, TouchableWithoutFeedback } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  useColorScheme,
+  Modal,
+  TouchableWithoutFeedback,
+} from 'react-native';
 import {
   Layers,
   ClipboardList,
@@ -7,7 +14,7 @@ import {
   ShieldCheck,
   Wrench,
   ChevronDown,
-  X
+  X,
 } from 'lucide-react-native';
 
 interface SimpleFilterBarProps {
@@ -23,10 +30,6 @@ const FILTER_META: Record<
     icon: any;
     label: string;
     dot: string;
-    activeBg: string;
-    activeDark: string;
-    activeText: string;
-    activeDarkText: string;
     shadowColor: string;
   }
 > = {
@@ -34,50 +37,30 @@ const FILTER_META: Record<
     icon: Layers,
     label: 'All Tasks',
     dot: '#3B82F6',
-    activeBg: 'bg-blue-50 border-blue-200/60',
-    activeDark: 'dark:bg-blue-900/40 dark:border-blue-800/60',
-    activeText: 'text-blue-700',
-    activeDarkText: 'dark:text-blue-300',
     shadowColor: '#3B82F6',
   },
   assigned: {
     icon: ClipboardList,
     label: 'Assigned',
     dot: '#0D9488',
-    activeBg: 'bg-teal-50 border-teal-200/60',
-    activeDark: 'dark:bg-teal-900/40 dark:border-teal-800/60',
-    activeText: 'text-teal-700',
-    activeDarkText: 'dark:text-teal-300',
     shadowColor: '#0D9488',
   },
   in_progress: {
     icon: Activity,
     label: 'In Progress',
     dot: '#F59E0B',
-    activeBg: 'bg-amber-50 border-amber-200/60',
-    activeDark: 'dark:bg-amber-900/40 dark:border-amber-800/60',
-    activeText: 'text-amber-700',
-    activeDarkText: 'dark:text-amber-300',
     shadowColor: '#F59E0B',
   },
   pending_uo_verification: {
     icon: ShieldCheck,
     label: 'Verification',
     dot: '#6366F1',
-    activeBg: 'bg-indigo-50 border-indigo-200/60',
-    activeDark: 'dark:bg-indigo-900/40 dark:border-indigo-800/60',
-    activeText: 'text-indigo-700',
-    activeDarkText: 'dark:text-indigo-300',
     shadowColor: '#6366F1',
   },
   rework_required: {
     icon: Wrench,
     label: 'Rework',
     dot: '#DC2626',
-    activeBg: 'bg-red-50 border-red-200/60',
-    activeDark: 'dark:bg-red-900/40 dark:border-red-800/60',
-    activeText: 'text-red-700',
-    activeDarkText: 'dark:text-red-300',
     shadowColor: '#DC2626',
   },
 };
@@ -105,9 +88,9 @@ export default function SimpleFilterBar({
   };
 
   return (
-    <View className="z-50 border-b border-slate-100 bg-white/95 px-4 py-4 dark:border-slate-800/50 dark:bg-[#0B1120]">
-      <View className="mb-2.5 px-1">
-        <Text className="text-[11px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
+    <View className="z-50 px-4 pt-3 pb-2 bg-transparent">
+      <View className="mb-2 px-1">
+        <Text className="text-[11px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-400">
           Filter Tasks By Status
         </Text>
       </View>
@@ -119,44 +102,60 @@ export default function SimpleFilterBar({
             {
               shadowColor: activeMeta.shadowColor,
               shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: isDark ? 0.3 : 0.15,
+              shadowOpacity: isDark ? 0.2 : 0.08,
               shadowRadius: 8,
-              elevation: 4,
-            }
+              elevation: 3,
+              backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
+              borderColor: isDark
+                ? selectedFilter === 'all'
+                  ? '#334155'
+                  : activeMeta.dot + '60'
+                : selectedFilter === 'all'
+                  ? '#E2E8F0'
+                  : activeMeta.dot + '50',
+            },
           ]}
-          className={`flex-1 flex-row items-center justify-between rounded-2xl border px-4 py-3.5 transition-all ${activeMeta.activeBg} ${activeMeta.activeDark}`}
-        >
+          className="flex-1 flex-row items-center justify-between rounded-2xl border px-3.5 py-3 transition-all">
           <View className="flex-row items-center gap-3">
-            <ActiveIcon 
-              size={18} 
-              strokeWidth={3} 
-              color={activeMeta.dot} 
-            />
-            <Text
-              className={`text-[15px] font-black tracking-wide ${activeMeta.activeText} ${activeMeta.activeDarkText}`}>
+            <View
+              style={{
+                backgroundColor: activeMeta.dot + (isDark ? '25' : '15'),
+                borderColor: activeMeta.dot + (isDark ? '45' : '30'),
+                borderWidth: 1,
+              }}
+              className="h-8 w-8 items-center justify-center rounded-xl">
+              <ActiveIcon size={16} strokeWidth={2.5} color={activeMeta.dot} />
+            </View>
+            <Text className="text-[15px] font-extrabold tracking-tight text-slate-800 dark:text-slate-100">
               {activeMeta.label}
             </Text>
             {activeCount !== undefined && activeCount > 0 && (
               <View
-                className="ml-1 items-center justify-center rounded-full h-[22px] min-w-[22px] px-1.5"
-                style={{ backgroundColor: activeMeta.dot + (isDark ? '40' : '25') }}>
+                className="ml-1.5 h-[22px] min-w-[22px] items-center justify-center rounded-full px-2"
+                style={{
+                  backgroundColor: activeMeta.dot + (isDark ? '25' : '15'),
+                  borderWidth: 1,
+                  borderColor: activeMeta.dot + (isDark ? '45' : '30'),
+                }}>
                 <Text
-                  className={`text-[11px] font-black ${activeMeta.activeText} ${activeMeta.activeDarkText}`}>
+                  style={{ color: activeMeta.dot }}
+                  className="text-[11px] font-black">
                   {activeCount}
                 </Text>
               </View>
             )}
           </View>
-          <ChevronDown size={20} strokeWidth={2.5} color={activeMeta.dot} />
+          <View className="h-7 w-7 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-700/60">
+            <ChevronDown size={16} strokeWidth={2.5} color={isDark ? '#94A3B8' : '#64748B'} />
+          </View>
         </TouchableOpacity>
 
         {selectedFilter !== 'all' && (
           <TouchableOpacity
             onPress={handleReset}
             activeOpacity={0.7}
-            className="ml-3 h-[52px] w-[52px] items-center justify-center rounded-2xl border border-slate-200/80 bg-slate-50 shadow-sm dark:border-slate-700/60 dark:bg-slate-800/50"
-          >
-            <X size={20} strokeWidth={2.5} color={isDark ? '#9CA3AF' : '#64748B'} />
+            className="ml-2.5 h-[50px] w-[50px] items-center justify-center rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700/80 dark:bg-slate-800/90">
+            <X size={18} strokeWidth={2.5} color={isDark ? '#CBD5E1' : '#64748B'} />
           </TouchableOpacity>
         )}
       </View>
@@ -165,21 +164,29 @@ export default function SimpleFilterBar({
         visible={isOpen}
         transparent
         animationType="fade"
-        onRequestClose={() => setIsOpen(false)}
-      >
-        <TouchableOpacity 
-          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', padding: 20 }}
+        onRequestClose={() => setIsOpen(false)}>
+        <TouchableOpacity
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.65)',
+            justifyContent: 'center',
+            padding: 20,
+          }}
           activeOpacity={1}
-          onPress={() => setIsOpen(false)}
-        >
+          onPress={() => setIsOpen(false)}>
           <TouchableWithoutFeedback>
-            <View className="w-full rounded-[28px] border border-slate-100 bg-white p-2 shadow-2xl dark:border-slate-800 dark:bg-slate-900">
-              <View className="px-4 py-3 mb-1 border-b border-slate-100/60 dark:border-slate-800/60">
-                 <Text className="text-[12px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
-                   Filter by Status
-                 </Text>
+            <View className="w-full rounded-[28px] border border-slate-200 bg-white p-3 shadow-2xl dark:border-slate-800 dark:bg-slate-900">
+              <View className="mb-2 flex-row items-center justify-between border-b border-slate-100 px-3 py-2.5 dark:border-slate-800">
+                <Text className="text-[12px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-400">
+                  Filter Tasks by Status
+                </Text>
+                <TouchableOpacity
+                  onPress={() => setIsOpen(false)}
+                  className="h-7 w-7 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800">
+                  <X size={14} strokeWidth={2.5} color={isDark ? '#94A3B8' : '#64748B'} />
+                </TouchableOpacity>
               </View>
-              
+
               {filters.map((filter) => {
                 const isSelected = selectedFilter === filter;
                 const meta = FILTER_META[filter] ?? FILTER_META.all;
@@ -191,41 +198,78 @@ export default function SimpleFilterBar({
                     key={filter}
                     onPress={() => handleSelect(filter)}
                     activeOpacity={0.7}
-                    className={`mb-1 flex-row items-center justify-between rounded-[20px] px-4 py-4 ${
-                      isSelected ? `${meta.activeBg} ${meta.activeDark}` : 'bg-transparent'
-                    }`}
-                  >
-                    <View className="flex-row items-center gap-3.5">
-                      <Icon 
-                        size={18} 
-                        strokeWidth={isSelected ? 3 : 2.5} 
-                        color={isSelected ? meta.dot : (isDark ? '#94A3B8' : '#64748B')} 
-                      />
+                    style={
+                      isSelected
+                        ? {
+                            backgroundColor: isDark
+                              ? 'rgba(30, 41, 59, 0.95)'
+                              : 'rgba(241, 245, 249, 0.95)',
+                            borderColor: isDark ? meta.dot + '60' : meta.dot + '50',
+                            borderWidth: 1.5,
+                          }
+                        : {
+                            backgroundColor: 'transparent',
+                            borderColor: 'transparent',
+                            borderWidth: 1.5,
+                          }
+                    }
+                    className="mb-1.5 flex-row items-center justify-between rounded-2xl px-3.5 py-3.5">
+                    <View className="flex-row items-center gap-3">
+                      <View
+                        style={{
+                          backgroundColor: meta.dot + (isDark ? '25' : '15'),
+                          borderColor: isSelected ? meta.dot : meta.dot + '30',
+                          borderWidth: 1,
+                        }}
+                        className="h-8 w-8 items-center justify-center rounded-xl">
+                        <Icon
+                          size={16}
+                          strokeWidth={isSelected ? 2.8 : 2.2}
+                          color={meta.dot}
+                        />
+                      </View>
                       <Text
-                        className={`text-[16px] tracking-wide ${
+                        className={`text-[15px] tracking-tight ${
                           isSelected
-                            ? `font-black ${meta.activeText} ${meta.activeDarkText}`
-                            : 'font-bold text-slate-600 dark:text-slate-300'
+                            ? 'font-extrabold text-slate-900 dark:text-white'
+                            : 'font-semibold text-slate-600 dark:text-slate-300'
                         }`}>
                         {meta.label}
                       </Text>
                     </View>
-                    {count !== undefined && count > 0 && (
-                      <View
-                        className={`h-[24px] min-w-[24px] items-center justify-center rounded-full px-2 ${
-                          isSelected ? '' : 'bg-slate-100 dark:bg-slate-800'
-                        }`}
-                        style={isSelected ? { backgroundColor: meta.dot + (isDark ? '40' : '25') } : undefined}>
-                        <Text
-                          className={`text-[12px] font-black ${
-                            isSelected
-                              ? `${meta.activeText} ${meta.activeDarkText}`
-                              : 'text-slate-500 dark:text-slate-400'
-                          }`}>
-                          {count}
-                        </Text>
-                      </View>
-                    )}
+                    <View className="flex-row items-center gap-2">
+                      {count !== undefined && count > 0 && (
+                        <View
+                          className="h-[22px] min-w-[22px] items-center justify-center rounded-full px-2"
+                          style={{
+                            backgroundColor: isSelected
+                              ? meta.dot + (isDark ? '30' : '20')
+                              : isDark
+                                ? 'rgba(51, 65, 85, 0.6)'
+                                : 'rgba(241, 245, 249, 1)',
+                            borderWidth: isSelected ? 1 : 0,
+                            borderColor: meta.dot + (isDark ? '50' : '30'),
+                          }}>
+                          <Text
+                            style={{
+                              color: isSelected
+                                ? meta.dot
+                                : isDark
+                                  ? '#94A3B8'
+                                  : '#64748B',
+                            }}
+                            className="text-[11px] font-black">
+                            {count}
+                          </Text>
+                        </View>
+                      )}
+                      {isSelected && (
+                        <View
+                          style={{ backgroundColor: meta.dot }}
+                          className="ml-1 h-2 w-2 rounded-full"
+                        />
+                      )}
+                    </View>
                   </TouchableOpacity>
                 );
               })}

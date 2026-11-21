@@ -207,14 +207,53 @@ export default function FieldOfficerDashboard({
                   style={[
                     styles.statCard,
                     {
-                      borderColor: card.colors[0] + '88',
-                      backgroundColor: isDark ? '#1E293B' : '#FFFFFF', // Solid colors for prominence
+                      borderColor: card.colors[0] + (isDark ? '88' : '66'),
+                      backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
                     },
                   ]}>
-                  {/* Internal Aura - more subtle for solid cards */}
-                  <View style={[styles.cardAura, { backgroundColor: card.aura, opacity: 0.5 }]} />
+                  {/* Soft Ambient Corner Glow */}
+                  <LinearGradient
+                    colors={[
+                      card.colors[0] + (isDark ? '24' : '16'),
+                      card.colors[0] + (isDark ? '0A' : '06'),
+                      'transparent',
+                    ]}
+                    start={{ x: 1, y: 0 }}
+                    end={{ x: 0.1, y: 0.9 }}
+                    style={StyleSheet.absoluteFillObject}
+                    pointerEvents="none"
+                  />
 
-                  <View style={[styles.iconContainer, { backgroundColor: card.colors[0] + '15' }]}>
+                  {/* Frosted Glassmorphic Corner Aura Orb */}
+                  <View
+                    pointerEvents="none"
+                    style={[
+                      styles.cardAura,
+                      {
+                        borderColor: card.colors[0] + (isDark ? '38' : '25'),
+                      },
+                    ]}>
+                    <LinearGradient
+                      colors={[
+                        card.colors[0] + (isDark ? '42' : '30'),
+                        card.colors[0] + (isDark ? '16' : '10'),
+                        'transparent',
+                      ]}
+                      start={{ x: 1, y: 0 }}
+                      end={{ x: 0.15, y: 0.85 }}
+                      style={StyleSheet.absoluteFillObject}
+                    />
+                  </View>
+
+                  <View
+                    style={[
+                      styles.iconContainer,
+                      {
+                        backgroundColor: card.colors[0] + (isDark ? '20' : '15'),
+                        borderColor: card.colors[0] + (isDark ? '35' : '22'),
+                        borderWidth: 1,
+                      },
+                    ]}>
                     <Icon color={card.colors[0]} size={16} strokeWidth={3} />
                   </View>
 
@@ -385,11 +424,13 @@ const styles = StyleSheet.create({
   },
   cardAura: {
     position: 'absolute',
-    top: -20,
-    right: -20,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    top: -24,
+    right: -24,
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    borderWidth: 1,
+    overflow: 'hidden',
   },
   iconContainer: {
     width: 36,

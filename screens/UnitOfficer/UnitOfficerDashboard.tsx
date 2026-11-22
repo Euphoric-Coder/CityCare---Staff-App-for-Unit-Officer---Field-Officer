@@ -2052,7 +2052,7 @@ export default function UnitOfficerDashboard() {
 
   if (unitOfficer.accountApproved === false) {
     return (
-      <View style={{ flex: 1 }}>
+      <View key="unit-officer-restricted" style={{ flex: 1 }}>
         <RestrictedOfficerDashboard
           officerName={unitOfficer.fullName || user?.name || "Unit Officer"}
           city={unitOfficer.city}
@@ -2062,37 +2062,30 @@ export default function UnitOfficerDashboard() {
           onNotificationPress={() => setShowNotifications(true)}
           onMessagesPress={() => navigation.navigate("Messages")}
         />
-        <Modal
-          visible={showNotifications}
-          animationType="slide"
-          transparent={true}
-          onRequestClose={() => setShowNotifications(false)}>
+        {notifications && (
           <NotificationPanel
             visible={showNotifications}
             onClose={() => setShowNotifications(false)}
             // @ts-ignore
             notification={notifications || []}
-            handleMarkAllAsRead={() => {
-              if (user?.id) {
-                markAll({ userId: user.id });
-              }
-            }}
-            handleDelete={(id) => deleteNotification({ notificationId: id })}
+            handleMarkAllAsRead={handleMarkAllAsRead}
+            handleDelete={handleDelete}
             role="UnitOfficer"
           />
-        </Modal>
+        )}
       </View>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-slate-50 dark:bg-slate-900" edges={['top']}>
+    <SafeAreaView key="unit-officer-approved" className="flex-1 bg-slate-50 dark:bg-slate-900" edges={['top']}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <StatusBar style="light" />
 
         <ScrollView
+          key="unit-officer-approved-scroll"
           className="flex-1"
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}

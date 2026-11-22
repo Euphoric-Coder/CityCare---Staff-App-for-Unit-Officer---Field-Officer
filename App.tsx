@@ -4,7 +4,7 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
 
 import Splash from './components/SplashScreen';
 import RootErrorBoundary from './components/RootErrorBoundary';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, useColorScheme } from 'react-native';
 import { NavigationContainer, useNavigation } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -170,10 +170,10 @@ function AuthNavigator({ onSignIn }: { onSignIn: (user: User) => void }) {
 }
 
 // Unit Officer Stacks
-function DashboardStack({ user }: { user: User }) {
+function DashboardStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="DashboardHome">{() => <UnitOfficerDashboard />}</Stack.Screen>
+      <Stack.Screen name="DashboardHome" component={UnitOfficerDashboard} />
       <Stack.Screen name="IssueDetail" component={IssueDetailScreen} />
     </Stack.Navigator>
   );
@@ -221,6 +221,14 @@ function UnitOfficerTabNavigator({ user, onSignOut }: TabNavigatorProps) {
     return acc + (conv.unreadCountMap ? (conv.unreadCountMap as any)[user.id] || 0 : 0);
   }, 0);
 
+  const renderAnalyticsTab = useCallback(() => (
+    <AnalyticsTab user={user} />
+  ), [user]);
+
+  const renderProfileTab = useCallback(() => (
+    <ProfileTab user={user} onSignOut={onSignOut} />
+  ), [user, onSignOut]);
+
   return (
     <Tab.Navigator
       screenOptions={{
@@ -249,20 +257,27 @@ function UnitOfficerTabNavigator({ user, onSignOut }: TabNavigatorProps) {
       }}>
       <Tab.Screen
         name="Dashboard"
+        component={DashboardStack}
         options={{
           tabBarIcon: ({ color, size }) => <Home size={size} color={color} />,
-        }}>
-        {() => <DashboardStack user={user} />}
-      </Tab.Screen>
-      {isApproved && (
+        }}
+      />
       <Tab.Screen
         name="Public"
         component={PublicStack}
         options={{
           tabBarIcon: ({ color, size }) => <Globe size={size} color={color} />,
+          tabBarItemStyle: isApproved ? undefined : { display: 'none' },
+          tabBarButton: isApproved ? undefined : () => null,
+        }}
+        listeners={{
+          tabPress: (e) => {
+            if (!isApproved) {
+              e.preventDefault();
+            }
+          },
         }}
       />
-      )}
       <Tab.Screen
         name="Messages"
         component={MessagesTab}
@@ -271,22 +286,29 @@ function UnitOfficerTabNavigator({ user, onSignOut }: TabNavigatorProps) {
           tabBarBadge: unreadCount > 0 ? unreadCount : undefined,
         }}
       />
-      {isApproved && (
       <Tab.Screen
         name="Analytics"
         options={{
           tabBarIcon: ({ color, size }) => <BarChart3 size={size} color={color} />,
-        }}>
-        {() => <AnalyticsTab user={user} />}
-      </Tab.Screen>
-      )}
+          tabBarItemStyle: isApproved ? undefined : { display: 'none' },
+          tabBarButton: isApproved ? undefined : () => null,
+        }}
+        listeners={{
+          tabPress: (e) => {
+            if (!isApproved) {
+              e.preventDefault();
+            }
+          },
+        }}
+        children={renderAnalyticsTab}
+      />
       <Tab.Screen
         name="Profile"
         options={{
           tabBarIcon: ({ color, size }) => <UserIcon size={size} color={color} />,
-        }}>
-        {() => <ProfileTab user={user} onSignOut={onSignOut} />}
-      </Tab.Screen>
+        }}
+        children={renderProfileTab}
+      />
     </Tab.Navigator>
   );
 }
@@ -302,6 +324,22 @@ function FieldOfficerTabNavigator({ user, onSignOut }: TabNavigatorProps) {
   const unreadCount = conversations.reduce((acc, conv) => {
     return acc + (conv.unreadCountMap ? (conv.unreadCountMap as any)[user.id] || 0 : 0);
   }, 0);
+
+  const renderProfileTab = useCallback(() => (
+    <FieldProfileTab
+      user={user}
+      profile={{
+        name: user.name,
+        userId: user.id,
+        ward: 'Ward 12 - South Zone',
+        phone: '+91 98765 43210',
+        email: user.email,
+        rating: 4.8,
+        total_resolved: 156,
+      }}
+      onLogout={onSignOut}
+    />
+  ), [user, onSignOut]);
 
   return (
     <Tab.Navigator
@@ -348,23 +386,9 @@ function FieldOfficerTabNavigator({ user, onSignOut }: TabNavigatorProps) {
         name="Profile"
         options={{
           tabBarIcon: ({ color, size }) => <UserIcon size={size} color={color} />,
-        }}>
-        {() => (
-          <FieldProfileTab
-            user={user}
-            profile={{
-              name: user.name,
-              userId: user.id,
-              ward: 'Ward 12 - South Zone',
-              phone: '+91 98765 43210',
-              email: user.email,
-              rating: 4.8,
-              total_resolved: 156,
-            }}
-            onLogout={onSignOut}
-          />
-        )}
-      </Tab.Screen>
+        }}
+        children={renderProfileTab}
+      />
     </Tab.Navigator>
   );
 }

@@ -5,7 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   RefreshControl,
-  ActivityIndicator, Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -150,7 +150,7 @@ export default function FieldDashboardScreen() {
 
   if (fieldOfficer.accountApproved === false) {
     return (
-      <View style={{ flex: 1 }}>
+      <View key="field-officer-restricted" style={{ flex: 1 }}>
         <RestrictedOfficerDashboard
           officerName={fieldOfficer.fullName || user?.name || 'Field Officer'}
           city={fieldOfficer.city}
@@ -158,21 +158,18 @@ export default function FieldDashboardScreen() {
           role="field_officer"
           unreadNotificationCount={realStats.unread_notifs || 0}
           onNotificationPress={() => setShowNotifications(true)}
-          
           onMessagesPress={() => navigation.navigate('Messages')}
         />
-        <Modal
-          visible={showNotifications}
-          animationType="slide"
-          transparent={true}
-          onRequestClose={() => setShowNotifications(false)}>
+        {notifications && (
           <NotificationPanel
+            visible={showNotifications}
             notification={notifications || []}
             onClose={() => setShowNotifications(false)}
-            onMarkAllAsRead={handleMarkAllAsRead}
-            onDelete={handleDelete}
+            handleMarkAllAsRead={handleMarkAllAsRead}
+            handleDelete={handleDelete}
+            role="FieldOfficer"
           />
-        </Modal>
+        )}
       </View>
     );
   }
@@ -189,8 +186,9 @@ export default function FieldDashboardScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-slate-50 dark:bg-slate-900" edges={['top']}>
+    <SafeAreaView key="field-officer-approved" className="flex-1 bg-slate-50 dark:bg-slate-900" edges={['top']}>
       <ScrollView
+        key="field-officer-approved-scroll"
         className="flex-1"
         showsVerticalScrollIndicator={false}
         refreshControl={

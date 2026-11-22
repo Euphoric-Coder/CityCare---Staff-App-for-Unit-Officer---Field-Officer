@@ -29,7 +29,13 @@ export function RestrictedOfficerDashboard({
   const isDark = useColorScheme() === "dark";
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: isDark ? "#020617" : "#F8FAFC" }} contentContainerStyle={{ flexGrow: 1, paddingBottom: insets.bottom + 80 }}>
+    <ScrollView
+      key="restricted-officer-scroll"
+      style={{ flex: 1, backgroundColor: isDark ? "#020617" : "#F8FAFC" }}
+      contentContainerStyle={{ flexGrow: 1, paddingBottom: insets.bottom + 80 }}
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+    >
       {/* Dynamic Header */}
       <LinearGradient
         colors={isDark ? ['#0F172A', '#1E293B'] : ['#0891B2', '#0D9488']}

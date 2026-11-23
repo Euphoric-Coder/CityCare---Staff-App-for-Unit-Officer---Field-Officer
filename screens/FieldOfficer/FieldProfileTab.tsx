@@ -414,7 +414,7 @@ export default function FieldProfileTab({ user, profile, onLogout }: FieldProfil
   };
   return (
     <SafeAreaView style={{ flex: 1 }} className="flex-1 bg-slate-50 dark:bg-slate-950">
-      <StatusBar translucent backgroundColor="transparent" style="light" />
+      <StatusBar style="light" />
       <ScrollView
         className="flex-1"
         showsVerticalScrollIndicator={false}

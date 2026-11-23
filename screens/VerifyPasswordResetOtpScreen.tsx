@@ -252,7 +252,7 @@ export default function VerifyPasswordResetOtpScreen({ navigation, route }: Prop
     }
   };
 
-  const hiddenInputRef = useRef<TextInput>(null);
+  const hiddenInputRef = useRef<React.ElementRef<typeof TextInput>>(null);
 
   const bgColors: [string, string] = isDark ? ['#011c12', '#022c22'] : ['#f0fdf4', '#ecfdf5'];
   const cardBgColor = isDark ? 'rgba(3, 31, 22, 0.85)' : 'rgba(255, 255, 255, 0.95)';
@@ -263,7 +263,7 @@ export default function VerifyPasswordResetOtpScreen({ navigation, route }: Prop
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: bgColors[0] }}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
-      <LinearGradient colors={bgColors} style={StyleSheet.absoluteFillObject} />
+      <LinearGradient colors={bgColors} style={StyleSheet.absoluteFill} />
 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>

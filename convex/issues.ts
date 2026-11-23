@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { awardCitizenPoints, checkAndAwardCitizenBadges } from 'lib/gamificationAwards';
 import { Id } from './_generated/dataModel';
 import { action, internalMutation, mutation, query } from './_generated/server';

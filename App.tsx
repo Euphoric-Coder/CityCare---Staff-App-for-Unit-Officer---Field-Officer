@@ -217,7 +217,7 @@ function UnitOfficerTabNavigator({ user, onSignOut }: TabNavigatorProps) {
 
   const conversations =
     useQuery(api.directMessages.getUserConversations, { userId: user.id as any }) || [];
-  const unreadCount = conversations.reduce((acc, conv) => {
+  const unreadCount = conversations.reduce((acc: number, conv: any) => {
     return acc + (conv.unreadCountMap ? (conv.unreadCountMap as any)[user.id] || 0 : 0);
   }, 0);
 
@@ -321,7 +321,7 @@ function FieldOfficerTabNavigator({ user, onSignOut }: TabNavigatorProps) {
 
   const conversations =
     useQuery(api.directMessages.getUserConversations, { userId: user.id as any }) || [];
-  const unreadCount = conversations.reduce((acc, conv) => {
+  const unreadCount = conversations.reduce((acc: number, conv: any) => {
     return acc + (conv.unreadCountMap ? (conv.unreadCountMap as any)[user.id] || 0 : 0);
   }, 0);
 

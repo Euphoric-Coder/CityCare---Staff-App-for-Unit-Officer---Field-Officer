@@ -108,7 +108,7 @@ export default function AssignOfficerModal({
   const sorted = [...officers].sort((a, b) => {
     if (sortBy === 'rating') return b.rating - a.rating;
     if (sortBy === 'workload') return a.workloadPercentage - b.workloadPercentage;
-    return b.efficiencyScore - a.efficiencyScore;
+    return (b.efficiencyScore ?? 0) - (a.efficiencyScore ?? 0);
   });
 
   const selectedOfficer = officers.find((o) => o._id === selectedId);
@@ -148,12 +148,12 @@ export default function AssignOfficerModal({
         <BlurView
           intensity={isDark ? 30 : 15}
           tint={isDark ? 'dark' : 'light'}
-          style={StyleSheet.absoluteFillObject}
+          style={StyleSheet.absoluteFill}
           experimentalBlurMethod="dimezisBlurView"
         />
 
         <TouchableOpacity
-          style={StyleSheet.absoluteFillObject}
+          style={StyleSheet.absoluteFill}
           activeOpacity={1}
           onPress={handleClose}
         />
@@ -180,10 +180,10 @@ export default function AssignOfficerModal({
                   intensity={60}
                   tint={isDark ? 'dark' : 'light'}
                   experimentalBlurMethod="dimezisBlurView"
-                  style={StyleSheet.absoluteFillObject}
+                  style={StyleSheet.absoluteFill}
                 />
                 <TouchableOpacity
-                  style={StyleSheet.absoluteFillObject}
+                  style={StyleSheet.absoluteFill}
                   activeOpacity={1}
                   onPress={() => setShowConfirm(false)}
                 />
@@ -209,7 +209,7 @@ export default function AssignOfficerModal({
                           ? ['rgba(15, 118, 110, 0.2)', 'rgba(0,0,0,0)']
                           : ['rgba(153, 246, 228, 0.5)', 'rgba(255,255,255,0)']
                     }
-                    style={StyleSheet.absoluteFillObject}
+                    style={StyleSheet.absoluteFill}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 0, y: 1 }}
                   />
@@ -253,7 +253,7 @@ export default function AssignOfficerModal({
                               className="h-10 w-10 items-center justify-center rounded-full"
                               style={{ backgroundColor: isDark ? '#134E4A' : '#CCFBF1' }}>
                               <Text className="text-[14px] font-extrabold text-teal-600 dark:text-teal-300">
-                                {getInitials(selectedOfficer.fullName)}
+                                {getInitials(selectedOfficer.fullName || '')}
                               </Text>
                             </View>
                           )}
@@ -479,7 +479,7 @@ export default function AssignOfficerModal({
                       .damping(80)}
                     layout={Layout.springify()}
                     key={officer._id}
-                    onPress={() => !isOverloaded && !isAssigned && setSelectedId(officer._id)}
+                    onPress={() => !isOverloaded && !isAssigned && setSelectedId(officer._id || null)}
                     activeOpacity={isOverloaded || isAssigned ? 1 : 0.75}
                     style={[
                       styles.card,
@@ -495,10 +495,9 @@ export default function AssignOfficerModal({
                             ? ['rgba(15, 118, 110, 0.3)', 'rgba(13, 51, 48, 0.1)']
                             : ['#F0FDFA', '#FFFFFF']
                         }
-                        style={StyleSheet.absoluteFillObject}
+                        style={[StyleSheet.absoluteFill, { borderRadius: 22 }]}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
-                        borderRadius={22}
                       />
                     ) : isAssigned ? (
                       <LinearGradient
@@ -507,15 +506,14 @@ export default function AssignOfficerModal({
                             ? ['rgba(30, 58, 138, 0.2)', 'rgba(15, 23, 42, 0)']
                             : ['#EFF6FF', '#FFFFFF']
                         }
-                        style={StyleSheet.absoluteFillObject}
+                        style={[StyleSheet.absoluteFill, { borderRadius: 22 }]}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
-                        borderRadius={22}
                       />
                     ) : (
                       <View
                         style={[
-                          StyleSheet.absoluteFillObject,
+                          StyleSheet.absoluteFill,
                           {
                             backgroundColor: isDark ? 'rgba(30, 41, 59, 0.4)' : '#FFFFFF',
                             borderRadius: 22,
@@ -526,7 +524,7 @@ export default function AssignOfficerModal({
 
                     <View
                       style={[
-                        StyleSheet.absoluteFillObject,
+                        StyleSheet.absoluteFill,
                         {
                           borderRadius: 22,
                           borderWidth: isSelected ? 2 : 1,
@@ -557,7 +555,7 @@ export default function AssignOfficerModal({
                               className="h-full w-full items-center justify-center"
                               style={{ backgroundColor: isDark ? '#134E4A' : '#CCFBF1' }}>
                               <Text className="text-[17px] font-extrabold text-teal-600 dark:text-teal-300">
-                                {getInitials(officer.fullName)}
+                                {getInitials(officer.fullName || '')}
                               </Text>
                             </View>
                           )}
@@ -671,8 +669,8 @@ export default function AssignOfficerModal({
 
                       {/* Workload bar */}
                       <WorkloadBar
-                        active={officer.currentActiveIssues}
-                        max={officer.maxIssueCapacity}
+                        active={officer.currentActiveIssues ?? 0}
+                        max={officer.maxIssueCapacity ?? 10}
                         isDark={isDark}
                       />
                     </View>
@@ -735,7 +733,7 @@ export default function AssignOfficerModal({
                         ? ['rgba(255,255,255,0.15)', 'rgba(0,0,0,0)']
                         : ['rgba(255,255,255,0.15)', 'rgba(0,0,0,0)']
                     }
-                    style={StyleSheet.absoluteFillObject}
+                    style={StyleSheet.absoluteFill}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 0, y: 1 }}
                   />

@@ -10,7 +10,7 @@ export type User = {
   name: string;
   email: string;
   role: OfficerRole;
-  mustChangePassword: boolean;
+  mustChangePassword?: boolean;
   officerProfileId?: string;
 };
 

@@ -152,10 +152,10 @@ export default function SplashScreen({ onFinish }: SplashScreenProps) {
         locations={[0, 0.5, 1]}
         start={{ x: 0.15, y: 0 }}
         end={{ x: 0.85, y: 1 }}
-        style={StyleSheet.absoluteFillObject}
+        style={StyleSheet.absoluteFill}
       />
 
-      <View pointerEvents="none" style={StyleSheet.absoluteFillObject}>
+      <View pointerEvents="none" style={StyleSheet.absoluteFill}>
         <View
           style={[
             styles.glowBlob,
@@ -240,7 +240,7 @@ export default function SplashScreen({ onFinish }: SplashScreenProps) {
               colors={[iconBgStart, iconBgEnd]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
-              style={StyleSheet.absoluteFillObject}
+              style={StyleSheet.absoluteFill}
             />
             <Image
               source={require('../assets/logo.png')}
@@ -299,7 +299,7 @@ export default function SplashScreen({ onFinish }: SplashScreenProps) {
             colors={badgeBg}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
-            style={StyleSheet.absoluteFillObject}
+            style={StyleSheet.absoluteFill}
           />
           <View style={[styles.badgeDot, { backgroundColor: dotColor, shadowColor: dotColor }]} />
           <Text

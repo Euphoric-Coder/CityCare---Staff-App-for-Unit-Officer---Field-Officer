@@ -61,12 +61,12 @@ export default function IssueModerationCard({
   const onPressOut = () =>
     Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 40 }).start();
 
-  const catMeta = CATEGORY_COLORS[issue.category] ?? CATEGORY_COLORS['Pothole'];
+  const catMeta = CATEGORY_COLORS[issue.category as IssueCategory] ?? CATEGORY_COLORS['Pothole'];
   const isPublished = issue.publish_status === 'published';
   const hasBeforeImg = issue.before_images?.length > 0;
   const hasAfterImg = issue.after_images?.length > 0;
 
-  const getCardGradient = () => {
+  const getCardGradient = (): [string, string] => {
     if (issue.status === 'Resolved') {
       return isDark ? ['#064e3b', '#0f172a'] : ['#d1fae5', '#ffffff'];
     } else {
@@ -100,7 +100,7 @@ export default function IssueModerationCard({
             colors={getCardGradient()}
             start={{ x: 0, y: 0 }}
             end={{ x: 0.8, y: 1 }}
-            style={StyleSheet.absoluteFillObject}
+            style={StyleSheet.absoluteFill}
           />
 
           {/* Published accent top bar */}
@@ -125,7 +125,7 @@ export default function IssueModerationCard({
                   />
                   <LinearGradient
                     colors={['transparent', 'rgba(0,0,0,0.8)']}
-                    style={StyleSheet.absoluteFillObject}
+                    style={StyleSheet.absoluteFill}
                   />
                   <View className="absolute bottom-2 left-2 overflow-hidden rounded-lg">
                     <BlurView intensity={20} tint="dark" className="px-2.5 py-1">
@@ -152,7 +152,7 @@ export default function IssueModerationCard({
                   />
                   <LinearGradient
                     colors={['transparent', 'rgba(4,120,87,0.85)']}
-                    style={StyleSheet.absoluteFillObject}
+                    style={StyleSheet.absoluteFill}
                   />
                   <View className="absolute bottom-2 left-2 overflow-hidden rounded-lg">
                     <BlurView intensity={20} tint="light" className="bg-emerald-900/30 px-2.5 py-1">
@@ -306,7 +306,7 @@ export default function IssueModerationCard({
                 </>
               )}
               <Text className="text-[11px] font-bold text-slate-400 dark:text-slate-500">
-                {formatDate(issue.created_at)}
+                {formatDate(issue.created_at || '')}
               </Text>
             </View>
 
@@ -323,7 +323,7 @@ export default function IssueModerationCard({
                   intensity={isDark ? 30 : 60}
                   tint={isDark ? 'dark' : 'light'}
                   style={[
-                    StyleSheet.absoluteFillObject,
+                    StyleSheet.absoluteFill,
                     {
                       backgroundColor: isDark ? 'rgba(15,23,42,0.6)' : 'rgba(248,250,252,0.8)',
                     },
@@ -348,7 +348,7 @@ export default function IssueModerationCard({
                 }}>
                 <LinearGradient
                   colors={isDark ? ['#1e3a5f', '#172554'] : ['#EFF6FF', '#DBEAFE']}
-                  style={StyleSheet.absoluteFillObject}
+                  style={StyleSheet.absoluteFill}
                 />
                 <View className="flex-row items-center justify-center gap-1 px-2 py-3">
                   <FileEdit color="#3B82F6" size={14} strokeWidth={2.5} />

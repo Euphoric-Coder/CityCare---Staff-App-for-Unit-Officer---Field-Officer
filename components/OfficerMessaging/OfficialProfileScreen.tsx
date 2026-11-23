@@ -54,7 +54,7 @@ export default function OfficialProfileScreen({ official, onBack, onStartConvers
   // Fetch real issues assigned to this official
   const rawIssues = useQuery(api.issues.getIssuesByOfficial, { officialId: official.id as any }) || [];
 
-  const relatedIssues = rawIssues.map((i) => ({
+  const relatedIssues = rawIssues.map((i: any) => ({
     ...i,
     id: i.issueCode || (i._id as string),
     location: i.address || i.city,

@@ -61,10 +61,15 @@ export function mapIssueToUI(issue: any) {
     rejection: issue.rejection ?? null,
 
     reopenCategory: issue.reopenCategory ?? null,
+    reopenCount: issue.reopenCount || 0,
 
     reworkNote: issue.reworkNote ?? null,
     reworkReasons: issue.reworkReasons || [],
     lastReworkRequestedAt: issue.lastReworkRequestedAt || 0,
+
+    submissionTimestamp: issue.submissionTimestamp || issue.updatedAt || issue.createdAt,
+    submissionComment: issue.submissionComment || issue.foResolutionDescription || issue.notes || null,
+    foResolutionDescription: issue.foResolutionDescription || issue.notes || null,
 
     images: issue.photoUrl || [],
 

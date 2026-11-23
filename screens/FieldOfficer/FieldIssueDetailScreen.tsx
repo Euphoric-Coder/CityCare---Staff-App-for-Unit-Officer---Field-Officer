@@ -341,7 +341,7 @@ export default function FieldIssueDetailScreen() {
   const [playingVideo, setPlayingVideo] = useState<number | null>(null);
   const [fullScreenImage, setFullScreenImage] = useState<string | null>(null);
   const [fullScreenVideo, setFullScreenVideo] = useState<string | null>(null);
-  const carouselRef = useRef<ScrollView>(null);
+  const carouselRef = useRef<React.ElementRef<typeof ScrollView>>(null);
   const [updateText, setUpdateText] = useState('');
   const [updateAttachments, setUpdateAttachments] = useState<FileAttachment[]>([]);
   const [updateScope, setUpdateScope] = useState<UpdateScope>('officer_and_citizen');
@@ -1160,7 +1160,7 @@ export default function FieldIssueDetailScreen() {
                     SPECIALIZED SUB-DOMAINS
                   </Text>
                   <View className="mt-2 flex-row flex-wrap gap-2.5">
-                    {issue.subCategories.map((sub, i) => (
+                    {issue.subCategories.map((sub: string, i: number) => (
                       <View
                         key={i}
                         style={[
@@ -1191,7 +1191,7 @@ export default function FieldIssueDetailScreen() {
                     INTEL_TAGS
                   </Text>
                   <View className="mt-2 flex-row flex-wrap gap-2">
-                    {issue.tags.map((tag, i) => (
+                    {issue.tags.map((tag: string, i: number) => (
                       <View key={i} style={styles.intelTag}>
                         <Hash size={10} color="#0EA5A4" strokeWidth={3} />
                         <Text style={styles.intelTagText}>
@@ -1371,7 +1371,7 @@ export default function FieldIssueDetailScreen() {
                       setActiveImageIndex(idx);
                     }}
                     style={{ width: CAROUSEL_WIDTH }}>
-                    {issue.images.map((img, index) => (
+                    {(Array.isArray(issue.images) ? issue.images : [issue.images]).map((img: string, index: number) => (
                       <TouchableOpacity
                         key={index}
                         activeOpacity={0.9}
@@ -1440,7 +1440,7 @@ export default function FieldIssueDetailScreen() {
                 {/* High-Fidelity Indicators */}
                 {issue.images.length > 1 && (
                   <View style={styles.premiumDotRow}>
-                    {issue.images.map((_, i) => (
+                    {(Array.isArray(issue.images) ? issue.images : [issue.images]).map((_: any, i: number) => (
                       <TouchableOpacity
                         key={i}
                         onPress={() => {

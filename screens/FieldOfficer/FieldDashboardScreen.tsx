@@ -6,6 +6,7 @@ import {
   ScrollView,
   RefreshControl,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -66,7 +67,7 @@ export default function FieldDashboardScreen() {
   const fieldOfficerIssues = useMemo(() => {
     if (!rawIssues) return [];
 
-    return rawIssues.map((issue) => mapIssueToUI(issue, {}));
+    return rawIssues.map((issue: any) => mapIssueToUI(issue));
   }, [rawIssues]);
 
   // console.log('rawIssues FO Issues: \n', JSON.stringify(rawIssues, null, 2));
@@ -74,17 +75,17 @@ export default function FieldDashboardScreen() {
   const filteredIssues =
     selectedFilter === 'all'
       ? fieldOfficerIssues
-      : fieldOfficerIssues.filter((issue) => issue?.status === selectedFilter);
+      : fieldOfficerIssues.filter((issue: any) => issue?.status === selectedFilter);
 
   const counts: Record<string, number> = {
     all: fieldOfficerIssues.length,
-    assigned: fieldOfficerIssues.filter((i) => i?.status === 'assigned').length,
-    in_progress: fieldOfficerIssues.filter((i) => i?.status === 'in_progress').length,
+    assigned: fieldOfficerIssues.filter((i: any) => i?.status === 'assigned').length,
+    in_progress: fieldOfficerIssues.filter((i: any) => i?.status === 'in_progress').length,
     pending_uo_verification: fieldOfficerIssues.filter(
-      (i) => i?.status === 'pending_uo_verification' || i?.status === 'submitted_for_review'
+      (i: any) => i?.status === 'pending_uo_verification' || i?.status === 'submitted_for_review'
     ).length,
     rework_required: fieldOfficerIssues.filter(
-      (i) => i?.status === 'rework_required' || i?.status === 'rework_requested'
+      (i: any) => i?.status === 'rework_required' || i?.status === 'rework_requested'
     ).length,
   };
 
@@ -93,25 +94,25 @@ export default function FieldDashboardScreen() {
     startOfToday.setHours(0, 0, 0, 0);
     const todayMs = startOfToday.getTime();
 
-    const assignedCount = fieldOfficerIssues.filter((i) => i?.status === 'assigned').length;
-    const inProgressCount = fieldOfficerIssues.filter((i) => i?.status === 'in_progress').length;
-    const pendingUploadCount = fieldOfficerIssues.filter((i) =>
+    const assignedCount = fieldOfficerIssues.filter((i: any) => i?.status === 'assigned').length;
+    const inProgressCount = fieldOfficerIssues.filter((i: any) => i?.status === 'in_progress').length;
+    const pendingUploadCount = fieldOfficerIssues.filter((i: any) =>
       ['submitted_for_review', 'pending_uo_verification'].includes(i?.status)
     ).length;
-    const reworkCount = fieldOfficerIssues.filter((i) =>
+    const reworkCount = fieldOfficerIssues.filter((i: any) =>
       ['rework_required', 'rework_requested'].includes(i?.status)
     ).length;
 
-    const resolvedToday = fieldOfficerIssues.filter((i) => {
+    const resolvedToday = fieldOfficerIssues.filter((i: any) => {
       const isResolved = i?.status === 'resolved' || i?.status === 'closed';
       if (!isResolved) return false;
       const resTime = i?.resolvedAt ?? i?.closedAt ?? i?.createdAt;
       return typeof resTime === 'number' ? resTime >= todayMs : false;
     }).length;
 
-    const unreadNotifs = notifications?.filter((n) => !n.read).length ?? 0;
+    const unreadNotifs = notifications?.filter((n: any) => !n.read).length ?? 0;
     const slaBreaches = fieldOfficerIssues.filter(
-      (i) =>
+      (i: any) =>
         i?.slaDeadline &&
         i.slaDeadline < Date.now() &&
         !['resolved', 'closed'].includes(i?.status)
@@ -158,7 +159,7 @@ export default function FieldDashboardScreen() {
           role="field_officer"
           unreadNotificationCount={realStats.unread_notifs || 0}
           onNotificationPress={() => setShowNotifications(true)}
-          onMessagesPress={() => navigation.navigate('Messages')}
+          onMessagesPress={() => navigation.navigate('Messages' as never)}
         />
         {notifications && (
           <NotificationPanel
@@ -232,7 +233,7 @@ export default function FieldDashboardScreen() {
           </View>
 
           {filteredIssues.length > 0 ? (
-            filteredIssues.map((issue) => (
+            filteredIssues.map((issue: any) => (
               <FieldIssueCard
                 key={issue?.id}
                 issue={issue}

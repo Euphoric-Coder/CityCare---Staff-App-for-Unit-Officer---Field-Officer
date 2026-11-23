@@ -137,7 +137,7 @@ function AnimatedProgressBar({
           colors={canVerify ? ['#10B981', '#059669'] : ['#38BDF8', '#0284C7']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
-          style={StyleSheet.absoluteFillObject}
+          style={StyleSheet.absoluteFill}
         />
       </Animated.View>
     </View>
@@ -254,7 +254,7 @@ export default function VerificationFlow({
                 ? ['rgba(16, 185, 129, 0.08)', 'transparent']
                 : ['rgba(209, 250, 229, 0.5)', 'transparent']
             }
-            style={StyleSheet.absoluteFillObject}
+            style={StyleSheet.absoluteFill}
           />
         )}
 
@@ -338,7 +338,7 @@ export default function VerificationFlow({
                         ? item.gradDark
                         : item.gradLight
                   }
-                  style={StyleSheet.absoluteFillObject}
+                  style={StyleSheet.absoluteFill}
                 />
                 <item.Icon color={iconColor} size={20} strokeWidth={2.2} />
               </View>
@@ -436,7 +436,7 @@ export default function VerificationFlow({
                   ? ['rgba(245, 158, 11, 0.03)', 'transparent']
                   : ['rgba(253, 230, 138, 0.2)', 'transparent']
               }
-              style={StyleSheet.absoluteFillObject}
+              style={StyleSheet.absoluteFill}
               pointerEvents="none"
             />
           )}
@@ -551,10 +551,10 @@ export default function VerificationFlow({
             <BlurView
               intensity={isDark ? 40 : 25}
               tint={isDark ? 'dark' : 'light'}
-              style={StyleSheet.absoluteFillObject}
+              style={StyleSheet.absoluteFill}
             />
             <TouchableOpacity
-              style={StyleSheet.absoluteFillObject}
+              style={StyleSheet.absoluteFill}
               activeOpacity={1}
               onPress={() => setShowDateModal(false)}
             />
@@ -637,7 +637,7 @@ export default function VerificationFlow({
                 colors={['rgba(255,255,255,0.25)', 'transparent']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 0, y: 1 }}
-                style={StyleSheet.absoluteFillObject}
+                style={StyleSheet.absoluteFill}
               />
               <Sparkles color="#fff" size={18} strokeWidth={2.5} />
               <Text className="text-[16px] font-extrabold tracking-tight text-white shadow-sm">

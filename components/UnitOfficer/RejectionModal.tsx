@@ -205,15 +205,15 @@ export default function RejectionModal({ visible, issue, onClose, onReject }: Re
         {!isClosing && (
           <>
             {/* Animated backdrop to avoid jarring jumps */}
-            <Animated.View entering={FadeIn.duration(400)} style={StyleSheet.absoluteFillObject}>
+            <Animated.View entering={FadeIn.duration(400)} style={StyleSheet.absoluteFill}>
               <BlurView
                 intensity={isDark ? 40 : 25}
                 tint={isDark ? 'dark' : 'light'}
-                style={StyleSheet.absoluteFillObject}
+                style={StyleSheet.absoluteFill}
                 experimentalBlurMethod="dimezisBlurView"
               />
               <TouchableOpacity
-                style={StyleSheet.absoluteFillObject}
+                style={StyleSheet.absoluteFill}
                 activeOpacity={1}
                 onPress={handleCancel}
               />
@@ -243,12 +243,12 @@ export default function RejectionModal({ visible, issue, onClose, onReject }: Re
                       ? ['rgba(239, 68, 68, 0.05)', 'transparent']
                       : ['rgba(254, 226, 226, 0.5)', 'transparent']
                   }
-                  style={StyleSheet.absoluteFillObject}
+                  style={[
+                    StyleSheet.absoluteFill,
+                    { borderTopLeftRadius: 36, borderTopRightRadius: 36, pointerEvents: 'none' },
+                  ]}
                   start={{ x: 0.5, y: 0 }}
                   end={{ x: 0.5, y: 0.2 }}
-                  pointerEvents="none"
-                  borderTopLeftRadius={36}
-                  borderTopRightRadius={36}
                 />
 
                 {/* Drag handle */}
@@ -365,7 +365,7 @@ export default function RejectionModal({ visible, issue, onClose, onReject }: Re
                     ]}>
                     <View
                       style={[
-                        StyleSheet.absoluteFillObject,
+                        StyleSheet.absoluteFill,
                         { backgroundColor: isDark ? 'rgba(30, 41, 59, 0.5)' : '#FFFFFF' },
                       ]}
                     />
@@ -562,8 +562,7 @@ export default function RejectionModal({ visible, issue, onClose, onReject }: Re
                                   colors={isDark ? item.gradDark : item.gradLight}
                                   start={{ x: 0, y: 0 }}
                                   end={{ x: 1, y: 1 }}
-                                  style={StyleSheet.absoluteFill}
-                                  borderRadius={22}
+                                  style={[StyleSheet.absoluteFill, { borderRadius: 22 }]}
                                 />
                               )}
 
@@ -677,7 +676,7 @@ export default function RejectionModal({ visible, issue, onClose, onReject }: Re
                               ? ['rgba(239, 68, 68, 0.04)', 'transparent']
                               : ['rgba(254, 226, 226, 0.3)', 'transparent']
                           }
-                          style={StyleSheet.absoluteFillObject}
+                          style={StyleSheet.absoluteFill}
                           pointerEvents="none"
                         />
                       )}
@@ -758,12 +757,12 @@ export default function RejectionModal({ visible, issue, onClose, onReject }: Re
                         colors={['#EF4444', '#B91C1C']}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
-                        style={StyleSheet.absoluteFillObject}>
+                        style={StyleSheet.absoluteFill}>
                         <LinearGradient
                           colors={['rgba(255,255,255,0.25)', 'transparent']}
                           start={{ x: 0, y: 0 }}
                           end={{ x: 0, y: 1 }}
-                          style={StyleSheet.absoluteFillObject}
+                          style={StyleSheet.absoluteFill}
                         />
                         <View className="flex-1 flex-row items-center justify-center gap-2">
                           <XCircle color="#FFFFFF" size={18} strokeWidth={2.5} />
@@ -801,10 +800,10 @@ export default function RejectionModal({ visible, issue, onClose, onReject }: Re
             <BlurView
               intensity={isDark ? 60 : 30}
               tint={isDark ? 'dark' : 'light'}
-              style={StyleSheet.absoluteFillObject}
+              style={StyleSheet.absoluteFill}
             />
             <TouchableOpacity
-              style={StyleSheet.absoluteFillObject}
+              style={StyleSheet.absoluteFill}
               onPress={() => setShowConfirmation(false)}
               activeOpacity={1}
             />
@@ -827,8 +826,7 @@ export default function RejectionModal({ visible, issue, onClose, onReject }: Re
                 }
                 start={{ x: 0, y: 0 }}
                 end={{ x: 0, y: 1 }}
-                style={StyleSheet.absoluteFillObject}
-                borderRadius={32}
+                style={[StyleSheet.absoluteFill, { borderRadius: 32 }]}
               />
 
               <View
@@ -900,12 +898,12 @@ export default function RejectionModal({ visible, issue, onClose, onReject }: Re
                     colors={['#EF4444', '#B91C1C']}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
-                    style={StyleSheet.absoluteFillObject}>
+                    style={StyleSheet.absoluteFill}>
                     <LinearGradient
                       colors={['rgba(255,255,255,0.25)', 'transparent']}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 0, y: 1 }}
-                      style={StyleSheet.absoluteFillObject}
+                      style={StyleSheet.absoluteFill}
                     />
                     <View className="flex-1 flex-row items-center justify-center gap-2">
                       <XCircle color="#FFFFFF" size={16} strokeWidth={2.5} />

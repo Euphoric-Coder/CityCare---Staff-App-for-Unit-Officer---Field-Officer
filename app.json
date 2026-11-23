@@ -10,6 +10,14 @@
       "tsconfigPaths": true
     },
     "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#022c22",
+          "image": "./assets/logo.png",
+          "resizeMode": "contain"
+        }
+      ],
       "expo-font",
       "expo-secure-store",
       "expo-web-browser",
@@ -18,11 +26,6 @@
     "orientation": "portrait",
     "icon": "./assets/logo.png",
     "userInterfaceStyle": "automatic",
-    "splash": {
-      "backgroundColor": "#022c22",
-      "image": "./assets/logo.png",
-      "resizeMode": "contain"
-    },
     "assetBundlePatterns": [
       "**/*"
     ],

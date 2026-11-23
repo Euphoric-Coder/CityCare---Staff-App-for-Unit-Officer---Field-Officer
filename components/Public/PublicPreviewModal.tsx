@@ -59,7 +59,7 @@ function formatDate(dateStr?: string) {
 
 export default function PublicPreviewModal({ issue, isDark, onClose }: PublicPreviewModalProps) {
   const insets = useSafeAreaInsets();
-  const catMeta = CATEGORY_COLORS[issue.category] ?? CATEGORY_COLORS['Pothole'];
+  const catMeta = CATEGORY_COLORS[issue.category as IssueCategory] ?? CATEGORY_COLORS['Pothole'];
   const hasBeforeImg = issue.before_images?.length > 0;
   const hasAfterImg = issue.after_images?.length > 0;
   const isRejected = issue.status === 'Rejected';
@@ -68,10 +68,10 @@ export default function PublicPreviewModal({ issue, isDark, onClose }: PublicPre
   const statusColor = isRejected ? '#EF4444' : '#10B981';
 
   // Advanced gradients
-  const bgGradient = isDark ? ['#020617', '#0F172A', '#020617'] : ['#F8FAFC', '#F1F5F9', '#F8FAFC'];
-  const headerGradient = isDark ? ['#0F766E', '#064E3B'] : ['#0F766E', '#047857'];
+  const bgGradient: [string, string, ...string[]] = isDark ? ['#020617', '#0F172A', '#020617'] : ['#F8FAFC', '#F1F5F9', '#F8FAFC'];
+  const headerGradient: [string, string, ...string[]] = isDark ? ['#0F766E', '#064E3B'] : ['#0F766E', '#047857'];
 
-  const statusGradients = isRejected
+  const statusGradients: { light: [string, string, ...string[]]; dark: [string, string, ...string[]]; border: string } = isRejected
     ? {
         light: ['#FEF2F2', '#FEE2E2'],
         dark: ['#450A0A', '#290606'],
@@ -318,7 +318,7 @@ export default function PublicPreviewModal({ issue, isDark, onClose }: PublicPre
                       />
                       <LinearGradient
                         colors={['transparent', 'rgba(0,0,0,0.8)']}
-                        style={StyleSheet.absoluteFillObject}
+                        style={StyleSheet.absoluteFill}
                         locations={[0.4, 1]}
                       />
                       <View className="absolute bottom-3 left-3 overflow-hidden rounded-full border border-white/20">
@@ -341,7 +341,7 @@ export default function PublicPreviewModal({ issue, isDark, onClose }: PublicPre
                       />
                       <LinearGradient
                         colors={['transparent', 'rgba(4,120,87,0.8)']}
-                        style={StyleSheet.absoluteFillObject}
+                        style={StyleSheet.absoluteFill}
                         locations={[0.4, 1]}
                       />
                       <View className="absolute bottom-3 right-3 overflow-hidden rounded-full border border-emerald-300/30">
@@ -364,7 +364,7 @@ export default function PublicPreviewModal({ issue, isDark, onClose }: PublicPre
             <View className="mb-10 overflow-hidden rounded-[28px] shadow-2xl shadow-slate-200/60 dark:shadow-black/50">
               <LinearGradient
                 colors={isDark ? ['#1E293B', '#0F172A'] : ['#FFFFFF', '#F8FAFC']}
-                style={StyleSheet.absoluteFillObject}
+                style={StyleSheet.absoluteFill}
               />
               <View className="absolute inset-0 rounded-[28px] border border-slate-200/80 dark:border-slate-700/50" />
 

@@ -246,7 +246,7 @@ export default function MessagesTab() {
   const [pickerMode, setPickerMode] = useState<'message' | 'conversation'>('message');
   const [pendingIssueRef, setPendingIssueRef] = useState<Issue | null>(null);
   const [profileOfficial, setProfileOfficial] = useState<OfficialUser | null>(null);
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<React.ElementRef<typeof ScrollView>>(null);
 
   const rawConvs =
     useQuery(api.directMessages.getUserConversations, { userId: CURRENT_USER_ID as any }) || [];

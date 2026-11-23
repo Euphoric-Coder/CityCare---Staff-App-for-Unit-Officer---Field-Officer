@@ -8,7 +8,6 @@ import {
   Platform,
   StyleSheet,
   Modal,
-  InteractionManager,
 } from 'react-native';
 import { useColorScheme } from 'nativewind';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -121,7 +120,7 @@ interface SLAOverduePanelProps {
   onEscalate?: (reason: string) => void;
 }
 
-function daysSinceOverdue(slaDeadline: string): number {
+function daysSinceOverdue(slaDeadline: string | number): number {
   const now = new Date();
   const deadline = new Date(slaDeadline);
   return Math.max(0, Math.ceil((now.getTime() - deadline.getTime()) / (1000 * 60 * 60 * 24)));

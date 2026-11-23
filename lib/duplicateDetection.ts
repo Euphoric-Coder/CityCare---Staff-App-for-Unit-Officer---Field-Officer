@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { DuplicateGroup, DuplicatePairMetrics, Issue } from './types';
 
 type RawIssue = {

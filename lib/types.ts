@@ -10,9 +10,29 @@ export type IssueStatus =
   | 'closed'
   | 'resolved'
   | 'withdrawn'
-  | 'rejected';
+  | 'rejected'
+  | 'Pending'
+  | 'Verified'
+  | 'Assigned'
+  | 'In Progress'
+  | 'Pending UO Verification'
+  | 'Rework Required'
+  | 'Reopened'
+  | 'Escalated'
+  | 'Closed'
+  | 'Resolved'
+  | 'Withdrawn'
+  | 'Rejected';
 
-export type IssuePriority = 'low' | 'medium' | 'high' | 'critical';
+export type IssuePriority =
+  | 'low'
+  | 'medium'
+  | 'high'
+  | 'critical'
+  | 'Low'
+  | 'Medium'
+  | 'High'
+  | 'Critical';
 
 export type IssueCategory =
   | 'Pothole'
@@ -111,7 +131,8 @@ export type IssueSubCategory =
   | 'Disinfection'
   | 'Disease Prevention'
   | 'Sanitation Inspection'
-  | 'General Issue';
+  | 'General Issue'
+  | (string & {});
 
 export type RejectionReason =
   | 'Duplicate'
@@ -206,7 +227,17 @@ export interface VerificationChecklist {
   isWithinJurisdiction: boolean;
 }
 
-export type UserRole = 'unit_officer' | 'field_officer' | 'citizen' | 'admin' | 'city_admin';
+export type UserRole =
+  | 'unit_officer'
+  | 'field_officer'
+  | 'citizen'
+  | 'admin'
+  | 'city_admin'
+  | 'UnitOfficer'
+  | 'FieldOfficer'
+  | 'Citizen'
+  | 'Admin'
+  | 'CityAdmin';
 
 export type UpdateScope = 'citizen' | 'officer_and_citizen' | 'admin_only';
 
@@ -280,7 +311,7 @@ export interface Issue {
 
   citizenName?: string;
   citizenEmail?: string | null;
-  citizenPhone?: number | null;
+  citizenPhone?: number | string | null;
   isAnonymous: boolean;
 
   // ---- Media ----
@@ -302,7 +333,7 @@ export interface Issue {
   slaBreached: boolean;
 
   // ---- Status Timestamps ----
-  createdAt: number;
+  createdAt: number | string;
   dateReported: string; // ISO string for UI
 
   resolvedAt?: number | null;
@@ -314,6 +345,9 @@ export interface Issue {
   withdrawalCategory?: string;
 
   // ---- Verification ----
+  verificationNotes?: string;
+  verificationPhotos?: string[];
+  verificationLocation?: Coordinates | null;
   verificationChecklist?: {
     locationValid: boolean;
     hasSufficientEvidence: boolean;
@@ -347,8 +381,10 @@ export interface Issue {
   citizenRating?: number | null;
   citizenFeedback?: string | null;
 
-  // ---- Issue Updates ----
+  // ---- Issue Updates & Timeline ----
   issueUpdates?: IssueUpdate[];
+  timeline?: any[];
+  updates?: any[];
 }
 
 export interface FieldOfficerDetails {
@@ -371,6 +407,7 @@ export interface FieldOfficerDetails {
 export interface Coordinates {
   latitude: number;
   longitude: number;
+  timestamp?: number | string;
 }
 
 export interface CitizenDetails {
@@ -417,6 +454,9 @@ export interface MappedIssue {
   beforeLocation: Coordinates | null;
   afterLocation: Coordinates | null;
 
+  foResolutionNotes?: string;
+  foResolutionDescription?: string;
+
   videoEvidence: string[];
 
   slaDeadline: number | null;
@@ -432,15 +472,23 @@ export interface MappedIssue {
 }
 
 export interface FieldOfficer {
-  _id: string;
-  fullName: string;
+  _id?: string;
+  id?: string;
+  fullName?: string;
+  name?: string;
   email: string;
   avatar?: string;
   rating: number;
-  specialisations: IssueCategory[];
+  efficiencyScore?: number;
+  workloadScore?: number;
+  specialisations?: (IssueCategory | string)[];
+  specializations?: (IssueCategory | string)[];
   workloadPercentage: number;
-  currentActiveIssues: number;
-  onTimeCompletionRate: number;
+  currentActiveIssues?: number;
+  activeIssues?: number;
+  maxIssueCapacity?: number;
+  onTimeCompletionRate?: number;
+  successRate?: number;
   lastActive: string;
   ward: string;
   recommended?: boolean;
@@ -522,12 +570,14 @@ export interface CitizenMessage {
   issueId: string;
   fromId: string;
   fromName: string;
-  fromRole: 'FieldOfficer' | 'Citizen';
+  fromRole: 'FieldOfficer' | 'Citizen' | 'field_officer' | 'citizen';
   fromAvatar?: string;
   text: string;
   timestamp: string;
   read: boolean;
   attachments?: string[];
+  createdAt?: string | number;
+  senderId?: string;
 }
 
 export type NotificationType =
@@ -565,22 +615,22 @@ export interface PublicIssue {
   id: string;
   original_issue_id: string;
   title: string;
-  category: IssueCategory;
+  category: IssueCategory | string;
   ward: string;
   location: string;
-  status: 'Resolved' | 'Rejected';
+  status: 'Resolved' | 'Rejected' | string;
   description?: string;
   summary: string;
   before_images: string[];
   after_images: string[];
-  foVisible: boolean;
+  foVisible?: boolean;
   created_at?: string;
   reviewed_at?: string;
   resolved_by: string;
   resolved_date: string;
   moderated_by: string;
   moderated_at: string;
-  publicCompletionNote: string;
+  publicCompletionNote?: string;
   public_visible: boolean;
   publish_status: PublicIssueStatus;
   rejection_reason?: string;

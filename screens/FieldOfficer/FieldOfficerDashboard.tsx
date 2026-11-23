@@ -220,7 +220,7 @@ export default function FieldOfficerDashboard({
                     ]}
                     start={{ x: 1, y: 0 }}
                     end={{ x: 0.1, y: 0.9 }}
-                    style={StyleSheet.absoluteFillObject}
+                    style={StyleSheet.absoluteFill}
                     pointerEvents="none"
                   />
 
@@ -241,7 +241,7 @@ export default function FieldOfficerDashboard({
                       ]}
                       start={{ x: 1, y: 0 }}
                       end={{ x: 0.15, y: 0.85 }}
-                      style={StyleSheet.absoluteFillObject}
+                      style={StyleSheet.absoluteFill}
                     />
                   </View>
 
@@ -264,7 +264,7 @@ export default function FieldOfficerDashboard({
 
                   {/* Bottom Accent Line */}
                   <LinearGradient
-                    colors={card.colors}
+                    colors={card.colors as [string, string]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={styles.statAccent}

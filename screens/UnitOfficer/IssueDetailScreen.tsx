@@ -13,7 +13,6 @@ import {
   Dimensions,
   Linking,
   Platform,
-  InteractionManager,
   Modal,
   KeyboardAvoidingView,
 } from 'react-native';
@@ -121,6 +120,16 @@ interface FileAttachment {
 }
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+const InteractionManager = {
+  runAfterInteractions: (task: () => void | Promise<void>) => {
+    const handle = setTimeout(task, 0);
+    return {
+      then: (fn?: () => void) => Promise.resolve().then(task).then(fn),
+      cancel: () => clearTimeout(handle),
+    };
+  },
+};
 
 const STATUS_DOT_COLORS: Record<string, string> = {
   pending: '#F59E0B',
@@ -314,7 +323,7 @@ function PhotoCarousel({
   onPressImage: (uri: string) => void;
 }) {
   const [activeIndex, setActiveIndex] = useState(0);
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<React.ElementRef<typeof ScrollView>>(null);
 
   // Use a fallback estimated width, but we will rely on exact onLayout calculations for pixel-perfect sizing
   const defaultWidth = Dimensions.get('window').width - 100;
@@ -359,7 +368,7 @@ function PhotoCarousel({
               {/* Cinematic Premium Gradient */}
               <LinearGradient
                 colors={['rgba(0,0,0,0.4)', 'transparent', 'rgba(0,0,0,0.7)']}
-                style={StyleSheet.absoluteFillObject}
+                style={StyleSheet.absoluteFill}
                 className="rounded-[24px]"
               />
 
@@ -440,7 +449,7 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
   const [activeVideoIndex, setActiveVideoIndex] = useState(0);
   const [playingVideo, setPlayingVideo] = useState<number | null>(null);
 
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<React.ElementRef<typeof ScrollView>>(null);
   const [duplicateYCoord, setDuplicateYCoord] = useState(0);
   const [statusDialog, setStatusDialog] = useState<{
     visible: boolean;
@@ -1512,7 +1521,7 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
             colors={isDark ? ['#0F766E', '#0891B2', '#0C4A6E'] : ['#67B7CC', '#0284C7', '#6B8CF0']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
-            style={StyleSheet.absoluteFillObject}
+            style={StyleSheet.absoluteFill}
           />
           <View className="mt-2 w-full flex-row items-center justify-between">
             <TouchableOpacity
@@ -1608,7 +1617,7 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
                   }}>
                   {/* Status Ambient Tint */}
                   <View
-                    style={{ backgroundColor: statusStyle.bg, ...StyleSheet.absoluteFillObject }}
+                    style={{ backgroundColor: statusStyle.bg, ...StyleSheet.absoluteFill }}
                   />
 
                   {/* Priority Side Strip */}
@@ -3785,9 +3794,9 @@ export default function IssueDetailScreen({ route }: IssueDetailScreenProps) {
                                     marginBottom: 3,
                                   }}>
                                   ISSUE RE-OPENED{' '}
-                                  {mappedIssue.reopenCategory.includes[
-                                    ('work_incomplete', 'quality_issue', 'recurrence', 'other')
-                                  ]
+                                  {['work_incomplete', 'quality_issue', 'recurrence', 'other'].includes(
+                                    mappedIssue.reopenCategory
+                                  )
                                     ? 'BY CITIZEN'
                                     : ''}
                                 </Text>

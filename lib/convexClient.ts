@@ -73,7 +73,8 @@ export async function mockVerifyUser(credentials: LoginCredentials): Promise<Aut
         id: 'U001',
         name: 'Officer Sarah Johnson',
         email: credentials.email,
-        role: credentials.role || 'Unit Officer',
+        role: (credentials.role || 'unit_officer') as any,
+        mustChangePassword: false,
       },
     };
   }
@@ -85,7 +86,8 @@ export async function mockVerifyUser(credentials: LoginCredentials): Promise<Aut
         id: 'F001',
         name: 'Officer Michael Chen',
         email: credentials.email,
-        role: credentials.role || 'Field Officer',
+        role: (credentials.role || 'field_officer') as any,
+        mustChangePassword: false,
       },
     };
   }

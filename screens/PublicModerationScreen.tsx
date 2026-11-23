@@ -24,7 +24,6 @@ import {
   FileText,
 } from 'lucide-react-native';
 import { PublicIssue } from 'lib/types';
-import { publicIssues as initialPublicIssues } from 'lib/mockData';
 import IssueModerationCard from 'components/Public/IssueModerateCard';
 import ModerationBottomSheet from 'components/Public/ModerationButtonSheet';
 import PublicPreviewModal from 'components/Public/PublicPreviewModal';
@@ -79,7 +78,7 @@ function StatsBar({ issues, isDark }: { issues: PublicIssue[]; isDark: boolean }
             }}>
             <LinearGradient
               colors={isDark ? ['#1E293B', '#0F172A'] : ['#FFFFFF', '#F8FAFC']}
-              style={StyleSheet.absoluteFillObject}
+              style={StyleSheet.absoluteFill}
             />
             {/* Subtle glow indicator */}
             <View
@@ -137,7 +136,7 @@ export default function PublicModerationScreen() {
 
   const saveDraftPublicIssue = useMutation(api.publicIssues.saveDraftPublicIssue);
 
-  const issues = mapToMobilePublicIssues(rawIssues ?? []);
+  const issues = mapToMobilePublicIssues(rawIssues ?? []) as PublicIssue[];
 
   const showToast = useCallback(
     (msg: string) => {
@@ -241,7 +240,7 @@ export default function PublicModerationScreen() {
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={[
-            StyleSheet.absoluteFillObject,
+            StyleSheet.absoluteFill,
             { borderBottomLeftRadius: 32, borderBottomRightRadius: 32 },
           ]}
         />
@@ -370,7 +369,7 @@ export default function PublicModerationScreen() {
                     colors={['#0D9488', '#0891B2']}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
-                    style={StyleSheet.absoluteFillObject}
+                    style={StyleSheet.absoluteFill}
                   />
                 )}
                 <View className="flex-row items-center gap-2 px-4 py-3">

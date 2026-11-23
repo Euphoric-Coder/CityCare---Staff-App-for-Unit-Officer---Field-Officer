@@ -624,7 +624,7 @@ export default function WorkExecutionFlow({
           <View className="mt-3">
             <LocationBlock
               label="Before Location"
-              coords={effectiveBeforeLocation}
+              coords={effectiveBeforeLocation ?? null}
               isCapturing={capturingFor === 'before'}
             />
           </View>
@@ -697,7 +697,7 @@ export default function WorkExecutionFlow({
           <View className="mt-3">
             <LocationBlock
               label="After Location"
-              coords={effectiveAfterLocation}
+              coords={effectiveAfterLocation ?? null}
               isCapturing={capturingFor === 'after'}
             />
           </View>

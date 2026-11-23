@@ -965,7 +965,7 @@ export default function AIReviewCard({ issue, unitOfficerDepartment, duplicateFl
                         ? ['rgba(6,182,212,0.1)', 'transparent']
                         : ['rgba(6,182,212,0.03)', 'transparent']
                     }
-                    style={StyleSheet.absoluteFillObject}
+                    style={StyleSheet.absoluteFill}
                     className="rounded-full"
                   />
                   <View className="flex-row items-baseline">

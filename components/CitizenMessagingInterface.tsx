@@ -42,12 +42,12 @@ const FO_ID = 'fo-1';
 const FO_NAME = 'Rajesh Kumar';
 const FO_AVATAR = 'https://i.pravatar.cc/150?img=12';
 
-function formatTime(createdAt: string): string {
+function formatTime(createdAt: string | number): string {
   const date = new Date(createdAt);
   return date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
 }
 
-function formatDateDivider(createdAt: string): string {
+function formatDateDivider(createdAt: string | number): string {
   const date = new Date(createdAt);
   const today = new Date();
   const yesterday = new Date();
@@ -60,8 +60,8 @@ function formatDateDivider(createdAt: string): string {
 
 function shouldShowDateDivider(messages: CitizenMessage[], index: number): boolean {
   if (index === 0) return true;
-  const curr = new Date(messages[index].createdAt).toDateString();
-  const prev = new Date(messages[index - 1].createdAt).toDateString();
+  const curr = new Date(messages[index].createdAt || messages[index].timestamp).toDateString();
+  const prev = new Date(messages[index - 1].createdAt || messages[index - 1].timestamp).toDateString();
   return curr !== prev;
 }
 
@@ -99,7 +99,7 @@ function MessageBubble({ message, isOwn, showAvatar, isDark }: MessageBubbleProp
             </Text>
             <View className="mt-1.5 flex-row items-center justify-end gap-1.5">
               <Text className="text-[10px] font-bold text-teal-100/80">
-                {formatTime(message.createdAt)}
+                {formatTime(message.createdAt || message.timestamp)}
               </Text>
               {message.read ? (
                 <CheckCheck size={14} color="#5EEAD4" strokeWidth={2.5} />
@@ -117,7 +117,7 @@ function MessageBubble({ message, isOwn, showAvatar, isDark }: MessageBubbleProp
             </Text>
             <View className="mt-1.5 flex-row items-center justify-start gap-1.5">
               <Text className="text-[10px] font-bold text-slate-400 dark:text-slate-500">
-                {formatTime(message.createdAt)}
+                {formatTime(message.createdAt || message.timestamp)}
               </Text>
             </View>
           </View>
@@ -151,7 +151,7 @@ export default function CitizenMessagingInterface({
   issue,
 }: CitizenMessagingInterfaceProps) {
   const [inputText, setInputText] = useState('');
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<React.ElementRef<typeof ScrollView>>(null);
 
   const user = useUser();
   const currentUserId = user?.id as Id<'users'> | undefined;
@@ -457,7 +457,7 @@ export default function CitizenMessagingInterface({
                           <View className="shadow-xs flex-row items-center gap-2 rounded-full border border-slate-200/80 bg-white/80 px-4 py-1.5 backdrop-blur-md dark:border-slate-800/80 dark:bg-slate-900/80">
                             <Clock size={12} color="#0D9488" strokeWidth={2.5} />
                             <Text className="text-[11px] font-extrabold uppercase tracking-[0.15em] text-slate-600 dark:text-slate-400">
-                              {formatDateDivider(msg.createdAt)}
+                              {formatDateDivider(msg.createdAt || msg.timestamp)}
                             </Text>
                           </View>
                         </View>

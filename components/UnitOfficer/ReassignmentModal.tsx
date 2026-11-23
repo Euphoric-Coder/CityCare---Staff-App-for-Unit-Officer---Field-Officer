@@ -62,7 +62,7 @@ export default function ReassignmentModal({
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}>
         <TouchableOpacity
-          style={StyleSheet.absoluteFillObject}
+          style={StyleSheet.absoluteFill}
           activeOpacity={1}
           onPress={handleCancel}
         />
@@ -73,7 +73,7 @@ export default function ReassignmentModal({
           {/* Header */}
           <LinearGradient
             colors={isDark ? ['rgba(245, 158, 11, 0.1)', 'transparent'] : ['rgba(245, 158, 11, 0.05)', 'transparent']}
-            style={StyleSheet.absoluteFillObject}
+            style={StyleSheet.absoluteFill}
             pointerEvents="none"
           />
 
@@ -130,7 +130,7 @@ export default function ReassignmentModal({
             <View className="mb-6 overflow-hidden rounded-[24px] border border-slate-200/60 bg-white shadow-sm dark:border-white/5 dark:bg-slate-900/60">
               <LinearGradient
                 colors={isDark ? ['rgba(245, 158, 11, 0.08)', 'transparent'] : ['rgba(245, 158, 11, 0.03)', 'transparent']}
-                style={StyleSheet.absoluteFillObject}
+                style={StyleSheet.absoluteFill}
                 pointerEvents="none"
               />
               

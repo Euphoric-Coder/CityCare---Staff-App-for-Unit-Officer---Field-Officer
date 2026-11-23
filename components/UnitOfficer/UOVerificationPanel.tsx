@@ -148,7 +148,7 @@ interface LocationCheckCardProps {
   label: string;
   foLat: number;
   foLon: number;
-  foTimestamp: string;
+  foTimestamp?: string | number;
   issueLat: number;
   issueLon: number;
 }
@@ -204,7 +204,7 @@ function LocationCheckCard({
       }}>
       {/* ── Gradient Header Strip ── */}
       <LinearGradient
-        colors={accentColors.gradient as unknown as string[]}
+        colors={accentColors.gradient as unknown as [string, string]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
         style={{
@@ -287,7 +287,7 @@ function LocationCheckCard({
             }}>
             <View style={{ flexDirection: 'row' }}>
               <LinearGradient
-                colors={accentColors.gradient as unknown as string[]}
+                colors={accentColors.gradient as unknown as [string, string]}
                 style={{ width: 3 }}
               />
               <View
@@ -299,7 +299,7 @@ function LocationCheckCard({
                 <View
                   style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
                   <LinearGradient
-                    colors={accentColors.gradient as unknown as string[]}
+                    colors={accentColors.gradient as unknown as [string, string]}
                     style={{
                       width: 20,
                       height: 20,
@@ -384,7 +384,7 @@ function LocationCheckCard({
             }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <LinearGradient
-                colors={statusColors.bar as unknown as string[]}
+                colors={statusColors.bar as unknown as [string, string]}
                 style={{
                   width: 28,
                   height: 28,
@@ -420,7 +420,7 @@ function LocationCheckCard({
               overflow: 'hidden',
             }}>
             <LinearGradient
-              colors={statusColors.bar as unknown as string[]}
+              colors={statusColors.bar as unknown as [string, string]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={{ width: `${pct}%`, height: '100%', borderRadius: 4 }}
@@ -792,7 +792,7 @@ export default function UOVerificationPanel({
                       />
                       <LinearGradient
                         colors={['transparent', 'rgba(0,0,0,0.75)']}
-                        style={StyleSheet.absoluteFillObject}
+                        style={StyleSheet.absoluteFill}
                         start={{ x: 0.5, y: 0.4 }}
                         end={{ x: 0.5, y: 1 }}
                       />
@@ -840,7 +840,7 @@ export default function UOVerificationPanel({
                       />
                       <LinearGradient
                         colors={['transparent', 'rgba(5,150,105,0.9)']}
-                        style={StyleSheet.absoluteFillObject}
+                        style={StyleSheet.absoluteFill}
                         start={{ x: 0.5, y: 0.35 }}
                         end={{ x: 0.5, y: 1 }}
                       />

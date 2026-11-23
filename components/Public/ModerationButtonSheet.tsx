@@ -221,7 +221,7 @@ export default function ModerationBottomSheet({
         {/* Backdrop */}
         <Animated.View
           style={[
-            StyleSheet.absoluteFillObject,
+            StyleSheet.absoluteFill,
             { backgroundColor: 'rgba(0,0,0,0.6)', opacity: backdropAnim },
           ]}>
           <TouchableOpacity style={{ flex: 1 }} onPress={close} activeOpacity={1} />
@@ -695,7 +695,7 @@ export default function ModerationBottomSheet({
                   { justifyContent: 'center', alignItems: 'center', zIndex: 100 },
                 ]}>
                 <View
-                  style={{ backgroundColor: 'rgba(0,0,0,0.3)', ...StyleSheet.absoluteFillObject }}
+                  style={{ backgroundColor: 'rgba(0,0,0,0.3)', ...StyleSheet.absoluteFill }}
                 />
                 <BlurView
                   intensity={isDark ? 20 : 10}

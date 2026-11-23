@@ -309,7 +309,7 @@ const STATUS_META: Record<StatusKey, StatusMeta> = {
   },
 };
 
-const PRIORITY_META: Record<PriorityKey, PriorityMeta> = {
+const PRIORITY_META: Record<string, PriorityMeta> = {
   critical: {
     bg: 'bg-red-100',
     darkBg: 'dark:bg-red-900/40',
@@ -422,7 +422,7 @@ const SLA_META: Record<SLAKey, SLAMeta> = {
   },
 };
 
-function getSlaStatus(slaDeadline?: string, status?: string): SLAFilter {
+function getSlaStatus(slaDeadline?: string | number, status?: string): SLAFilter {
   if (status) {
     const normStatus = status.toLowerCase().trim();
     if (
@@ -459,7 +459,7 @@ function formatRelativeDate(dateString: string): string {
   return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
 }
 
-function formatSlaDeadline(slaDeadline?: string): string | null {
+function formatSlaDeadline(slaDeadline?: string | number): string | null {
   if (!slaDeadline) return null;
   const deadline = new Date(slaDeadline);
   return deadline.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
@@ -1347,14 +1347,14 @@ function FilterModal({
         <Animated.View
           entering={FadeIn.duration(400)}
           exiting={FadeOut.duration(300)}
-          style={StyleSheet.absoluteFillObject}>
+          style={StyleSheet.absoluteFill}>
           <BlurView
             intensity={isDark ? 40 : 25}
             tint={isDark ? 'dark' : 'light'}
-            style={StyleSheet.absoluteFillObject}
+            style={StyleSheet.absoluteFill}
           />
           <TouchableOpacity
-            style={StyleSheet.absoluteFillObject}
+            style={StyleSheet.absoluteFill}
             onPress={handleCloseAnim}
             activeOpacity={1}
           />
@@ -1388,7 +1388,7 @@ function FilterModal({
                   ? ['rgba(20, 184, 166, 0.05)', 'transparent']
                   : ['rgba(20, 184, 166, 0.05)', 'transparent']
               }
-              style={StyleSheet.absoluteFillObject}
+              style={StyleSheet.absoluteFill}
               start={{ x: 0.5, y: 0 }}
               end={{ x: 0.5, y: 0.2 }}
               pointerEvents="none"
@@ -1641,13 +1641,13 @@ function FilterModal({
                   }
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
-                  style={StyleSheet.absoluteFillObject}>
+                  style={StyleSheet.absoluteFill}>
                   {activeCount > 0 && (
                     <LinearGradient
                       colors={['rgba(255,255,255,0.25)', 'transparent']}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 0, y: 1 }}
-                      style={StyleSheet.absoluteFillObject}
+                      style={StyleSheet.absoluteFill}
                     />
                   )}
                   <View className="flex-1 flex-row items-center justify-center gap-2">
@@ -1718,8 +1718,7 @@ function FilterOption({
           colors={isDark ? [`${dotColor}33`, `${dotColor}11`] : [`${dotColor}1A`, `${dotColor}05`]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
-          style={StyleSheet.absoluteFillObject}
-          borderRadius={14}
+          style={[StyleSheet.absoluteFill, { borderRadius: 14 }]}
         />
       )}
       <View
@@ -1849,7 +1848,7 @@ export default function UnitOfficerDashboard() {
   const [showNotifications, setShowNotifications] = useState(false);
   const [trendRange, setTrendRange] = useState<7 | 30 | 90 | 'all'>(30);
 
-  const unreadNotifCount = notifications?.filter((n) => !n.read).length;
+  const unreadNotifCount = notifications?.filter((n: any) => !n.read).length;
 
   const [filters, setFilters] = useState<FilterState>({
     status: 'all',
@@ -1894,7 +1893,7 @@ export default function UnitOfficerDashboard() {
   const duplicateGroups = useMemo(() => {
     if (!rawIssues) return [];
 
-    const activeIssues = rawIssues.filter((issue) => {
+    const activeIssues = rawIssues.filter((issue: any) => {
       const status = issue?.status?.toLowerCase().trim();
       return status === 'pending';
     });
@@ -1912,7 +1911,7 @@ export default function UnitOfficerDashboard() {
   const issues = useMemo(() => {
     if (!rawIssues) return [];
 
-    return rawIssues.map((issue) => mapIssueToUI(issue));
+    return rawIssues.map((issue: any) => mapIssueToUI(issue));
   }, [rawIssues]);
 
   // console.log('USER ID:', user?.id);
@@ -1920,7 +1919,7 @@ export default function UnitOfficerDashboard() {
 
   const filteredIssues = useMemo(() => {
     const q = searchQuery.toLowerCase();
-    return issues.filter((issue) => {
+    return issues.filter((issue: any) => {
       if (q) {
         const match =
           issue?.title.toLowerCase().includes(q) ||
@@ -1934,7 +1933,7 @@ export default function UnitOfficerDashboard() {
         return false;
       if (filters.category !== 'all' && issue?.category !== filters.category) return false;
       if (filters.subCategories.length > 0) {
-        const matchesSub = filters.subCategories.some((sc) => issue?.subCategories?.includes(sc));
+        const matchesSub = filters.subCategories.some((sc: any) => issue?.subCategories?.includes(sc));
         if (!matchesSub) return false;
       }
       if (filters.priority !== 'all' && issue?.priority !== filters.priority) return false;
@@ -1943,7 +1942,7 @@ export default function UnitOfficerDashboard() {
   }, [issues, searchQuery, filters]);
 
   const overdueCount = useMemo(
-    () => issues.filter((i) => getSlaStatus(i?.slaDeadline, i?.status) === 'overdue').length,
+    () => issues.filter((i: any) => getSlaStatus(i?.slaDeadline, i?.status) === 'overdue').length,
     []
   );
 
@@ -2376,7 +2375,7 @@ export default function UnitOfficerDashboard() {
                   }
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
-                  style={StyleSheet.absoluteFillObject}
+                  style={StyleSheet.absoluteFill}
                   pointerEvents="none"
                 />
               )}
@@ -2505,7 +2504,7 @@ export default function UnitOfficerDashboard() {
                 </Text>
               </View>
             ) : (
-              filteredIssues.map((issue) => (
+              filteredIssues.map((issue: any) => (
                 <IssueCard
                   key={issue?.id}
                   // @ts-ignore
@@ -2612,7 +2611,7 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
   },
   statIconInner: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',

@@ -249,7 +249,7 @@ export default function ForgotPasswordScreen({ navigation, route }: Props) {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: bgColors[0] }}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
-      <LinearGradient colors={bgColors} style={StyleSheet.absoluteFillObject} />
+      <LinearGradient colors={bgColors} style={StyleSheet.absoluteFill} />
 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>

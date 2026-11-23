@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { IssueStatus } from '../lib/types';
+import { IssueStatus } from '../../lib/types';
 
 interface StatusBadgeProps {
   status: IssueStatus;
@@ -41,17 +41,19 @@ export default function StatusBadge({ status, size = 'medium' }: StatusBadgeProp
   };
 
   const config = getStatusConfig(status);
-  const sizeStyles =
-    size === 'small' ? styles.small : size === 'large' ? styles.large : styles.medium;
+  const badgeSizeStyles =
+    size === 'small' ? styles.badgeSmall : size === 'large' ? styles.badgeLarge : styles.badgeMedium;
+  const textSizeStyles =
+    size === 'small' ? styles.textSmall : size === 'large' ? styles.textLarge : styles.textMedium;
 
   return (
     <View
       style={[
         styles.badge,
         { backgroundColor: config.bg, borderColor: config.border },
-        sizeStyles,
+        badgeSizeStyles,
       ]}>
-      <Text style={[styles.text, { color: config.text }, sizeStyles]}>{config.label}</Text>
+      <Text style={[styles.text, { color: config.text }, textSizeStyles]}>{config.label}</Text>
     </View>
   );
 }
@@ -68,17 +70,22 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
   },
-  small: {
+  badgeSmall: {
     paddingHorizontal: 8,
     paddingVertical: 4,
-    fontSize: 10,
   },
-  medium: {
-    fontSize: 12,
-  },
-  large: {
+  badgeMedium: {},
+  badgeLarge: {
     paddingHorizontal: 16,
     paddingVertical: 8,
+  },
+  textSmall: {
+    fontSize: 10,
+  },
+  textMedium: {
+    fontSize: 12,
+  },
+  textLarge: {
     fontSize: 14,
   },
 });

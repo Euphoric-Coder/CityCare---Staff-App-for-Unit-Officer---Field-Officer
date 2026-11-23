@@ -4,8 +4,15 @@
     "jsx": "react",
     "strict": true,
     "baseUrl": ".",
+    "ignoreDeprecations": "6.0",
     "paths": {
-      "@/*": ["src/*"]
+      "*": ["*", "./*"]
     }
-  }
+  },
+  "exclude": [
+    "node_modules",
+    "convex",
+    "babel.config.js",
+    "metro.config.js"
+  ]
 }

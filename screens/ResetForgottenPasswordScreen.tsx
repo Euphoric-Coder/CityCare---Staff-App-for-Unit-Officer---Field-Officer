@@ -70,7 +70,7 @@ export default function ResetForgottenPasswordScreen({ navigation, route }: Prop
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState('');
 
-  const confirmPasswordRef = useRef<TextInput>(null);
+  const confirmPasswordRef = useRef<React.ElementRef<typeof TextInput>>(null);
   const allowNavigationRef = useRef(false);
 
   // Restore session from route params or SecureStore with backend validation
@@ -328,7 +328,7 @@ export default function ResetForgottenPasswordScreen({ navigation, route }: Prop
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: bgColors[0] }}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
-      <LinearGradient colors={bgColors} style={StyleSheet.absoluteFillObject} />
+      <LinearGradient colors={bgColors} style={StyleSheet.absoluteFill} />
 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>

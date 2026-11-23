@@ -76,7 +76,7 @@ export default function EscalationModal({
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}>
         <TouchableOpacity
-          style={StyleSheet.absoluteFillObject}
+          style={StyleSheet.absoluteFill}
           activeOpacity={1}
           onPress={handleCancel}
         />
@@ -86,7 +86,7 @@ export default function EscalationModal({
           style={styles.sheet}>
           <LinearGradient
             colors={isDark ? ['rgba(124, 58, 237, 0.1)', 'transparent'] : ['rgba(124, 58, 237, 0.05)', 'transparent']}
-            style={StyleSheet.absoluteFillObject}
+            style={StyleSheet.absoluteFill}
             pointerEvents="none"
           />
 
@@ -143,7 +143,7 @@ export default function EscalationModal({
             <View className="mb-6 overflow-hidden rounded-[24px] border border-slate-200/60 bg-white shadow-sm dark:border-white/5 dark:bg-slate-900/60">
               <LinearGradient
                 colors={isDark ? ['rgba(124, 58, 237, 0.08)', 'transparent'] : ['rgba(124, 58, 237, 0.03)', 'transparent']}
-                style={StyleSheet.absoluteFillObject}
+                style={StyleSheet.absoluteFill}
                 pointerEvents="none"
               />
               
@@ -235,7 +235,7 @@ export default function EscalationModal({
                           padding: 14,
                           flexDirection: 'row',
                           alignItems: 'center',
-                          justifyContent: 'between',
+                          justifyContent: 'space-between',
                           shadowColor: '#7C3AED',
                           shadowOffset: { width: 0, height: 4 },
                           shadowOpacity: 0.3,
@@ -257,7 +257,7 @@ export default function EscalationModal({
                           padding: 14,
                           flexDirection: 'row',
                           alignItems: 'center',
-                          justifyContent: 'between',
+                          justifyContent: 'space-between',
                         }}>
                         <Text className="flex-1 text-[13px] font-bold tracking-wide text-slate-500 dark:text-slate-400" numberOfLines={1}>
                           {cat.label}

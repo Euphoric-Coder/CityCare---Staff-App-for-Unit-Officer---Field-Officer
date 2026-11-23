@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
-import { FieldOfficer, IssueCategory } from '../lib/types';
+import { FieldOfficer, IssueCategory } from '../../lib/types';
 import { Star, CheckCircle2 } from 'lucide-react-native';
 
 interface OfficerCardProps {
@@ -52,18 +52,23 @@ export default function OfficerCard({
         </View>
       </View>
 
-      <View style={styles.specializationsRow}>
-        {officer.specializations.slice(0, 3).map((spec, index) => (
-          <View key={index} style={styles.specializationChip}>
-            <Text style={styles.specializationText}>{spec}</Text>
+      {(() => {
+        const specs = officer.specializations || officer.specialisations || [];
+        return (
+          <View style={styles.specializationsRow}>
+            {specs.slice(0, 3).map((spec, index) => (
+              <View key={index} style={styles.specializationChip}>
+                <Text style={styles.specializationText}>{spec}</Text>
+              </View>
+            ))}
+            {specs.length > 3 && (
+              <View style={styles.specializationChip}>
+                <Text style={styles.specializationText}>+{specs.length - 3}</Text>
+              </View>
+            )}
           </View>
-        ))}
-        {officer.specializations.length > 3 && (
-          <View style={styles.specializationChip}>
-            <Text style={styles.specializationText}>+{officer.specializations.length - 3}</Text>
-          </View>
-        )}
-      </View>
+        );
+      })()}
 
       <View style={styles.statsRow}>
         <View style={styles.statItem}>

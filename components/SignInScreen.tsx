@@ -204,7 +204,7 @@ export default function SignInScreen({ onSignIn, navigation, route }: SignInScre
       <LinearGradient
         // @ts-ignore
         colors={bgColors as [string, ...string[]]}
-        style={StyleSheet.absoluteFillObject}
+        style={StyleSheet.absoluteFill}
       />
 
       {/* Decorative Orbs - Emerald tones */}

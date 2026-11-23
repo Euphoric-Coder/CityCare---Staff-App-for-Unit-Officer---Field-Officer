@@ -100,8 +100,10 @@ export default function ActionButton({
   };
 
   const variantStyles = getVariantStyles();
-  const sizeStyles =
-    size === 'small' ? styles.small : size === 'large' ? styles.large : styles.medium;
+  const btnSizeStyles =
+    size === 'small' ? styles.btnSmall : size === 'large' ? styles.btnLarge : styles.btnMedium;
+  const textSizeStyles =
+    size === 'small' ? styles.textSmall : size === 'large' ? styles.textLarge : styles.textMedium;
   const isDisabled = disabled || loading;
 
   return (
@@ -112,7 +114,7 @@ export default function ActionButton({
           backgroundColor: isDisabled ? variantStyles.disabledBg : variantStyles.bg,
           borderColor: isDisabled ? variantStyles.disabledBg : variantStyles.border,
         },
-        sizeStyles,
+        btnSizeStyles,
         fullWidth && styles.fullWidth,
       ]}
       onPress={handlePress}
@@ -134,7 +136,7 @@ export default function ActionButton({
               style={[
                 styles.text,
                 { color: isDisabled ? variantStyles.disabledText : variantStyles.text },
-                sizeStyles,
+                textSizeStyles,
               ]}>
               {label}
             </Text>
@@ -167,19 +169,24 @@ const styles = StyleSheet.create({
   fullWidth: {
     width: '100%',
   },
-  small: {
+  btnSmall: {
     paddingHorizontal: 16,
     paddingVertical: 10,
     minHeight: 36,
-    fontSize: 14,
   },
-  medium: {
-    fontSize: 16,
-  },
-  large: {
+  btnMedium: {},
+  btnLarge: {
     paddingHorizontal: 24,
     paddingVertical: 16,
     minHeight: 52,
+  },
+  textSmall: {
+    fontSize: 14,
+  },
+  textMedium: {
+    fontSize: 16,
+  },
+  textLarge: {
     fontSize: 18,
   },
 });

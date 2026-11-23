@@ -67,7 +67,7 @@ export default function IssuePickerSheet({ visible, onClose, onSelect }: Props) 
 
   const filtered = useMemo(() => {
     return rawIssues
-      .filter((issue) => {
+      .filter((issue: any) => {
         const q = search.toLowerCase();
         const issueIdStr = issue.issueCode || (issue._id as string);
         const matchesSearch =
@@ -80,7 +80,7 @@ export default function IssuePickerSheet({ visible, onClose, onSelect }: Props) 
         const matchesSub = !selectedSubCategory || issue.subcategory?.includes(selectedSubCategory);
         return matchesSearch && matchesCat && matchesSub;
       })
-      .map((i) => ({
+      .map((i: any) => ({
         ...i,
         id: i.issueCode || (i._id as string),
         location: i.address || i.city,

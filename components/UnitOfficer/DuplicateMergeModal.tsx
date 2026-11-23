@@ -457,11 +457,11 @@ export default function DuplicateMergeModal({
       {!isClosing && (
         <>
           {/* Blurred backdrop */}
-          <Animated.View entering={FadeIn.duration(350)} style={StyleSheet.absoluteFillObject}>
+          <Animated.View entering={FadeIn.duration(350)} style={StyleSheet.absoluteFill}>
             <BlurView
               intensity={isDark ? 40 : 25}
               tint={isDark ? 'dark' : 'light'}
-              style={StyleSheet.absoluteFillObject}
+              style={StyleSheet.absoluteFill}
               experimentalBlurMethod="dimezisBlurView"
             />
             <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={close} />
@@ -494,7 +494,7 @@ export default function DuplicateMergeModal({
                     ? ['rgba(255,255,255,0.06)', 'transparent']
                     : ['rgba(255,255,255,0.5)', 'transparent']
                 }
-                style={StyleSheet.absoluteFillObject}
+                style={StyleSheet.absoluteFill}
                 start={{ x: 0.5, y: 0 }}
                 end={{ x: 0.5, y: 0.15 }}
                 pointerEvents="none"

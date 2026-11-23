@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { IssuePriority } from '../lib/types';
+import { IssuePriority } from '../../lib/types';
 import { AlertCircle } from 'lucide-react-native';
 
 interface PriorityBadgeProps {
@@ -17,12 +17,16 @@ export default function PriorityBadge({
   const getPriorityConfig = (priority: IssuePriority) => {
     switch (priority) {
       case 'Critical':
+      case 'critical':
         return { bg: '#FEE2E2', text: '#991B1B', border: '#FCA5A5', icon: '#DC2626' };
       case 'High':
+      case 'high':
         return { bg: '#FED7AA', text: '#9A3412', border: '#FDBA74', icon: '#EA580C' };
       case 'Medium':
+      case 'medium':
         return { bg: '#FEF3C7', text: '#78350F', border: '#FCD34D', icon: '#F59E0B' };
       case 'Low':
+      case 'low':
         return { bg: '#E0F2FE', text: '#075985', border: '#BAE6FD', icon: '#0284C7' };
       default:
         return { bg: '#F3F4F6', text: '#374151', border: '#D1D5DB', icon: '#6B7280' };
@@ -31,17 +35,19 @@ export default function PriorityBadge({
 
   const config = getPriorityConfig(priority);
   const iconSize = size === 'small' ? 12 : 14;
-  const sizeStyles = size === 'small' ? styles.small : styles.medium;
+  const isSmall = size === 'small';
 
   return (
     <View
       style={[
         styles.badge,
         { backgroundColor: config.bg, borderColor: config.border },
-        sizeStyles,
+        isSmall && styles.badgeSmall,
       ]}>
       {showIcon && <AlertCircle size={iconSize} color={config.icon} strokeWidth={2.5} />}
-      <Text style={[styles.text, { color: config.text }, sizeStyles]}>{priority}</Text>
+      <Text style={[styles.text, { color: config.text }, isSmall && styles.textSmall]}>
+        {priority}
+      </Text>
     </View>
   );
 }
@@ -57,16 +63,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignSelf: 'flex-start',
   },
+  badgeSmall: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
   text: {
     fontSize: 12,
     fontWeight: '700',
   },
-  small: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+  textSmall: {
     fontSize: 10,
-  },
-  medium: {
-    fontSize: 12,
   },
 });

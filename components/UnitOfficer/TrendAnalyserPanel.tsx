@@ -1,5 +1,15 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator, useColorScheme, Modal, ScrollView } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ActivityIndicator,
+  useColorScheme,
+  Modal,
+  ScrollView,
+  Pressable,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
   TrendingUp,
@@ -9,7 +19,7 @@ import {
   Activity,
   Clock,
   Layers,
-  X
+  X,
 } from 'lucide-react-native';
 
 type TrendRange = 7 | 30 | 90 | 'all';
@@ -25,8 +35,9 @@ export default function TrendAnalyserPanel({
   trendAnalytics,
   loading,
   selectedRange,
-  onRangeChange
+  onRangeChange,
 }: TrendAnalyserPanelProps) {
+  const insets = useSafeAreaInsets();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const [modalVisible, setModalVisible] = useState(false);
@@ -34,7 +45,6 @@ export default function TrendAnalyserPanel({
   const scope = trendAnalytics?.scope;
   const summary = trendAnalytics?.summary;
   const trendDirection = trendAnalytics?.trendDirection;
-  const categoryTrends = trendAnalytics?.categoryTrends || [];
   const hotspotTrends = trendAnalytics?.hotspotTrends || [];
   const duplicateTrend = trendAnalytics?.duplicateTrend;
   const recommendations = trendAnalytics?.recommendations || [];
@@ -50,6 +60,43 @@ export default function TrendAnalyserPanel({
     selectedRange === 'all'
       ? (summary?.totalIssuesAnalysed ?? summary?.totalIssues ?? 0) > 0
       : (summary?.currentWindowIssues ?? summary?.totalIssues ?? 0) > 0;
+
+  const severityColor = (sev: string) => {
+    switch (sev) {
+      case 'critical':
+        return {
+          bg: isDark ? 'rgba(239, 68, 68, 0.15)' : '#FEF2F2',
+          border: isDark ? 'rgba(239, 68, 68, 0.35)' : '#FEE2E2',
+          text: isDark ? '#FCA5A5' : '#DC2626',
+          iconColor: isDark ? '#F87171' : '#EF4444',
+          dot: '#EF4444',
+        };
+      case 'high':
+        return {
+          bg: isDark ? 'rgba(249, 115, 22, 0.15)' : '#FFF7ED',
+          border: isDark ? 'rgba(249, 115, 22, 0.35)' : '#FFEDD5',
+          text: isDark ? '#FDBA74' : '#EA580C',
+          iconColor: isDark ? '#FB923C' : '#F97316',
+          dot: '#F97316',
+        };
+      case 'medium':
+        return {
+          bg: isDark ? 'rgba(245, 158, 11, 0.15)' : '#FFFBEB',
+          border: isDark ? 'rgba(245, 158, 11, 0.35)' : '#FEF3C7',
+          text: isDark ? '#FCD34D' : '#D97706',
+          iconColor: isDark ? '#FBBF24' : '#F59E0B',
+          dot: '#F59E0B',
+        };
+      default:
+        return {
+          bg: isDark ? 'rgba(56, 189, 248, 0.15)' : '#F0F9FF',
+          border: isDark ? 'rgba(56, 189, 248, 0.35)' : '#E0F2FE',
+          text: isDark ? '#7DD3FC' : '#0284C7',
+          iconColor: isDark ? '#38BDF8' : '#0EA5E9',
+          dot: '#0EA5E9',
+        };
+    }
+  };
 
   const renderHeader = () => {
     return (
@@ -70,12 +117,19 @@ export default function TrendAnalyserPanel({
             <Text className="text-[15px] font-black text-slate-800 dark:text-slate-100">
               Operational Pattern Insights
             </Text>
-            <Text className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
+            <Text className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
               Department: {scope?.department || 'Civic'} • City: {scope?.city || 'Not assigned'}
             </Text>
           </View>
           <View className="items-end">
-            <View className="rounded-full bg-sky-100 dark:bg-sky-950/40 px-2.5 py-1">
+            <View
+              style={{
+                backgroundColor: isDark ? 'rgba(14, 165, 233, 0.2)' : '#E0F2FE',
+                borderColor: isDark ? 'rgba(56, 189, 248, 0.3)' : 'transparent',
+                borderWidth: isDark ? 1 : 0,
+              }}
+              className="rounded-full px-2.5 py-1"
+            >
               <Text className="text-[9px] font-extrabold text-sky-600 dark:text-sky-400 uppercase tracking-wider">
                 {selectedRange === 'all' ? 'All Time' : `${selectedRange} Days`}
               </Text>
@@ -87,7 +141,14 @@ export default function TrendAnalyserPanel({
         </View>
 
         {/* Range Selector chips */}
-        <View className="mt-4 flex-row rounded-2xl bg-white/70 p-1 dark:bg-slate-900/50">
+        <View
+          style={{
+            backgroundColor: isDark ? 'rgba(15, 23, 42, 0.7)' : 'rgba(255, 255, 255, 0.8)',
+            borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)',
+            borderWidth: 1,
+          }}
+          className="mt-4 flex-row rounded-2xl p-1"
+        >
           {rangeOptions.map((option) => {
             const active = selectedRange === option.value;
 
@@ -117,7 +178,13 @@ export default function TrendAnalyserPanel({
 
   if (loading) {
     return (
-      <View className="my-4 rounded-3xl bg-white p-6 shadow-sm border border-slate-100 dark:bg-slate-900 dark:border-slate-800 items-center justify-center">
+      <View
+        style={{
+          backgroundColor: isDark ? '#0F172A' : '#FFFFFF',
+          borderColor: isDark ? '#1E293B' : '#F1F5F9',
+        }}
+        className="my-4 rounded-3xl p-6 shadow-sm border items-center justify-center"
+      >
         <ActivityIndicator size="small" color="#0EA5E9" />
         <Text className="mt-2.5 text-[13px] font-bold text-slate-500 dark:text-slate-400">
           Analyzing issue patterns & hotspots...
@@ -128,16 +195,25 @@ export default function TrendAnalyserPanel({
 
   if (!trendAnalytics || !summary || !selectedRangeHasData) {
     return (
-      <View className="my-4 rounded-[28px] overflow-hidden border border-slate-200/60 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <View
+        style={{
+          backgroundColor: isDark ? '#0F172A' : '#FFFFFF',
+          borderColor: isDark ? '#1E293B' : '#E2E8F0',
+        }}
+        className="my-4 rounded-[28px] overflow-hidden border shadow-sm"
+      >
         {renderHeader()}
-        <View className="p-6 items-center justify-center bg-white dark:bg-slate-900 py-8">
-          <Activity size={24} color={isDark ? '#475569' : '#94A3B8'} className="mb-2.5" />
+        <View
+          style={{ backgroundColor: isDark ? '#0F172A' : '#FFFFFF' }}
+          className="p-6 items-center justify-center py-8"
+        >
+          <Activity size={24} color={isDark ? '#64748B' : '#94A3B8'} className="mb-2.5" />
           <Text className="text-[14px] font-extrabold text-slate-800 dark:text-slate-100 text-center">
             {selectedRange === 'all'
               ? 'No Trend Data Available Yet'
               : `No Analytics for This ${selectedRange}-Day Range`}
           </Text>
-          <Text className="mt-1.5 text-[12px] text-slate-400 dark:text-slate-500 text-center max-w-[280px]">
+          <Text className="mt-1.5 text-[12px] text-slate-400 dark:text-slate-400 text-center max-w-[280px]">
             {selectedRange === 'all'
               ? 'Trends will appear here automatically as more civic issues are reported and analyzed in your assigned area.'
               : `No issues were reported in the last ${selectedRange} days for your assigned scope. Try 30D, 90D, or All Time to view older operational patterns.`}
@@ -146,19 +222,6 @@ export default function TrendAnalyserPanel({
       </View>
     );
   }
-
-  const severityColor = (sev: string) => {
-    switch (sev) {
-      case 'critical':
-        return { bg: 'bg-red-50 dark:bg-red-950/20', text: 'text-red-600 dark:text-red-400', border: 'border-red-100 dark:border-red-900/30' };
-      case 'high':
-        return { bg: 'bg-orange-50 dark:bg-orange-950/20', text: 'text-orange-600 dark:text-orange-400', border: 'border-orange-100 dark:border-orange-900/30' };
-      case 'medium':
-        return { bg: 'bg-amber-50 dark:bg-amber-950/20', text: 'text-amber-600 dark:text-amber-400', border: 'border-amber-100 dark:border-amber-900/30' };
-      default:
-        return { bg: 'bg-blue-50 dark:bg-blue-950/20', text: 'text-blue-600 dark:text-blue-400', border: 'border-blue-100 dark:border-blue-900/30' };
-    }
-  };
 
   const duplicateGroupIssueCount =
     duplicateTrend?.duplicateGroupIssueCount ??
@@ -190,16 +253,22 @@ export default function TrendAnalyserPanel({
         : `Out of ${pendingDuplicateCandidateCount} pending ${pendingDuplicateCandidateCount === 1 ? 'issue' : 'issues'}, no duplicate group was detected.`;
 
   const hotspotAreaCount = summary?.hotspotAreaCount ?? hotspotTrends.length;
-  const hotspotIssueCount = summary?.hotspotIssueCount ?? hotspotTrends.reduce((s, h) => s + h.issueCount, 0);
+  const hotspotIssueCount = summary?.hotspotIssueCount ?? hotspotTrends.reduce((s: number, h: any) => s + h.issueCount, 0);
 
   return (
-    <View className="my-4 rounded-[28px] overflow-hidden border border-slate-200/60 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <View
+      style={{
+        backgroundColor: isDark ? '#0F172A' : '#FFFFFF',
+        borderColor: isDark ? '#1E293B' : '#E2E8F0',
+      }}
+      className="my-4 rounded-[28px] overflow-hidden border shadow-sm"
+    >
       {/* Header Banner */}
       {renderHeader()}
 
       <View className="p-4">
         {/* Range selection helper line */}
-        <Text className="text-[10px] text-slate-400 dark:text-slate-500 mb-3.5">
+        <Text className="text-[10px] text-slate-400 dark:text-slate-400 mb-3.5">
           {selectedRange === 'all'
             ? 'Showing all-time operational patterns.'
             : `Showing analytics for issues reported in the last ${selectedRange} days.`}
@@ -208,73 +277,97 @@ export default function TrendAnalyserPanel({
         {/* Summary metric cards */}
         <View className="flex-row flex-wrap gap-2.5 mb-4">
           {/* Card 1: Duplicate Rate */}
-          <View className="flex-1 min-w-[45%] rounded-2xl bg-slate-50 p-3 border border-slate-100 dark:bg-slate-850 dark:border-slate-800">
+          <View
+            style={{
+              backgroundColor: isDark ? '#1E293B' : '#F8FAFC',
+              borderColor: isDark ? 'rgba(255, 255, 255, 0.07)' : '#F1F5F9',
+            }}
+            className="flex-1 min-w-[45%] rounded-2xl p-3 border"
+          >
             <View className="flex-row items-center justify-between mb-1.5">
               <Text className="text-[11px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                 Duplicates
               </Text>
-              <Layers size={14} color="#0284C7" />
+              <Layers size={14} color={isDark ? '#38BDF8' : '#0284C7'} />
             </View>
             <Text className="text-[20px] font-black text-slate-800 dark:text-slate-100">
               {duplicateRate}%
             </Text>
-            <Text className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5" numberOfLines={1}>
+            <Text className="text-[10px] text-slate-400 dark:text-slate-400 mt-0.5" numberOfLines={1}>
               {duplicateGroupIssueCount} pending issues in {duplicateGroups} {duplicateGroups === 1 ? 'group' : 'groups'}
             </Text>
             {redundantDuplicateIssues > 0 && (
-              <Text className="text-[9px] text-slate-400 dark:text-slate-500 mt-0.5" numberOfLines={1}>
+              <Text className="text-[9px] text-slate-400 dark:text-slate-400 mt-0.5" numberOfLines={1}>
                 {redundantDuplicateIssues} likely redundant {redundantDuplicateIssues === 1 ? 'complaint' : 'complaints'}
               </Text>
             )}
-            <Text className="text-[8.5px] text-slate-400 dark:text-slate-500 mt-1" numberOfLines={2}>
+            <Text className="text-[8.5px] text-slate-400 dark:text-slate-400 mt-1" numberOfLines={2}>
               {duplicateExplanation}
             </Text>
           </View>
 
           {/* Card 2: Hotspots */}
-          <View className="flex-1 min-w-[45%] rounded-2xl bg-slate-50 p-3 border border-slate-100 dark:bg-slate-850 dark:border-slate-800">
+          <View
+            style={{
+              backgroundColor: isDark ? '#1E293B' : '#F8FAFC',
+              borderColor: isDark ? 'rgba(255, 255, 255, 0.07)' : '#F1F5F9',
+            }}
+            className="flex-1 min-w-[45%] rounded-2xl p-3 border"
+          >
             <View className="flex-row items-center justify-between mb-1.5">
               <Text className="text-[11px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                 Geo Hotspots
               </Text>
-              <MapPin size={14} color="#EF4444" />
+              <MapPin size={14} color={isDark ? '#F87171' : '#EF4444'} />
             </View>
             <Text className="text-[20px] font-black text-slate-800 dark:text-slate-100">
               {hotspotAreaCount} Areas
             </Text>
-            <Text className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5" numberOfLines={1}>
+            <Text className="text-[10px] text-slate-400 dark:text-slate-400 mt-0.5" numberOfLines={1}>
               {hotspotIssueCount} issues inside hotspots
             </Text>
           </View>
 
           {/* Card 3: SLA Risk */}
-          <View className="flex-1 min-w-[45%] rounded-2xl bg-slate-50 p-3 border border-slate-100 dark:bg-slate-850 dark:border-slate-800">
+          <View
+            style={{
+              backgroundColor: isDark ? '#1E293B' : '#F8FAFC',
+              borderColor: isDark ? 'rgba(255, 255, 255, 0.07)' : '#F1F5F9',
+            }}
+            className="flex-1 min-w-[45%] rounded-2xl p-3 border"
+          >
             <View className="flex-row items-center justify-between mb-1.5">
               <Text className="text-[11px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                 SLA Risk
               </Text>
-              <Clock size={14} color="#F59E0B" />
+              <Clock size={14} color={isDark ? '#FBBF24' : '#F59E0B'} />
             </View>
             <Text className="text-[20px] font-black text-slate-800 dark:text-slate-100">
               {summary.slaRiskCount} Issues
             </Text>
-            <Text className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5" numberOfLines={1}>
+            <Text className="text-[10px] text-slate-400 dark:text-slate-400 mt-0.5" numberOfLines={1}>
               {summary.overdueIssues} currently overdue
             </Text>
           </View>
 
           {/* Card 4: Reporting Trend */}
-          <View className="flex-1 min-w-[45%] rounded-2xl bg-slate-50 p-3 border border-slate-100 dark:bg-slate-850 dark:border-slate-800">
+          <View
+            style={{
+              backgroundColor: isDark ? '#1E293B' : '#F8FAFC',
+              borderColor: isDark ? 'rgba(255, 255, 255, 0.07)' : '#F1F5F9',
+            }}
+            className="flex-1 min-w-[45%] rounded-2xl p-3 border"
+          >
             <View className="flex-row items-center justify-between mb-1.5">
               <Text className="text-[11px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                 Reporting Rate
               </Text>
               {trendDirection?.direction === 'up' ? (
-                <TrendingUp size={14} color="#10B981" />
+                <TrendingUp size={14} color={isDark ? '#34D399' : '#10B981'} />
               ) : trendDirection?.direction === 'down' ? (
-                <TrendingDown size={14} color="#EF4444" />
+                <TrendingDown size={14} color={isDark ? '#F87171' : '#EF4444'} />
               ) : (
-                <Activity size={14} color="#64748B" />
+                <Activity size={14} color={isDark ? '#94A3B8' : '#64748B'} />
               )}
             </View>
             <View className="flex-row items-center gap-1">
@@ -284,14 +377,20 @@ export default function TrendAnalyserPanel({
               {trendDirection?.direction !== 'stable' && (
                 <Text
                   className={`text-[10px] font-bold ${
-                    trendDirection?.direction === 'up' ? 'text-red-500' : 'text-emerald-500'
+                    trendDirection?.direction === 'up'
+                      ? isDark
+                        ? 'text-red-400'
+                        : 'text-red-500'
+                      : isDark
+                        ? 'text-emerald-400'
+                        : 'text-emerald-500'
                   }`}
                 >
                   {trendDirection?.direction === 'up' ? '▲' : '▼'}
                 </Text>
               )}
             </View>
-            <Text className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5" numberOfLines={1}>
+            <Text className="text-[10px] text-slate-400 dark:text-slate-400 mt-0.5" numberOfLines={1}>
               {selectedRange !== 'all' && (summary?.totalIssues === 0 || summary?.currentWindowIssues === 0)
                 ? `No new complaints in this ${selectedRange}-day window`
                 : trendDirection?.label || 'reporting rate'}
@@ -303,17 +402,27 @@ export default function TrendAnalyserPanel({
         {recommendations.slice(0, 1).map((rec: any, idx: number) => {
           const colors = severityColor(rec.severity);
           return (
-            <View key={idx} className={`rounded-2xl p-4 border ${colors.bg} ${colors.border}`}>
+            <View
+              key={idx}
+              style={{
+                backgroundColor: colors.bg,
+                borderColor: colors.border,
+              }}
+              className="rounded-2xl p-4 border"
+            >
               <View className="flex-row items-center gap-2 mb-1.5">
-                <AlertTriangle size={16} className={colors.text} />
-                <Text className={`text-[13px] font-black uppercase tracking-wider ${colors.text}`}>
+                <AlertTriangle size={16} color={colors.iconColor} />
+                <Text
+                  style={{ color: colors.text }}
+                  className="text-[13px] font-black uppercase tracking-wider"
+                >
                   Action Recommended ({rec.severity})
                 </Text>
               </View>
               <Text className="text-[13px] font-black text-slate-800 dark:text-slate-100">
                 {rec.title}
               </Text>
-              <Text className="text-[12px] leading-[18px] text-slate-600 dark:text-slate-400 mt-1">
+              <Text className="text-[12px] leading-[18px] text-slate-600 dark:text-slate-300 mt-1">
                 {rec.message}
               </Text>
             </View>
@@ -324,12 +433,16 @@ export default function TrendAnalyserPanel({
         <TouchableOpacity
           onPress={() => setModalVisible(true)}
           activeOpacity={0.8}
-          className="mt-3 flex-row items-center justify-center py-2.5 rounded-xl border border-slate-200 dark:border-slate-855"
+          style={{
+            backgroundColor: isDark ? 'rgba(30, 41, 59, 0.6)' : '#F8FAFC',
+            borderColor: isDark ? '#334155' : '#E2E8F0',
+          }}
+          className="mt-3 flex-row items-center justify-center py-2.5 rounded-xl border"
         >
-          <Text className="mr-1.5 text-[12px] font-black text-slate-600 dark:text-slate-350">
+          <Text className="mr-1.5 text-[12px] font-black text-slate-600 dark:text-slate-200">
             View Full Trend Analysis
           </Text>
-          <TrendingUp size={14} color={isDark ? '#CBD5E1' : '#475569'} />
+          <TrendingUp size={14} color={isDark ? '#38BDF8' : '#0284C7'} />
         </TouchableOpacity>
       </View>
 
@@ -341,33 +454,67 @@ export default function TrendAnalyserPanel({
         onRequestClose={() => setModalVisible(false)}
       >
         <View className="flex-1 bg-black/60 justify-end">
-          <View className="bg-white dark:bg-slate-900 rounded-t-[32px] max-h-[85%] border-t border-slate-200 dark:border-slate-800 overflow-hidden">
+          <Pressable
+            style={{ flex: 1 }}
+            onPress={() => setModalVisible(false)}
+          />
+          <View
+            style={{
+              backgroundColor: isDark ? '#0F172A' : '#FFFFFF',
+              borderColor: isDark ? '#1E293B' : '#E2E8F0',
+            }}
+            className="rounded-t-[32px] max-h-[85%] border-t overflow-hidden"
+          >
             {/* Modal Header */}
-            <View className="p-5 border-b border-slate-100 dark:border-slate-800 flex-row justify-between items-center bg-slate-50 dark:bg-slate-900/40">
+            <View
+              style={{
+                backgroundColor: isDark ? '#1E293B' : '#F8FAFC',
+                borderBottomColor: isDark ? '#334155' : '#E2E8F0',
+              }}
+              className="p-5 border-b flex-row justify-between items-center"
+            >
               <View>
-                <Text className="text-[16px] font-black text-slate-850 dark:text-slate-100">
+                <Text className="text-[16px] font-black text-slate-800 dark:text-slate-100">
                   Detailed Trend Analysis
                 </Text>
-                <Text className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
+                <Text className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
                   Department: {scope?.department || 'Civic'} • City: {scope?.city || 'Not assigned'}
                 </Text>
               </View>
               <TouchableOpacity
                 onPress={() => setModalVisible(false)}
-                className="rounded-full bg-slate-200/60 dark:bg-slate-800 p-2"
+                style={{
+                  backgroundColor: isDark ? '#334155' : 'rgba(226, 232, 240, 0.8)',
+                }}
+                className="rounded-full p-2"
               >
-                <X size={16} color={isDark ? '#CBD5E1' : '#475569'} />
+                <X size={16} color={isDark ? '#F1F5F9' : '#475569'} />
               </TouchableOpacity>
             </View>
 
-            <ScrollView className="p-5" showsVerticalScrollIndicator={false}>
+            <ScrollView
+              className="p-5"
+              contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
+              showsVerticalScrollIndicator={false}
+            >
               {/* Department Scope Summary */}
-              <View className="mb-6 rounded-2xl bg-slate-50 p-4 dark:bg-slate-850 border border-slate-100 dark:border-slate-800/40">
-                <Text className="text-[12px] font-black uppercase tracking-[1.5px] text-slate-400 dark:text-slate-500 mb-3">
+              <View
+                style={{
+                  backgroundColor: isDark ? '#1E293B' : '#F8FAFC',
+                  borderColor: isDark ? '#334155' : '#F1F5F9',
+                }}
+                className="mb-6 rounded-2xl p-4 border"
+              >
+                <Text className="text-[12px] font-black uppercase tracking-[1.5px] text-slate-400 dark:text-slate-400 mb-3">
                   Department Scope Summary
                 </Text>
 
-                <View className="flex-row justify-between py-1.5 border-b border-slate-200/40 dark:border-slate-800/40">
+                <View
+                  style={{
+                    borderBottomColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)',
+                  }}
+                  className="flex-row justify-between py-1.5 border-b"
+                >
                   <Text className="text-[12px] font-extrabold text-slate-500 dark:text-slate-400">
                     Department
                   </Text>
@@ -376,7 +523,12 @@ export default function TrendAnalyserPanel({
                   </Text>
                 </View>
 
-                <View className="flex-row justify-between py-1.5 border-b border-slate-200/40 dark:border-slate-800/40">
+                <View
+                  style={{
+                    borderBottomColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)',
+                  }}
+                  className="flex-row justify-between py-1.5 border-b"
+                >
                   <Text className="text-[12px] font-extrabold text-slate-500 dark:text-slate-400">
                     City
                   </Text>
@@ -398,7 +550,7 @@ export default function TrendAnalyserPanel({
               {/* Hotspots Panel */}
               {hotspotTrends.length > 0 && (
                 <View className="mb-6">
-                  <Text className="text-[12px] font-black uppercase tracking-[1.5px] text-slate-400 dark:text-slate-500 mb-3">
+                  <Text className="text-[12px] font-black uppercase tracking-[1.5px] text-slate-400 dark:text-slate-400 mb-3">
                     Identified Location Hotspots
                   </Text>
                   {hotspotTrends.slice(0, 3).map((hotspot: any, i: number) => {
@@ -406,18 +558,31 @@ export default function TrendAnalyserPanel({
                     return (
                       <View
                         key={i}
-                        className="mb-2.5 flex-row items-center justify-between rounded-2xl bg-slate-50 p-3.5 dark:bg-slate-850 border border-slate-100 dark:border-slate-800/40"
+                        style={{
+                          backgroundColor: isDark ? '#1E293B' : '#F8FAFC',
+                          borderColor: isDark ? '#334155' : '#F1F5F9',
+                        }}
+                        className="mb-2.5 flex-row items-center justify-between rounded-2xl p-3.5 border"
                       >
                         <View className="flex-1 pr-3">
                           <Text className="text-[13px] font-black text-slate-800 dark:text-slate-100" numberOfLines={1}>
                             {hotspot.approximateAddress}
                           </Text>
-                          <Text className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
+                          <Text className="text-[11px] text-slate-400 dark:text-slate-400 mt-0.5">
                             {hotspot.issueCount} complaints • {hotspot.categories[0]}
                           </Text>
                         </View>
-                        <View className={`rounded-lg px-2.5 py-1 border ${colors.bg} ${colors.border}`}>
-                          <Text className={`text-[10px] font-black uppercase tracking-wider ${colors.text}`}>
+                        <View
+                          style={{
+                            backgroundColor: colors.bg,
+                            borderColor: colors.border,
+                          }}
+                          className="rounded-lg px-2.5 py-1 border"
+                        >
+                          <Text
+                            style={{ color: colors.text }}
+                            className="text-[10px] font-black uppercase tracking-wider"
+                          >
                             {hotspot.severity}
                           </Text>
                         </View>
@@ -429,27 +594,58 @@ export default function TrendAnalyserPanel({
 
               {/* Duplicate Details Panel */}
               <View className="mb-6">
-                <Text className="text-[12px] font-black uppercase tracking-[1.5px] text-slate-400 dark:text-slate-500 mb-3">
+                <Text className="text-[12px] font-black uppercase tracking-[1.5px] text-slate-400 dark:text-slate-400 mb-3">
                   Duplicate Analysis Details
                 </Text>
-                <View className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-850 border border-slate-100 dark:border-slate-800/40">
-                  <View className="flex-row justify-between py-1.5 border-b border-slate-200/40 dark:border-slate-800/40">
+                <View
+                  style={{
+                    backgroundColor: isDark ? '#1E293B' : '#F8FAFC',
+                    borderColor: isDark ? '#334155' : '#F1F5F9',
+                  }}
+                  className="rounded-2xl p-4 border"
+                >
+                  <View
+                    style={{
+                      borderBottomColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)',
+                    }}
+                    className="flex-row justify-between py-1.5 border-b"
+                  >
                     <Text className="text-[12px] font-extrabold text-slate-500 dark:text-slate-400">Pending duplicate coverage</Text>
                     <Text className="text-[12px] font-black text-slate-800 dark:text-slate-100">{duplicateRate}%</Text>
                   </View>
-                  <View className="flex-row justify-between py-1.5 border-b border-slate-200/40 dark:border-slate-800/40">
+                  <View
+                    style={{
+                      borderBottomColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)',
+                    }}
+                    className="flex-row justify-between py-1.5 border-b"
+                  >
                     <Text className="text-[12px] font-extrabold text-slate-500 dark:text-slate-400">Pending issues checked</Text>
                     <Text className="text-[12px] font-black text-slate-800 dark:text-slate-100">{pendingDuplicateCandidateCount}</Text>
                   </View>
-                  <View className="flex-row justify-between py-1.5 border-b border-slate-200/40 dark:border-slate-800/40">
+                  <View
+                    style={{
+                      borderBottomColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)',
+                    }}
+                    className="flex-row justify-between py-1.5 border-b"
+                  >
                     <Text className="text-[12px] font-extrabold text-slate-500 dark:text-slate-400">Pending issues inside duplicate groups</Text>
                     <Text className="text-[12px] font-black text-slate-800 dark:text-slate-100">{duplicateGroupIssueCount}</Text>
                   </View>
-                  <View className="flex-row justify-between py-1.5 border-b border-slate-200/40 dark:border-slate-800/40">
+                  <View
+                    style={{
+                      borderBottomColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)',
+                    }}
+                    className="flex-row justify-between py-1.5 border-b"
+                  >
                     <Text className="text-[12px] font-extrabold text-slate-500 dark:text-slate-400">Likely redundant complaints</Text>
                     <Text className="text-[12px] font-black text-slate-800 dark:text-slate-100">{redundantDuplicateIssues}</Text>
                   </View>
-                  <View className="flex-row justify-between py-1.5 border-b border-slate-200/40 dark:border-slate-800/40">
+                  <View
+                    style={{
+                      borderBottomColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)',
+                    }}
+                    className="flex-row justify-between py-1.5 border-b"
+                  >
                     <Text className="text-[12px] font-extrabold text-slate-500 dark:text-slate-400">Pending duplicate groups</Text>
                     <Text className="text-[12px] font-black text-slate-800 dark:text-slate-100">{duplicateGroups}</Text>
                   </View>
@@ -458,7 +654,7 @@ export default function TrendAnalyserPanel({
                     <Text className="text-[12px] font-black text-slate-800 dark:text-slate-100">{duplicateTrend?.strongestGroupScore || summary?.strongestGroupScore || 0}</Text>
                   </View>
                 </View>
-                <Text className="mt-2 text-[10px] leading-[15px] text-slate-400 dark:text-slate-500">
+                <Text className="mt-2 text-[10px] leading-[15px] text-slate-400 dark:text-slate-400">
                   {duplicateExplanation} The percentage is calculated using pending issues checked for duplicate review.
                 </Text>
               </View>
@@ -466,20 +662,30 @@ export default function TrendAnalyserPanel({
               {/* Recommendations List */}
               {recommendations.length > 0 && (
                 <View className="mb-8">
-                  <Text className="text-[12px] font-black uppercase tracking-[1.5px] text-slate-400 dark:text-slate-500 mb-3">
+                  <Text className="text-[12px] font-black uppercase tracking-[1.5px] text-slate-400 dark:text-slate-400 mb-3">
                     Actionable Recommendations
                   </Text>
                   {recommendations.map((rec: any, idx: number) => {
                     const colors = severityColor(rec.severity);
                     return (
-                      <View key={idx} className="mb-3 rounded-2xl border border-slate-100 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-850/50">
+                      <View
+                        key={idx}
+                        style={{
+                          backgroundColor: isDark ? '#1E293B' : '#F8FAFC',
+                          borderColor: isDark ? '#334155' : '#F1F5F9',
+                        }}
+                        className="mb-3 rounded-2xl border p-4"
+                      >
                         <View className="flex-row items-center gap-1.5 mb-1.5">
-                          <View className={`h-2 w-2 rounded-full ${rec.severity === 'critical' ? 'bg-red-500' : rec.severity === 'high' ? 'bg-orange-500' : 'bg-amber-500'}`} />
-                          <Text className="text-[13px] font-black text-slate-850 dark:text-slate-100">
+                          <View
+                            style={{ backgroundColor: colors.dot }}
+                            className="h-2 w-2 rounded-full"
+                          />
+                          <Text className="text-[13px] font-black text-slate-800 dark:text-slate-100">
                             {rec.title}
                           </Text>
                         </View>
-                        <Text className="text-[12px] leading-[18px] text-slate-500 dark:text-slate-455">
+                        <Text className="text-[12px] leading-[18px] text-slate-500 dark:text-slate-300">
                           {rec.message}
                         </Text>
                       </View>

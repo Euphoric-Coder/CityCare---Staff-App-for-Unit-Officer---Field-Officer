@@ -9,7 +9,7 @@ import {
   Zap,
   ChevronDown,
   ChevronUp,
-  ShieldCheck
+  ShieldCheck,
 } from 'lucide-react-native';
 
 interface CurrentIssueTrendCardProps {
@@ -35,38 +35,84 @@ export default function CurrentIssueTrendCard({ currentIssueTrend }: CurrentIssu
     switch (level?.toLowerCase()) {
       case 'critical':
       case 'overdue':
-        return 'text-red-500 bg-red-50 dark:bg-red-950/20 dark:text-red-400 border-red-100 dark:border-red-900/30';
+        return {
+          bg: isDark ? 'rgba(239, 68, 68, 0.15)' : '#FEF2F2',
+          border: isDark ? 'rgba(239, 68, 68, 0.35)' : '#FEE2E2',
+          text: isDark ? '#FCA5A5' : '#DC2626',
+        };
       case 'high':
       case 'due_soon':
-        return 'text-orange-500 bg-orange-50 dark:bg-orange-950/20 dark:text-orange-400 border-orange-100 dark:border-orange-900/30';
+        return {
+          bg: isDark ? 'rgba(249, 115, 22, 0.15)' : '#FFF7ED',
+          border: isDark ? 'rgba(249, 115, 22, 0.35)' : '#FFEDD5',
+          text: isDark ? '#FDBA74' : '#EA580C',
+        };
       case 'medium':
-        return 'text-amber-500 bg-amber-50 dark:bg-amber-950/20 dark:text-amber-400 border-amber-100 dark:border-amber-900/30';
+        return {
+          bg: isDark ? 'rgba(245, 158, 11, 0.15)' : '#FFFBEB',
+          border: isDark ? 'rgba(245, 158, 11, 0.35)' : '#FEF3C7',
+          text: isDark ? '#FCD34D' : '#D97706',
+        };
       default:
-        return 'text-emerald-500 bg-emerald-50 dark:bg-emerald-950/20 dark:text-emerald-400 border-emerald-100 dark:border-emerald-900/30';
+        return {
+          bg: isDark ? 'rgba(16, 185, 129, 0.15)' : '#F0FDF4',
+          border: isDark ? 'rgba(16, 185, 129, 0.35)' : '#DCFCE7',
+          text: isDark ? '#6EE7B7' : '#059669',
+        };
     }
   };
 
   const actionColors = () => {
     switch (action?.primaryAction) {
       case 'review_duplicates_before_verification':
-        return { text: 'text-red-600 dark:text-red-400', bg: 'bg-red-50 dark:bg-red-950/20', border: 'border-red-100 dark:border-red-900/30', icon: <Layers size={16} color="#EF4444" /> };
+        return {
+          text: isDark ? '#FCA5A5' : '#DC2626',
+          bg: isDark ? 'rgba(239, 68, 68, 0.15)' : '#FEF2F2',
+          border: isDark ? 'rgba(239, 68, 68, 0.35)' : '#FEE2E2',
+          icon: <Layers size={16} color={isDark ? '#F87171' : '#EF4444'} />,
+        };
       case 'prioritize_due_to_hotspot':
-        return { text: 'text-orange-600 dark:text-orange-400', bg: 'bg-orange-50 dark:bg-orange-950/20', border: 'border-orange-100 dark:border-orange-900/30', icon: <MapPin size={16} color="#F97316" /> };
+        return {
+          text: isDark ? '#FDBA74' : '#EA580C',
+          bg: isDark ? 'rgba(249, 115, 22, 0.15)' : '#FFF7ED',
+          border: isDark ? 'rgba(249, 115, 22, 0.35)' : '#FFEDD5',
+          icon: <MapPin size={16} color={isDark ? '#FB923C' : '#F97316'} />,
+        };
       case 'assign_specialised_field_officer':
-        return { text: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-50 dark:bg-amber-950/20', border: 'border-amber-100 dark:border-amber-900/30', icon: <Zap size={16} color="#D97706" /> };
+        return {
+          text: isDark ? '#FCD34D' : '#D97706',
+          bg: isDark ? 'rgba(245, 158, 11, 0.15)' : '#FFFBEB',
+          border: isDark ? 'rgba(245, 158, 11, 0.35)' : '#FEF3C7',
+          icon: <Zap size={16} color={isDark ? '#FBBF24' : '#D97706'} />,
+        };
       default:
-        return { text: 'text-sky-600 dark:text-sky-400', bg: 'bg-sky-50 dark:bg-sky-950/20', border: 'border-sky-100 dark:border-sky-900/30', icon: <ShieldCheck size={16} color="#0EA5E9" /> };
+        return {
+          text: isDark ? '#7DD3FC' : '#0284C7',
+          bg: isDark ? 'rgba(56, 189, 248, 0.15)' : '#F0F9FF',
+          border: isDark ? 'rgba(56, 189, 248, 0.35)' : '#E0F2FE',
+          icon: <ShieldCheck size={16} color={isDark ? '#38BDF8' : '#0EA5E9'} />,
+        };
     }
   };
 
   const actColors = actionColors();
 
   return (
-    <View className="my-3.5 rounded-[24px] border border-slate-200/60 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <View
+      style={{
+        backgroundColor: isDark ? '#0F172A' : '#FFFFFF',
+        borderColor: isDark ? '#1E293B' : '#E2E8F0',
+        shadowColor: isDark ? '#000000' : '#64748B',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: isDark ? 0.3 : 0.06,
+        shadowRadius: 12,
+        elevation: 3,
+      }}
+      className="my-3.5 rounded-[24px] border p-4 shadow-sm">
       {/* Header */}
-      <View className="flex-row items-center justify-between mb-3">
+      <View className="mb-3 flex-row items-center justify-between">
         <View className="flex-1 pr-4">
-          <View className="flex-row items-center gap-1.5 mb-0.5">
+          <View className="mb-0.5 flex-row items-center gap-1.5">
             <TrendingUp size={15} color={isDark ? '#38BDF8' : '#0284C7'} strokeWidth={2.5} />
             <Text className="text-[11px] font-black uppercase tracking-[2px] text-sky-600 dark:text-sky-400">
               Live Trend Analysis
@@ -76,27 +122,47 @@ export default function CurrentIssueTrendCard({ currentIssueTrend }: CurrentIssu
             Current Issue Context
           </Text>
         </View>
-        <View className="rounded-full bg-slate-100 px-2 py-0.5 dark:bg-slate-800">
-          <Text className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
+        <View
+          style={{
+            backgroundColor: isDark ? '#1E293B' : '#F1F5F9',
+            borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
+            borderWidth: isDark ? 1 : 0,
+          }}
+          className="rounded-full px-2.5 py-0.5">
+          <Text className="text-[10px] font-bold text-slate-500 dark:text-slate-300">
             {currentIssueTrend.issueCode}
           </Text>
         </View>
       </View>
 
       {/* Suggested Action Banner */}
-      <View className={`rounded-2xl p-3 border mb-3 flex-row items-start gap-2.5 ${actColors.bg} ${actColors.border}`}>
+      <View
+        style={{
+          backgroundColor: actColors.bg,
+          borderColor: actColors.border,
+        }}
+        className="mb-3 flex-row items-start gap-2.5 rounded-2xl border p-3">
         <View className="mt-0.5">{actColors.icon}</View>
         <View className="flex-1">
-          <Text className={`text-[12px] font-black uppercase tracking-wider ${actColors.text}`}>
+          <Text
+            style={{ color: actColors.text }}
+            className="text-[12px] font-black uppercase tracking-wider">
             {action?.title}
           </Text>
-          <Text className="text-[11.5px] leading-[17px] text-slate-700 dark:text-slate-300 mt-0.5 font-medium">
+          <Text className="mt-0.5 text-[11.5px] font-medium leading-[17px] text-slate-700 dark:text-slate-300">
             {action?.message}
           </Text>
-          <View className="flex-row flex-wrap gap-1.5 mt-2">
+          <View className="mt-2 flex-row flex-wrap gap-1.5">
             {(action?.actionHints || []).map((hint: string, i: number) => (
-              <View key={i} className="rounded-md bg-white/60 dark:bg-slate-900/40 px-2 py-0.5">
-                <Text className="text-[9.5px] font-bold text-slate-600 dark:text-slate-400">
+              <View
+                key={i}
+                style={{
+                  backgroundColor: isDark ? 'rgba(15, 23, 42, 0.6)' : 'rgba(255, 255, 255, 0.7)',
+                  borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)',
+                  borderWidth: 1,
+                }}
+                className="rounded-md px-2 py-0.5">
+                <Text className="text-[9.5px] font-bold text-slate-600 dark:text-slate-300">
                   • {hint}
                 </Text>
               </View>
@@ -106,43 +172,62 @@ export default function CurrentIssueTrendCard({ currentIssueTrend }: CurrentIssu
       </View>
 
       {/* Local Area Hotspot & SLA Info summary */}
-      <View className="flex-row gap-2.5 mb-2.5">
-        <View className="flex-1 rounded-xl bg-slate-50 p-2.5 dark:bg-slate-850">
-          <Text className="text-[9.5px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">
+      <View className="mb-2.5 flex-row gap-2.5">
+        <View
+          style={{
+            backgroundColor: isDark ? '#1E293B' : '#F8FAFC',
+            borderColor: isDark ? 'rgba(255, 255, 255, 0.07)' : '#F1F5F9',
+          }}
+          className="flex-1 rounded-xl border p-2.5">
+          <Text className="mb-1 text-[9.5px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-400">
             Local Area (500m)
           </Text>
           <Text className="text-[14px] font-black text-slate-800 dark:text-slate-100">
             {local?.nearbyIssueCount500m ?? 0} Issues
           </Text>
-          <Text className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
+          <Text className="mt-0.5 text-[10px] text-slate-400 dark:text-slate-400">
             {local?.unresolvedNearbyCount ?? 0} unresolved nearby
           </Text>
         </View>
 
-        <View className="flex-1 rounded-xl bg-slate-50 p-2.5 dark:bg-slate-850">
-          <Text className="text-[9.5px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">
+        <View
+          style={{
+            backgroundColor: isDark ? '#1E293B' : '#F8FAFC',
+            borderColor: isDark ? 'rgba(255, 255, 255, 0.07)' : '#F1F5F9',
+          }}
+          className="flex-1 rounded-xl border p-2.5">
+          <Text className="mb-1 text-[9.5px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-400">
             Same Type Nearby
           </Text>
           <Text className="text-[14px] font-black text-slate-800 dark:text-slate-100">
             {local?.sameCategoryNearbyCount ?? 0} Issues
           </Text>
-          <Text className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
-            {(local?.sameSubcategoryNearbyCount ?? 0)} same subcategory
+          <Text className="mt-0.5 text-[10px] text-slate-400 dark:text-slate-400">
+            {local?.sameSubcategoryNearbyCount ?? 0} same subcategory
           </Text>
         </View>
       </View>
 
       {/* Expandable detailed analysis */}
       {isExpanded && (
-        <View className="border-t border-slate-100 pt-3 mt-1.5 dark:border-slate-800">
+        <View
+          style={{
+            borderTopColor: isDark ? '#1E293B' : '#F1F5F9',
+          }}
+          className="mt-1.5 border-t pt-3">
           {/* Duplicate Intelligence */}
           <View className="mb-3.5">
-            <Text className="text-[11px] font-black uppercase tracking-[1.5px] text-slate-400 dark:text-slate-500 mb-2">
+            <Text className="mb-2 text-[11px] font-black uppercase tracking-[1.5px] text-slate-400 dark:text-slate-400">
               Duplicate Intelligence
             </Text>
             {duplicate?.hasDuplicateSignals ? (
-              <View className="rounded-xl bg-red-50/40 p-3 border border-red-100/30 dark:bg-red-950/10 dark:border-red-900/10">
-                <View className="flex-row justify-between items-center mb-2">
+              <View
+                style={{
+                  backgroundColor: isDark ? 'rgba(239, 68, 68, 0.12)' : '#FEF2F2',
+                  borderColor: isDark ? 'rgba(239, 68, 68, 0.25)' : '#FEE2E2',
+                }}
+                className="rounded-xl border p-3">
+                <View className="mb-2 flex-row items-center justify-between">
                   <View className="flex-row items-center gap-1.5">
                     <View className="h-1.5 w-1.5 rounded-full bg-red-500" />
                     <Text className="text-[12px] font-black text-red-600 dark:text-red-400">
@@ -153,22 +238,28 @@ export default function CurrentIssueTrendCard({ currentIssueTrend }: CurrentIssu
                     {duplicate.bestDuplicateScore}% Score
                   </Text>
                 </View>
-                <Text className="text-[11.5px] leading-[16px] text-slate-600 dark:text-slate-400">
-                  Found {duplicate.duplicateIssueCount} matching reports in {duplicate.duplicateGroupCount} duplicate group(s).
+                <Text className="text-[11.5px] leading-[16px] text-slate-600 dark:text-slate-300">
+                  Found {duplicate.duplicateIssueCount} matching reports in{' '}
+                  {duplicate.duplicateGroupCount} duplicate group(s).
                 </Text>
                 {duplicate.matchedIssues.slice(0, 1).map((m: any, i: number) => (
-                  <View key={i} className="mt-2 pt-2 border-t border-slate-200/50 dark:border-slate-800/40 flex-row justify-between">
-                    <Text className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                  <View
+                    key={i}
+                    style={{
+                      borderTopColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)',
+                    }}
+                    className="mt-2 flex-row items-center justify-between border-t pt-2">
+                    <Text className="text-[11px] font-bold text-slate-700 dark:text-slate-200">
                       Nearby: {m.issueCode} ({m.distanceMeters}m away)
                     </Text>
-                    <Text className="text-[10px] font-black text-slate-400 capitalize">
+                    <Text className="text-[10px] font-black capitalize text-slate-400 dark:text-slate-400">
                       Status: {m.status}
                     </Text>
                   </View>
                 ))}
               </View>
             ) : (
-              <Text className="text-[12px] italic text-slate-450 dark:text-slate-500">
+              <Text className="text-[12px] italic text-slate-500 dark:text-slate-400">
                 No matching duplicate complaint records found nearby.
               </Text>
             )}
@@ -176,21 +267,32 @@ export default function CurrentIssueTrendCard({ currentIssueTrend }: CurrentIssu
 
           {/* Time & Frequency Trend */}
           <View className="mb-3.5">
-            <Text className="text-[11px] font-black uppercase tracking-[1.5px] text-slate-400 dark:text-slate-500 mb-2">
+            <Text className="mb-2 text-[11px] font-black uppercase tracking-[1.5px] text-slate-400 dark:text-slate-400">
               Time & Frequency Pattern
             </Text>
 
             <View className="gap-2.5">
               {/* Time Spikes */}
-              <View className="rounded-xl bg-slate-50 p-3 dark:bg-slate-850 border border-slate-100 dark:border-slate-800/50">
-                <View className="flex-row items-center justify-between mb-2">
-                  <Text className="text-[10px] font-black uppercase tracking-[1.2px] text-slate-400 dark:text-slate-500">
+              <View
+                style={{
+                  backgroundColor: isDark ? '#1E293B' : '#F8FAFC',
+                  borderColor: isDark ? 'rgba(255, 255, 255, 0.07)' : '#F1F5F9',
+                }}
+                className="rounded-xl border p-3">
+                <View className="mb-2 flex-row items-center justify-between">
+                  <Text className="text-[10px] font-black uppercase tracking-[1.2px] text-slate-400 dark:text-slate-400">
                     Time Spikes
                   </Text>
 
                   {time?.recentSpikeDetected && (
-                    <View className="rounded-md bg-orange-100 dark:bg-orange-950/40 px-2 py-0.5">
-                      <Text className="text-[9px] font-black text-orange-600 dark:text-orange-400 uppercase">
+                    <View
+                      style={{
+                        backgroundColor: isDark ? 'rgba(249, 115, 22, 0.2)' : '#FFEDD5',
+                        borderColor: isDark ? 'rgba(249, 115, 22, 0.4)' : 'transparent',
+                        borderWidth: isDark ? 1 : 0,
+                      }}
+                      className="rounded-md px-2 py-0.5">
+                      <Text className="text-[9px] font-black uppercase text-orange-600 dark:text-orange-400">
                         Spike
                       </Text>
                     </View>
@@ -198,8 +300,14 @@ export default function CurrentIssueTrendCard({ currentIssueTrend }: CurrentIssu
                 </View>
 
                 <View className="flex-row gap-2">
-                  <View className="flex-1 rounded-lg bg-white/70 p-2 dark:bg-slate-900/40">
-                    <Text className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase">
+                  <View
+                    style={{
+                      backgroundColor: isDark ? '#0F172A' : '#FFFFFF',
+                      borderColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.04)',
+                      borderWidth: 1,
+                    }}
+                    className="flex-1 rounded-lg p-2">
+                    <Text className="text-[9px] font-bold uppercase text-slate-400 dark:text-slate-400">
                       Last 7 Days
                     </Text>
                     <Text className="mt-0.5 text-[14px] font-black text-slate-800 dark:text-slate-100">
@@ -207,8 +315,14 @@ export default function CurrentIssueTrendCard({ currentIssueTrend }: CurrentIssu
                     </Text>
                   </View>
 
-                  <View className="flex-1 rounded-lg bg-white/70 p-2 dark:bg-slate-900/40">
-                    <Text className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase">
+                  <View
+                    style={{
+                      backgroundColor: isDark ? '#0F172A' : '#FFFFFF',
+                      borderColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.04)',
+                      borderWidth: 1,
+                    }}
+                    className="flex-1 rounded-lg p-2">
+                    <Text className="text-[9px] font-bold uppercase text-slate-400 dark:text-slate-400">
                       Last 30 Days
                     </Text>
                     <Text className="mt-0.5 text-[14px] font-black text-slate-800 dark:text-slate-100">
@@ -216,8 +330,14 @@ export default function CurrentIssueTrendCard({ currentIssueTrend }: CurrentIssu
                     </Text>
                   </View>
 
-                  <View className="flex-1 rounded-lg bg-white/70 p-2 dark:bg-slate-900/40">
-                    <Text className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase">
+                  <View
+                    style={{
+                      backgroundColor: isDark ? '#0F172A' : '#FFFFFF',
+                      borderColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.04)',
+                      borderWidth: 1,
+                    }}
+                    className="flex-1 rounded-lg p-2">
+                    <Text className="text-[9px] font-bold uppercase text-slate-400 dark:text-slate-400">
                       Last 90 Days
                     </Text>
                     <Text className="mt-0.5 text-[14px] font-black text-slate-800 dark:text-slate-100">
@@ -228,15 +348,19 @@ export default function CurrentIssueTrendCard({ currentIssueTrend }: CurrentIssu
               </View>
 
               {/* Seasonality */}
-              <View className="rounded-xl bg-slate-50 p-3 dark:bg-slate-850 border border-slate-100 dark:border-slate-800/50">
-                <Text className="text-[10px] font-black uppercase tracking-[1.2px] text-slate-400 dark:text-slate-500 mb-1.5">
+              <View
+                style={{
+                  backgroundColor: isDark ? '#1E293B' : '#F8FAFC',
+                  borderColor: isDark ? 'rgba(255, 255, 255, 0.07)' : '#F1F5F9',
+                }}
+                className="rounded-xl border p-3">
+                <Text className="mb-1.5 text-[10px] font-black uppercase tracking-[1.2px] text-slate-400 dark:text-slate-400">
                   Seasonality
                 </Text>
 
                 <Text
-                  className="text-[11px] leading-[16px] text-slate-500 dark:text-slate-400 italic"
-                  numberOfLines={3}
-                >
+                  className="text-[11px] italic leading-[16px] text-slate-500 dark:text-slate-300"
+                  numberOfLines={3}>
                   {time?.seasonalHint || 'Not enough historical data for seasonal pattern.'}
                 </Text>
               </View>
@@ -245,26 +369,36 @@ export default function CurrentIssueTrendCard({ currentIssueTrend }: CurrentIssu
 
           {/* Operational Risk Indicators */}
           <View className="mb-1">
-            <Text className="text-[11px] font-black uppercase tracking-[1.5px] text-slate-400 dark:text-slate-500 mb-2">
+            <Text className="mb-2 text-[11px] font-black uppercase tracking-[1.5px] text-slate-400 dark:text-slate-400">
               Operational Risk Levels
             </Text>
+
             <View className="flex-row flex-wrap gap-2">
               {[
                 { label: 'SLA Status', value: risk?.slaStatus, level: risk?.slaStatus },
                 { label: 'Duplicate Risk', value: risk?.duplicateRisk, level: risk?.duplicateRisk },
-                { label: 'Recurrence Risk', value: risk?.recurrenceRisk, level: risk?.recurrenceRisk },
+                {
+                  label: 'Recurrence Risk',
+                  value: risk?.recurrenceRisk,
+                  level: risk?.recurrenceRisk,
+                },
                 { label: 'Workload Risk', value: risk?.workloadRisk, level: risk?.workloadRisk },
               ].map((item, idx) => {
-                const color = getRiskColor(item.level);
+                const rc = getRiskColor(item.level);
                 return (
                   <View
                     key={idx}
-                    className={`rounded-xl border px-3 py-2 flex-1 min-w-[45%] ${color.split(' ').slice(1).join(' ')}`}
-                  >
-                    <Text className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase">
+                    style={{
+                      backgroundColor: rc.bg,
+                      borderColor: rc.border,
+                    }}
+                    className="min-w-[45%] flex-1 rounded-xl border px-3 py-2">
+                    <Text className="text-[9px] font-bold uppercase text-slate-400 dark:text-slate-400">
                       {item.label}
                     </Text>
-                    <Text className={`text-[12px] font-black uppercase tracking-wider mt-0.5 ${color.split(' ')[0]}`}>
+                    <Text
+                      style={{ color: rc.text }}
+                      className="mt-0.5 text-[12px] font-black uppercase tracking-wider">
                       {item.value || 'Low'}
                     </Text>
                   </View>
@@ -279,15 +413,18 @@ export default function CurrentIssueTrendCard({ currentIssueTrend }: CurrentIssu
       <TouchableOpacity
         onPress={() => setIsExpanded(!isExpanded)}
         activeOpacity={0.8}
-        className="mt-3 flex-row items-center justify-center py-2.5 rounded-xl border border-slate-200 dark:border-slate-800"
-      >
-        <Text className="mr-1.5 text-[12px] font-black text-slate-600 dark:text-slate-350">
+        style={{
+          backgroundColor: isDark ? '#1E293B' : '#F8FAFC',
+          borderColor: isDark ? '#334155' : '#E2E8F0',
+        }}
+        className="mt-3 flex-row items-center justify-center rounded-xl border py-2.5">
+        <Text className="mr-1.5 text-[12px] font-black text-slate-600 dark:text-slate-200">
           {isExpanded ? 'Collapse Analysis' : 'View Full Pattern Data'}
         </Text>
         {isExpanded ? (
-          <ChevronUp size={14} color={isDark ? '#CBD5E1' : '#475569'} />
+          <ChevronUp size={14} color={isDark ? '#38BDF8' : '#0284C7'} />
         ) : (
-          <ChevronDown size={14} color={isDark ? '#CBD5E1' : '#475569'} />
+          <ChevronDown size={14} color={isDark ? '#38BDF8' : '#0284C7'} />
         )}
       </TouchableOpacity>
     </View>

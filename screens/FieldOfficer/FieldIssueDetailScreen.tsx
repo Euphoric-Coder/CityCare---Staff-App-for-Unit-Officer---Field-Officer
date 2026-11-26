@@ -71,6 +71,7 @@ import { Issue, IssueStatus, UpdateScope } from 'lib/types';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { mockCitizenMessages } from 'lib/mockData';
 import WorkExecutionFlow from 'components/FieldOfficer/WorkExecutionFlow';
+import TaskLocationCard from 'components/FieldOfficer/TaskLocationCard';
 import CitizenMessagingInterface from 'components/CitizenMessagingInterface';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from 'convex/_generated/api';
@@ -79,6 +80,8 @@ import { useUser } from 'context/UserContext';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { mapIssueToUI } from 'lib/issueMapper';
+import { parseCoordinates } from 'lib/location';
+import { openExternalNavigation } from 'lib/navigation';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CONTENT_WIDTH = SCREEN_WIDTH - 32;
@@ -765,22 +768,10 @@ export default function FieldIssueDetailScreen() {
   const catColor = CATEGORY_COLORS[issue.category.toLowerCase()] ?? CATEGORY_COLORS.other;
   const slaDate = issue.slaDeadline ? new Date(issue.slaDeadline) : null;
 
-  const openMaps = () => {
-    const { latitude, longitude } = issue.coordinates;
-    const label = encodeURIComponent(issue.location);
-    const googleMapsUrl = `https://www.google.com/maps?q=${latitude},${longitude}`;
-    const appleMapsUrl = `maps://?ll=${latitude},${longitude}&q=${label}`;
-    const googleMapsAppUrl = `comgooglemaps://?q=${latitude},${longitude}&zoom=16`;
+  const destinationCoordinates = parseCoordinates(rawIssue?.latitude, rawIssue?.longitude);
 
-    if (Platform.OS === 'ios') {
-      Linking.canOpenURL(googleMapsAppUrl).then((supported) => {
-        Linking.openURL(supported ? googleMapsAppUrl : appleMapsUrl);
-      });
-    } else if (Platform.OS === 'android') {
-      Linking.openURL(`geo:${latitude},${longitude}?q=${latitude},${longitude}(${label})`);
-    } else {
-      Linking.openURL(googleMapsUrl);
-    }
+  const openMaps = () => {
+    void openExternalNavigation(destinationCoordinates);
   };
 
   const now = new Date();
@@ -1698,6 +1689,7 @@ export default function FieldIssueDetailScreen() {
             {/* Cinematic Geo-Widget */}
             <TouchableOpacity
               onPress={openMaps}
+              disabled={!destinationCoordinates}
               activeOpacity={0.82}
               style={styles.premiumGeoWidget}>
               <LinearGradient
@@ -1722,7 +1714,9 @@ export default function FieldIssueDetailScreen() {
                         <Compass size={10} color="#0EA5A4" strokeWidth={3} />
                         <Text style={styles.geoPillarLabel}>LAT</Text>
                         <Text style={styles.geoPillarValue}>
-                          {issue.coordinates.latitude.toFixed(6)}°
+                          {destinationCoordinates
+                            ? `${destinationCoordinates.latitude.toFixed(6)}°`
+                            : 'N/A'}
                         </Text>
                       </View>
 
@@ -1734,7 +1728,9 @@ export default function FieldIssueDetailScreen() {
                         <Compass size={10} color="#0EA5A4" strokeWidth={3} className="rotate-90" />
                         <Text style={styles.geoPillarLabel}>LNG</Text>
                         <Text style={styles.geoPillarValue}>
-                          {issue.coordinates.longitude.toFixed(6)}°
+                          {destinationCoordinates
+                            ? `${destinationCoordinates.longitude.toFixed(6)}°`
+                            : 'N/A'}
                         </Text>
                       </View>
                     </View>
@@ -1752,7 +1748,9 @@ export default function FieldIssueDetailScreen() {
                   ]}>
                   <View className="flex-row items-center gap-2">
                     <Navigation size={14} color="#0EA5A4" strokeWidth={2.5} />
-                    <Text style={styles.premiumGeoRibbonText}>NAVIGATE VIA GOOGLE MAPS</Text>
+                    <Text style={styles.premiumGeoRibbonText}>
+                      {Platform.OS === 'ios' ? 'NAVIGATE VIA APPLE MAPS' : 'NAVIGATE VIA GOOGLE MAPS'}
+                    </Text>
                   </View>
                   <ChevronRight size={14} color="#0EA5A4" strokeWidth={2.5} />
                 </View>
@@ -1760,6 +1758,17 @@ export default function FieldIssueDetailScreen() {
             </TouchableOpacity>
           </LinearGradient>
         </View>
+
+        {/* ── Task Location & Interactive Proximity Map ── */}
+        <TaskLocationCard
+          latitude={rawIssue?.latitude}
+          longitude={rawIssue?.longitude}
+          address={issue.address}
+          city={issue.city}
+          state={issue.state}
+          postal={issue.postal}
+          fallbackLocation={issue.location}
+        />
 
         {/* ── Citizen Card ── */}
         <View style={styles.descriptionContainer}>

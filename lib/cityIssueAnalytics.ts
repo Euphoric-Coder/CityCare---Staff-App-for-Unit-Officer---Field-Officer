@@ -320,6 +320,12 @@ export function textSimilarity(textA = '', textB = '') {
 }
 
 export function haversineDistanceMeters(lat1, lon1, lat2, lon2) {
+  if (!Number.isFinite(lat1) || !Number.isFinite(lon1) || !Number.isFinite(lat2) || !Number.isFinite(lon2)) {
+    return NaN;
+  }
+  if (lat1 === lat2 && lon1 === lon2) {
+    return 0;
+  }
   const R = 6371000;
   const toRad = (degree) => (degree * Math.PI) / 180;
   const dLat = toRad(lat2 - lat1);
@@ -327,7 +333,8 @@ export function haversineDistanceMeters(lat1, lon1, lat2, lon2) {
   const a =
     Math.sin(dLat / 2) ** 2 +
     Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const clampedA = Math.min(1, Math.max(0, a));
+  return R * 2 * Math.atan2(Math.sqrt(clampedA), Math.sqrt(1 - clampedA));
 }
 
 export function getProximitySimilarity(distanceMeters) {

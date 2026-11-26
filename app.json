@@ -21,20 +21,32 @@
       "expo-font",
       "expo-secure-store",
       "expo-web-browser",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "This app needs access to your location to display your proximity to assigned issues and verify the work location.",
+          "locationAlwaysAndWhenInUsePermission": false,
+          "locationAlwaysPermission": false,
+          "locationFullAccuracyPermission": false,
+          "isIosBackgroundLocationEnabled": false,
+          "isAndroidBackgroundLocationEnabled": false,
+          "isAndroidForegroundServiceEnabled": false
+        }
+      ],
+      "react-native-maps"
     ],
     "orientation": "portrait",
     "icon": "./assets/logo.png",
     "userInterfaceStyle": "automatic",
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
         "NSCameraUsageDescription": "This app needs access to the camera to capture before and after images of work completed.",
         "NSPhotoLibraryUsageDescription": "This app needs access to your photo library to select images.",
-        "NSLocationWhenInUseUsageDescription": "This app needs access to your location to verify the work location."
+        "NSLocationWhenInUseUsageDescription": "This app needs access to your location to verify the work location.",
+        "LSApplicationQueriesSchemes": ["maps"]
       },
       "bundleIdentifier": "com.euphoriccoder.CityCareMobile"
     },

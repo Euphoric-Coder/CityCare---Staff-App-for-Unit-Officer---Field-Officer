@@ -506,11 +506,27 @@ export default function CitizenMessagingInterface({
                 </ScrollView>
 
                 {/* Floating Glass Input Bar */}
-                <BlurView
-                  intensity={80}
-                  tint={isDark ? 'dark' : 'light'}
-                  className="flex-row items-end gap-2.5 overflow-hidden rounded-[32px] border border-white/50 bg-white/50 px-2.5 py-2.5 shadow-lg dark:border-white/10 dark:bg-black/50">
-                  <View className="min-h-[44px] flex-1 justify-center rounded-[24px] border border-white/40 bg-white/70 px-4 py-1 dark:border-white/5 dark:bg-black/40">
+                <View
+                  style={[
+                    styles.inputBarWrapper,
+                    {
+                      borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.7)',
+                      backgroundColor: isDark ? 'rgba(15,23,42,0.72)' : 'rgba(255,255,255,0.65)',
+                    },
+                  ]}>
+                  <BlurView
+                    intensity={80}
+                    tint={isDark ? 'dark' : 'light'}
+                    style={StyleSheet.absoluteFill}
+                  />
+                  <View
+                    style={[
+                      styles.inputFieldWrap,
+                      {
+                        borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(226,232,240,0.85)',
+                        backgroundColor: isDark ? 'rgba(0,0,0,0.38)' : 'rgba(255,255,255,0.88)',
+                      },
+                    ]}>
                     <TextInput
                       value={inputText}
                       onChangeText={setInputText}
@@ -522,12 +538,10 @@ export default function CitizenMessagingInterface({
                       multiline
                       scrollEnabled={true}
                       maxLength={500}
-                      className="text-[15px] leading-[22px] text-slate-900 dark:text-slate-100"
-                      style={{
-                        maxHeight: 120,
-                        paddingTop: Platform.OS === 'ios' ? 10 : 8,
-                        paddingBottom: Platform.OS === 'ios' ? 10 : 8,
-                      }}
+                      style={[
+                        styles.textInput,
+                        { color: isDark ? '#F1F5F9' : '#0F172A' },
+                      ]}
                     />
                   </View>
 
@@ -547,7 +561,7 @@ export default function CitizenMessagingInterface({
                       <Send size={18} color="#FFFFFF" strokeWidth={2.5} style={{ marginLeft: 2 }} />
                     </LinearGradient>
                   </TouchableOpacity>
-                </BlurView>
+                </View>
               </View>
             </View>
           </KeyboardAvoidingView>
@@ -612,11 +626,43 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 14,
   },
+  inputBarWrapper: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 10,
+    borderRadius: 32,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    overflow: 'hidden',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 14,
+    elevation: 6,
+  },
+  inputFieldWrap: {
+    flex: 1,
+    minHeight: 48,
+    justifyContent: 'center',
+    borderRadius: 24,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 2,
+  },
+  textInput: {
+    fontSize: 15,
+    lineHeight: 22,
+    maxHeight: 120,
+    paddingTop: Platform.OS === 'ios' ? 10 : 8,
+    paddingBottom: Platform.OS === 'ios' ? 10 : 8,
+  },
   sendBtn: {
     borderRadius: 24,
     overflow: 'hidden',
     width: 48,
     height: 48,
+    flexShrink: 0,
     shadowColor: '#0D9488',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,

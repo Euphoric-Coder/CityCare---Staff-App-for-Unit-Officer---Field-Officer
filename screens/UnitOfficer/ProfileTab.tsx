@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Image,
   Modal,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -70,15 +71,15 @@ function getRoleBadgeStyle(role: string, isDark: boolean) {
     normalizedRole === 'admin'
   ) {
     return {
-      bg: isDark ? '#164E6380' : '#CFFAFE',
+      bg: isDark ? '#083344' : '#CFFAFE',
       text: isDark ? '#22D3EE' : '#0891B2',
-      border: isDark ? '#0891B240' : '#A5F3FC',
+      border: isDark ? 'rgba(34,211,238,0.28)' : '#A5F3FC',
     };
   }
   return {
-    bg: isDark ? '#08334480' : '#E0F2FE',
+    bg: isDark ? '#0C4A6E' : '#E0F2FE',
     text: isDark ? '#38BDF8' : '#0284C7',
-    border: isDark ? '#0284C740' : '#BAE6FD',
+    border: isDark ? 'rgba(56,189,248,0.28)' : '#BAE6FD',
   };
 }
 
@@ -99,7 +100,7 @@ function InfoRow({ icon, label, value, last, iconBg }: InfoRowProps) {
       <View className="flex-row items-center gap-3.5 py-4">
         <View
           style={{ backgroundColor: iconBg || (isDark ? '#1E293B' : '#F1F5F9') }}
-          className="h-10 w-10 items-center justify-center rounded-xl shadow-sm">
+          className="h-10 w-10 items-center justify-center rounded-xl">
           {icon}
         </View>
         <View className="flex-1">
@@ -383,11 +384,14 @@ export default function ProfileTab({
 
             {/* Role badge */}
             <View
-              className="mt-6 flex-row items-center gap-1.5 rounded-full border px-4 py-2 shadow-lg"
-              style={{
-                backgroundColor: roleBadge.bg,
-                borderColor: roleBadge.border,
-              }}>
+              className="mt-6 flex-row items-center gap-1.5 rounded-full border px-4 py-2"
+              style={[
+                {
+                  backgroundColor: roleBadge.bg,
+                  borderColor: roleBadge.border,
+                },
+                Platform.OS === 'ios' && styles.roleBadgeIosShadow,
+              ]}>
               <BadgeCheck color={roleBadge.text} size={14} strokeWidth={2.5} />
               <Text
                 className="text-[11px] font-black uppercase tracking-wider"
@@ -417,16 +421,22 @@ export default function ProfileTab({
               ].map((stat, idx) => (
                 <View
                   key={idx}
-                  className="flex-1 items-center rounded-[24px] border py-4 shadow-sm"
+                  className="flex-1 items-center justify-center rounded-[24px] border px-2 py-4"
                   style={{
-                    backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.2)',
-                    borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.3)',
+                    backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.2)',
+                    borderColor: isDark ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.35)',
+                    elevation: 0,
                   }}>
-                  <View className="mb-2 flex-row items-center gap-1.5">
+                  <View className="mb-1.5 flex-row items-center justify-center gap-1.5">
                     {stat.icon}
                     <Text className="text-[19px] font-black text-white">{stat.value}</Text>
                   </View>
-                  <Text className="text-[10px] font-black uppercase tracking-[1.5px] text-cyan-50/80 dark:text-cyan-200/60">
+                  <Text
+                    numberOfLines={1}
+                    style={{
+                      color: isDark ? 'rgba(165, 243, 252, 0.78)' : 'rgba(236, 254, 255, 0.92)',
+                    }}
+                    className="text-[10px] font-black uppercase tracking-[1.3px]">
                     {stat.label}
                   </Text>
                 </View>
@@ -444,7 +454,7 @@ export default function ProfileTab({
                 Work Identity
               </Text>
             </View>
-            <View className="overflow-hidden rounded-[32px] border border-slate-200 bg-white px-5 shadow-sm dark:border-cyan-900/30 dark:bg-slate-900/80">
+            <View className="overflow-hidden rounded-[32px] border border-slate-200 bg-white px-5 shadow-sm dark:border-cyan-900/30 dark:bg-slate-900">
               <InfoRow
                 icon={<Building2 color={isDark ? '#22D3EE' : '#0891B2'} size={18} />}
                 label="Department"
@@ -481,7 +491,7 @@ export default function ProfileTab({
                 Personal Performance
               </Text>
             </View>
-            <View className="overflow-hidden rounded-[32px] border border-slate-200 bg-white px-5 shadow-sm dark:border-cyan-900/30 dark:bg-slate-900/80">
+            <View className="overflow-hidden rounded-[32px] border border-slate-200 bg-white px-5 shadow-sm dark:border-cyan-900/30 dark:bg-slate-900">
               <InfoRow
                 icon={<CheckCircle2 color={isDark ? '#22D3EE' : '#0891B2'} size={18} />}
                 label="Verified Issues"
@@ -530,7 +540,7 @@ export default function ProfileTab({
                 Team Performance
               </Text>
             </View>
-            <View className="overflow-hidden rounded-[32px] border border-slate-200 bg-white px-5 shadow-sm dark:border-cyan-900/30 dark:bg-slate-900/80">
+            <View className="overflow-hidden rounded-[32px] border border-slate-200 bg-white px-5 shadow-sm dark:border-cyan-900/30 dark:bg-slate-900">
               <InfoRow
                 icon={<CheckCircle2 color={isDark ? '#22D3EE' : '#0891B2'} size={18} />}
                 label="Team Resolved Issues"
@@ -585,7 +595,7 @@ export default function ProfileTab({
                 Quality Metrics
               </Text>
             </View>
-            <View className="overflow-hidden rounded-[32px] border border-slate-200 bg-white px-5 shadow-sm dark:border-cyan-900/30 dark:bg-slate-900/80">
+            <View className="overflow-hidden rounded-[32px] border border-slate-200 bg-white px-5 shadow-sm dark:border-cyan-900/30 dark:bg-slate-900">
               <InfoRow
                 icon={<XCircle color={isDark ? '#F87171' : '#DC2626'} size={18} />}
                 label="Rework Rate"
@@ -622,7 +632,7 @@ export default function ProfileTab({
                 Account Settings
               </Text>
             </View>
-            <View className="overflow-hidden rounded-[32px] border border-slate-200 bg-white px-5 shadow-sm dark:border-cyan-900/30 dark:bg-slate-900/80">
+            <View className="overflow-hidden rounded-[32px] border border-slate-200 bg-white px-5 shadow-sm dark:border-cyan-900/30 dark:bg-slate-900">
               <InfoRow
                 icon={<UserIcon color={isDark ? '#22D3EE' : '#0891B2'} size={18} />}
                 label="Full Name"
@@ -686,7 +696,7 @@ export default function ProfileTab({
                 Support & Info
               </Text>
             </View>
-            <View className="overflow-hidden rounded-[32px] border border-slate-200 bg-white dark:border-cyan-900/30 dark:bg-slate-900/80">
+            <View className="overflow-hidden rounded-[32px] border border-slate-200 bg-white dark:border-cyan-900/30 dark:bg-slate-900">
               <TouchableOpacity
                 activeOpacity={0.7}
                 onPress={() => Alert.alert('App Version', 'CityCare v1.3.0\n\nBuild: 2026.04.18')}
@@ -905,5 +915,11 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: '#FFFFFF',
     letterSpacing: 1,
+  },
+  roleBadgeIosShadow: {
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.14,
+    shadowRadius: 12,
   },
 });

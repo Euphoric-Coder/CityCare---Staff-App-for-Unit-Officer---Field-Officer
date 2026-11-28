@@ -263,7 +263,7 @@ export const verifyIssue = mutation({
   },
 
   handler: async (ctx, args) => {
-    await requireApprovedUnitOfficer(ctx, args.unitOfficerUserId);
+    await requireApprovedUnitOfficer(ctx, args.verifiedBy);
     const issue = await ctx.db.get(args.issueId);
     if (!issue) throw new Error('Issue not found');
 
